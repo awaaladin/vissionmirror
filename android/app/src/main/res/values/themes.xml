@@ -1,0 +1,16 @@
+<resources>
+    <!-- Window background matches the ground so there is no flash before Compose draws. -->
+    <style name="Theme.VisionMirror" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ink</item>
+        <item name="android:colorBackground">@color/ink</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- System splash (Android 12+ native, backported by core-splashscreen): ground + the brand mark. -->
+    <style name="Theme.VisionMirror.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ink</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>
+        <item name="postSplashScreenTheme">@style/Theme.VisionMirror</item>
+    </style>
+</resources>

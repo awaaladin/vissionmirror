@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Minimal halo over a mirror oval. Everything sits inside the 66 dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft outer glow ring -->
+    <path
+        android:pathData="M54,23.5 a30.5,30.5 0 1,1 -0.01,0 z"
+        android:strokeColor="#40E0A458"
+        android:strokeWidth="3" />
+
+    <!-- The halo: brass to champagne -->
+    <path
+        android:pathData="M54,28 a26,26 0 1,1 -0.01,0 z"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="28" android:startY="28"
+                android:endX="80" android:endY="80"
+                android:type="linear">
+                <item android:offset="0" android:color="#F5D9A0" />
+                <item android:offset="1" android:color="#E0A458" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- The mirror oval -->
+    <path
+        android:pathData="M54,39 C46.5,39 43,46 43,54 C43,62 46.5,69 54,69 C61.5,69 65,62 65,54 C65,46 61.5,39 54,39 z"
+        android:strokeColor="#EFE9DD"
+        android:strokeWidth="3"
+        android:strokeLineJoin="round" />
+
+    <!-- Highlight on the glass -->
+    <path
+        android:pathData="M48.8,48 C49.6,45.8 51.2,44.3 53.2,43.8"
+        android:strokeColor="#EFE9DD"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round" />
+</vector>

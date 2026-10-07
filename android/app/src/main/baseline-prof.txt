@@ -1,0 +1,34 @@
+# Hand-written Baseline Profile: the classes and hot methods on the cold-start path (splash -> first frame
+# of Onboarding/Mirror) and the per-frame paths (Halo drawing, press feedback, Compose runtime).
+# `androidx.profileinstaller` installs it on first run. Regenerate with a Macrobenchmark
+# BaselineProfileRule on a real device before release for a measured profile (see android/RELEASE.md).
+
+# App entry
+HSPLai/visionmirror/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLai/visionmirror/MainActivity;-><init>()V
+HSPLai/visionmirror/VisionMirrorApp;-><init>()V
+HSPLai/visionmirror/app/**->*(**)**
+HSPLai/visionmirror/data/settings/**->*(**)**
+
+# Design system: touched on every frame of every screen
+HSPLai/visionmirror/design/halo/**->*(**)**
+HSPLai/visionmirror/design/tokens/**->*(**)**
+HSPLai/visionmirror/design/components/**->*(**)**
+HSPLai/visionmirror/design/icons/**->*(**)**
+Lai/visionmirror/design/**;
+
+# Screens and view models on the main path
+HSPLai/visionmirror/onboarding/**->*(**)**
+HSPLai/visionmirror/mirror/**->*(**)**
+HSPLai/visionmirror/session/**->*(**)**
+HSPLai/visionmirror/guidance/**->*(**)**
+HSPLai/visionmirror/ui/**->*(**)**
+HSPLai/visionmirror/audio/**->*(**)**
+HSPLai/visionmirror/haptics/**->*(**)**
+
+# Compose + Navigation + Material motion runtime, warmed so the first transition is not janky
+HSPLandroidx/compose/runtime/**->*(**)**
+HSPLandroidx/compose/ui/graphics/**->*(**)**
+HSPLandroidx/compose/animation/core/**->*(**)**
+HSPLandroidx/compose/foundation/**->*(**)**
+HSPLandroidx/navigation/compose/**->*(**)**

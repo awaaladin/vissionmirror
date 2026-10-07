@@ -1,0 +1,36 @@
+# Render Blueprint: one click deploys the API plus its Redis (Key Value) store.
+# Dashboard: New + > Blueprint > pick this repository. See docs/deploy.md.
+services:
+  - type: web
+    name: visionmirror-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /v1/health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true # Render creates a long random value and keeps it
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: visionmirror-redis
+          property: connectionString
+      - key: VISION_PROVIDER
+        value: gemini # or "anthropic", then also set ANTHROPIC_API_KEY
+      - key: GEMINI_API_KEY
+        sync: false # you paste this in the dashboard; never commit it
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: TRUST_PROXY_HEADERS
+        value: "true" # Render's proxy sets X-Forwarded-For; needed for correct per-IP limits
+      - key: CORS_ORIGINS
+        sync: false # your frontend's exact origin, e.g. https://visionmirror.vercel.app (leave empty for none)
+      - key: DAILY_AI_CALL_LIMIT
+        value: "300"
+
+  - type: keyvalue
+    name: visionmirror-redis
+    plan: free
+    ipAllowList: [] # internal connections only; not reachable from the internet
+    maxmemoryPolicy: noeviction
