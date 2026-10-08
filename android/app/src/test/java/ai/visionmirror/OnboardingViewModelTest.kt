@@ -1,4 +1,4 @@
-package ai.visionmirror
+﻿package ai.visionmirror
 
 import ai.visionmirror.app.Spoken
 import ai.visionmirror.audio.VoiceEvent
@@ -116,6 +116,7 @@ class OnboardingViewModelTest {
         permissions.mic = true
         val vm = vm()
         vm.onEnter()
+        advanceUntilIdle() // let the view model start collecting speech events first
         speaker.finishLast()
         advanceTimeBy(600)
         assertEquals("listens after the queue goes quiet", 1, voice.starts)

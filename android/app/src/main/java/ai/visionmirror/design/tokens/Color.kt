@@ -1,4 +1,4 @@
-package ai.visionmirror.design.tokens
+﻿package ai.visionmirror.design.tokens
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -44,7 +44,7 @@ val VmDarkColors = VmColors(
     brass = Color(0xFFE0A458),
     champagne = Color(0xFFF5D9A0),
     quartz = Color(0xFFF2A8B8),
-    ember = Color(0xFFFF7A59),
+    ember = Color(0xFFFF8A6B),
     onBrass = Color(0xFF0C0D10),
     shadowTint = Color(0xFF05060A),
     isHighContrast = false,
@@ -63,8 +63,8 @@ val VmLightColors = VmColors(
     boneMuted = Color(0xFF4A4438),
     brass = Color(0xFF5F3A06),
     champagne = Color(0xFF77490A),
-    quartz = Color(0xFF9A2F52),
-    ember = Color(0xFF9E2C12),
+    quartz = Color(0xFF8C2848),
+    ember = Color(0xFF922710),
     onBrass = Color(0xFFFBF8F1),
     shadowTint = Color(0xFF3A2E1A),
     isHighContrast = false,

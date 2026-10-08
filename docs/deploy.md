@@ -18,6 +18,16 @@ Goal: a public **HTTPS** URL the Android app can call. Render is the easiest pat
 2. **Create a fresh Gemini key** at https://aistudio.google.com/apikey and delete the one pasted into earlier chats.
 3. Decide your frontend origin (the web app's exact URL, e.g. `https://visionmirror.vercel.app`). The Android app does not need this.
 
+## Deploy on Vercel (what this project currently uses)
+
+Vercel runs the API as a serverless function, so it needs an **external Redis** (it cannot host one). Use a free Upstash Redis (Vercel Marketplace, or console.upstash.com) and give the API its `rediss://` URL as `REDIS_URL`.
+
+- Project root directory: `backend`. Entrypoint: `backend/index.py`. Settings: `backend/vercel.json` (60 s function limit, since describe takes 10-15 s) and `backend/.python-version` (3.12).
+- Vercel rejects request bodies over **4.5 MB**, so set `MAX_IMAGE_BYTES=4000000` there. The Android app sends about 0.5 MB, so this never matters in practice.
+- Set `TRUST_PROXY_HEADERS=true` (Vercel overwrites `X-Forwarded-For` with the real client IP).
+- Add variables with `vercel env add NAME production` (use `--sensitive` for keys). Never put the shared rentsplit Postgres URL here: this app has no SQL database, and photos must stay in Redis-with-expiry.
+- Deploy with `vercel deploy --prod` from `backend/`, then run the smoke test against the URL.
+
 ## Deploy on Render (free tier)
 
 1. Sign in at https://render.com with GitHub.
