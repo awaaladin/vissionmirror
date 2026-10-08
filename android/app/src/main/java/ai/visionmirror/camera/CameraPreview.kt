@@ -1,5 +1,6 @@
 ﻿package ai.visionmirror.camera
 
+import ai.visionmirror.data.settings.CameraFacing
 import ai.visionmirror.guidance.FaceObservation
 import ai.visionmirror.imaging.ImageProcessor
 import android.content.Context
@@ -67,6 +68,7 @@ fun CameraPreview(
     controller: CaptureController,
     onFace: (FaceObservation?) -> Unit,
     modifier: Modifier = Modifier,
+    facing: CameraFacing = CameraFacing.Front,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -78,9 +80,9 @@ fun CameraPreview(
         }
     }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
-    val analyzer = remember { FaceAnalyzer { currentOnFace.value(it) } }
+    val analyzer = remember(facing) { FaceAnalyzer(mirror = facing == CameraFacing.Front) { currentOnFace.value(it) } }
 
-    LaunchedEffect(lifecycleOwner) {
+    LaunchedEffect(lifecycleOwner, analyzer) {
         val provider = ProcessCameraProvider.awaitInstance(context)
         val ratio = ResolutionSelector.Builder()
             .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
@@ -98,13 +100,18 @@ fun CameraPreview(
             .build()
         controller.imageCapture = capture
         provider.unbindAll()
-        provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis, capture)
+        val selector = if (facing == CameraFacing.Front) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+        // A phone with only one camera cannot switch: fall back to whichever it has rather than crash.
+        val usable = if (provider.hasCamera(selector)) selector else {
+            if (facing == CameraFacing.Front) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
+        }
+        provider.bindToLifecycle(lifecycleOwner, usable, preview, analysis, capture)
     }
 
+    DisposableEffect(analyzer) { onDispose { analyzer.close() } }
     DisposableEffect(Unit) {
         onDispose {
             controller.imageCapture = null
-            analyzer.close()
             analysisExecutor.shutdown()
         }
     }

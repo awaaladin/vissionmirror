@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     mock_scenario: Literal["outfit", "stain", "clash", "dark", ""] = ""
 
     token_ttl_seconds: int = 24 * 3600
+    # Signed-in accounts stay signed in longer: typing a password again is hard without sight.
+    user_token_ttl_seconds: int = 30 * 24 * 3600
+    # Postgres connection string for accounts. Empty = accounts off (guest mode still works).
+    database_url: str | None = None
     session_ttl_seconds: int = 600
     max_image_bytes: int = 5 * 1024 * 1024
 
@@ -32,6 +36,9 @@ class Settings(BaseSettings):
     rate_ask_device_per_min: int = 20
     rate_ask_ip_per_min: int = 60
     rate_auth_ip_per_min: int = 20  # token minting is free, so it is limited per IP only
+    rate_account_ip_per_min: int = 10  # sign up / sign in / account calls, per IP
+    login_max_failures: int = 8  # wrong passwords per email before it is locked for login_lock_seconds
+    login_lock_seconds: int = 900
 
     # Global ceiling on AI calls (describe + ask) per UTC day, so a demo can't run up a bill.
     daily_ai_call_limit: int = 500

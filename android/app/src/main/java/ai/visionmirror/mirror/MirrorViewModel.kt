@@ -8,6 +8,8 @@ import ai.visionmirror.audio.Speaker
 import ai.visionmirror.audio.say
 import ai.visionmirror.camera.CaptureController
 import ai.visionmirror.camera.CapturedPhoto
+import ai.visionmirror.data.settings.CameraFacing
+import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.guidance.FaceObservation
 import ai.visionmirror.guidance.Guidance
 import ai.visionmirror.guidance.MirrorCoach
@@ -37,6 +39,9 @@ data class MirrorUiState(
     val countdown: Int? = null,
     val capturing: Boolean = false,
     val caption: String = "Hold the phone at arm's length, facing you.",
+    /** Guidance and the countdown are on hold; the camera stays live and she can still take the photo. */
+    val paused: Boolean = false,
+    val facing: CameraFacing = CameraFacing.Front,
 )
 
 sealed interface MirrorEvent {
@@ -55,6 +60,7 @@ class MirrorViewModel @Inject constructor(
     private val haptics: Haptics,
     private val earcons: Earcons,
     private val keys: HardwareKeys,
+    private val settingsStore: SettingsStore,
 ) : ViewModel() {
 
     val captureController = CaptureController()
@@ -78,6 +84,46 @@ class MirrorViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { keys.volume.collect { if (active) onTap() } }
+        // The chosen camera is a saved setting, so it is still there next time she opens the app.
+        viewModelScope.launch {
+            settingsStore.settings.collect { s -> _state.update { it.copy(facing = s.cameraFacing) } }
+        }
+    }
+
+    /** Pause or resume the spoken guidance and auto-capture. The preview stays on and she can still take the photo. */
+    fun togglePause() {
+        val nowPaused = synchronized(lock) {
+            if (!active || capturing) return
+            val p = !_state.value.paused
+            if (p) {
+                cancelCountdownLocked()
+                _state.update { it.copy(paused = true, countdown = null, caption = "Paused. Tap Resume, or take the photo now.") }
+            } else {
+                coach.reset()
+                autoSuppressed = false
+                _state.update { it.copy(paused = false, caption = "Hold the phone at arm's length, facing you.") }
+            }
+            p
+        }
+        earcons.play(if (nowPaused) Earcon.ListeningOff else Earcon.Ready)
+        speaker.say(if (nowPaused) "Paused." else "Guiding again.", Priority.Interrupt)
+    }
+
+    /** Switch between the front and back camera. The choice is saved. */
+    fun flipCamera() {
+        val next = if (_state.value.facing == CameraFacing.Front) CameraFacing.Back else CameraFacing.Front
+        synchronized(lock) {
+            if (capturing) return
+            cancelCountdownLocked()
+            coach.reset()
+            autoSuppressed = false
+            _state.update { it.copy(facing = next, faceVisible = false, guidance = null, quality = 0f) }
+        }
+        viewModelScope.launch { settingsStore.update { it.copy(cameraFacing = next) } }
+        speaker.say(
+            if (next == CameraFacing.Back) "Using the back camera." else "Using the front camera.",
+            Priority.Interrupt,
+        )
     }
 
     /** Screen is visible and camera is live. */
@@ -87,7 +133,7 @@ class MirrorViewModel @Inject constructor(
         capturing = false
         autoSuppressed = false
         coach.reset()
-        _state.value = MirrorUiState()
+        _state.value = MirrorUiState(facing = _state.value.facing)
         speaker.say("I'll guide you. Hold the phone at arm's length, facing you.", Priority.Interrupt)
         proximityJob?.cancel()
         proximityJob = viewModelScope.launch {
@@ -96,7 +142,7 @@ class MirrorViewModel @Inject constructor(
                 delay(proximityIntervalMs(s.quality))
                 val now = _state.value
                 // Ticks speed up as she gets closer; they stop once it is perfect (the countdown takes over).
-                if (active && now.faceVisible && now.guidance?.good == false) haptics.proximity(now.quality)
+                if (active && !now.paused && now.faceVisible && now.guidance?.good == false) haptics.proximity(now.quality)
             }
         }
     }
@@ -113,7 +159,7 @@ class MirrorViewModel @Inject constructor(
     /** Called from the camera analysis thread for every frame. */
     fun onFace(face: FaceObservation?) {
         val out = synchronized(lock) {
-            if (!active || capturing) return
+            if (!active || capturing || _state.value.paused) return
             val o = coach.update(face, System.currentTimeMillis())
             _state.update {
                 it.copy(

@@ -11,6 +11,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -37,6 +40,9 @@ fun VisionMirrorTheme(
     themeMode: ThemeMode = ThemeMode.Dark,
     highContrast: Boolean = false,
     reduceMotion: Boolean = false,
+    fontChoice: FontChoice = FontChoice.Hyperlegible,
+    /** Multiplies the phone's font size setting, so the reader can go bigger (or smaller) than the system. */
+    textScale: Float = 1.0f,
     haptics: Haptics = NoopHaptics,
     content: @Composable () -> Unit,
 ) {
@@ -84,9 +90,14 @@ fun VisionMirrorTheme(
         }
     }
 
+    val system = LocalDensity.current
+    val density = remember(system, textScale) { Density(system.density, system.fontScale * textScale) }
+    val type = remember(fontChoice) { vmTypeFor(fontChoice.family) }
+
     CompositionLocalProvider(
+        LocalDensity provides density,
         LocalVmColors provides colors,
-        LocalVmType provides DefaultVmType,
+        LocalVmType provides type,
         LocalReduceMotion provides effectiveReduce,
         LocalHaptics provides haptics,
     ) {

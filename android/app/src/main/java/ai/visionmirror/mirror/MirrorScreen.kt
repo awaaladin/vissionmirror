@@ -1,6 +1,7 @@
 package ai.visionmirror.mirror
 
 import ai.visionmirror.camera.CameraPreview
+import ai.visionmirror.data.settings.CameraFacing
 import ai.visionmirror.design.components.IconAction
 import ai.visionmirror.design.components.MirrorFrame
 import ai.visionmirror.design.components.PermissionCard
@@ -122,9 +123,12 @@ fun MirrorScreen(
         val capturing by stateHolder.select { it.capturing }
         val faceVisible by stateHolder.select { it.faceVisible }
         val good by stateHolder.select { it.guidance?.good == true }
+        val paused by stateHolder.select { it.paused }
+        val facing by stateHolder.select { it.facing }
 
         val haloState = when {
             capturing -> HaloState.Analysing
+            paused -> HaloState.Idle
             countdown != null || good -> HaloState.Ready
             faceVisible -> HaloState.Guiding
             else -> HaloState.Idle
@@ -143,6 +147,16 @@ fun MirrorScreen(
                     modifier = Modifier.sharedHalo().size(88.dp),
                 )
                 Box(Modifier.weight(1f))
+                IconAction(
+                    VmIcons.Flip,
+                    if (facing == CameraFacing.Front) "Switch to the back camera" else "Switch to the front camera",
+                    viewModel::flipCamera,
+                )
+                IconAction(
+                    if (paused) VmIcons.Play else VmIcons.Pause,
+                    if (paused) "Resume guidance" else "Pause guidance",
+                    viewModel::togglePause,
+                )
                 IconAction(VmIcons.Settings, "Settings", onOpenSettings)
             }
 
@@ -157,6 +171,7 @@ fun MirrorScreen(
                     CameraPreview(
                         controller = viewModel.captureController,
                         onFace = viewModel::onFace,
+                        facing = facing,
                     )
                     countdown?.let { n -> Countdown(n) }
                 }

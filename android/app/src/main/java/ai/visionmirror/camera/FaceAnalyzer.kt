@@ -13,6 +13,8 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
  * Reports the largest face in preview space (upright and mirrored), or null when there is none.
  */
 class FaceAnalyzer(
+    /** True for the front camera, whose preview is a mirror image. The back camera is not mirrored. */
+    private val mirror: Boolean = true,
     private val onResult: (FaceObservation?) -> Unit,
 ) : ImageAnalysis.Analyzer {
 
@@ -43,7 +45,7 @@ class FaceAnalyzer(
                     val b = it.boundingBox
                     FaceObservation.fromBox(
                         b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(),
-                        w, h, mirror = true, // front camera only
+                        w, h, mirror = mirror,
                     )
                 }
                 onResult(FaceObservation.largest(boxes))

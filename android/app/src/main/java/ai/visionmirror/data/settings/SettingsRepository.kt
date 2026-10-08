@@ -1,6 +1,7 @@
 package ai.visionmirror.data.settings
 
 import ai.visionmirror.data.api.DetailLevel
+import ai.visionmirror.design.tokens.FontChoice
 import ai.visionmirror.design.tokens.ThemeMode
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -18,6 +19,9 @@ import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+/** Which camera the Mirror uses. The front camera is the default: she can see the preview. */
+enum class CameraFacing(val label: String) { Front("Front"), Back("Back") }
+
 /** Everything in Settings. Defaults are chosen for a first-time blind user. */
 data class Settings(
     val onboardingDone: Boolean = false,
@@ -30,6 +34,12 @@ data class Settings(
     val reduceMotion: Boolean = false,
     /** After the result is read, listen briefly for "ask", "retake", "repeat". */
     val voiceCommands: Boolean = true,
+    /** Multiplies the phone's own font size setting. 1.0 = follow the phone exactly. */
+    val textScale: Float = 1.0f,
+    val fontChoice: FontChoice = FontChoice.Hyperlegible,
+    val cameraFacing: CameraFacing = CameraFacing.Front,
+    /** Unlocked by tapping the version line seven times; shows the Developer tools. */
+    val developerMode: Boolean = false,
 )
 
 interface SettingsStore {
@@ -52,6 +62,10 @@ class DataStoreSettings @Inject constructor(
         val highContrast = booleanPreferencesKey("high_contrast")
         val reduceMotion = booleanPreferencesKey("reduce_motion")
         val voiceCommands = booleanPreferencesKey("voice_commands")
+        val textScale = floatPreferencesKey("text_scale")
+        val fontChoice = stringPreferencesKey("font_choice")
+        val cameraFacing = stringPreferencesKey("camera_facing")
+        val developerMode = booleanPreferencesKey("developer_mode")
     }
 
     private fun Preferences.toSettings(): Settings {
@@ -66,6 +80,10 @@ class DataStoreSettings @Inject constructor(
             highContrast = this[Keys.highContrast] ?: d.highContrast,
             reduceMotion = this[Keys.reduceMotion] ?: d.reduceMotion,
             voiceCommands = this[Keys.voiceCommands] ?: d.voiceCommands,
+            textScale = (this[Keys.textScale] ?: d.textScale).coerceIn(MIN_TEXT_SCALE, MAX_TEXT_SCALE),
+            fontChoice = FontChoice.entries.firstOrNull { it.name == this[Keys.fontChoice] } ?: d.fontChoice,
+            cameraFacing = CameraFacing.entries.firstOrNull { it.name == this[Keys.cameraFacing] } ?: d.cameraFacing,
+            developerMode = this[Keys.developerMode] ?: d.developerMode,
         )
     }
 
@@ -84,6 +102,15 @@ class DataStoreSettings @Inject constructor(
             p[Keys.highContrast] = s.highContrast
             p[Keys.reduceMotion] = s.reduceMotion
             p[Keys.voiceCommands] = s.voiceCommands
+            p[Keys.textScale] = s.textScale.coerceIn(MIN_TEXT_SCALE, MAX_TEXT_SCALE)
+            p[Keys.fontChoice] = s.fontChoice.name
+            p[Keys.cameraFacing] = s.cameraFacing.name
+            p[Keys.developerMode] = s.developerMode
         }
+    }
+
+    companion object {
+        const val MIN_TEXT_SCALE = 0.8f
+        const val MAX_TEXT_SCALE = 2.0f
     }
 }

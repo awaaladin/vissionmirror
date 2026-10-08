@@ -40,18 +40,55 @@ class RateLimiter:
         # Never store raw IPs or device IDs in Redis keys.
         return hmac.new(self.secret, value.encode(), hashlib.sha256).hexdigest()[:20]
 
-    async def check(self, scope: str, kind: str, ident: str, limit: int) -> int | None:
+    async def check(
+        self, scope: str, kind: str, ident: str, limit: int, window: int = WINDOW_SECONDS
+    ) -> int | None:
         """Count one hit. Returns seconds until the window resets if over the limit, else None."""
         now = int(self.clock())
-        key = f"rl:{scope}:{kind}:{self._ident(ident)}:{now // WINDOW_SECONDS}"
+        key = f"rl:{scope}:{kind}:{self._ident(ident)}:{now // window}"
         async with self.redis.pipeline(transaction=True) as pipe:
             pipe.incr(key)
-            pipe.expire(key, WINDOW_SECONDS + 1)
+            pipe.expire(key, window + 1)
             count, _ = await pipe.execute()
         if count > limit:
             log.warning("rate limit hit", extra={"ctx": {"scope": scope, "by": kind}})
-            return WINDOW_SECONDS - (now % WINDOW_SECONDS)
+            return window - (now % window)
         return None
+
+
+class LoginThrottle:
+    """Slows password guessing: after too many wrong passwords an email is locked for a while.
+
+    Counts failures only, keyed by a one-way hash of the email, so it also protects accounts that do
+    not exist from being probed, without revealing which emails are registered.
+    """
+
+    def __init__(self, redis: Redis, secret: str, max_failures: int, lock_seconds: int):
+        self.redis = redis
+        self.secret = secret.encode()
+        self.max_failures = max_failures
+        self.lock_seconds = lock_seconds
+
+    def _key(self, email: str) -> str:
+        return "login_fail:" + hmac.new(self.secret, email.lower().encode(), hashlib.sha256).hexdigest()[:24]
+
+    async def locked_for(self, email: str) -> int | None:
+        """Seconds left on the lock, or None if the email may try."""
+        key = self._key(email)
+        count = await self.redis.get(key)
+        if count is not None and int(count) >= self.max_failures:
+            return max(1, await self.redis.ttl(key))
+        return None
+
+    async def failed(self, email: str) -> None:
+        key = self._key(email)
+        async with self.redis.pipeline(transaction=True) as pipe:
+            pipe.incr(key)
+            pipe.expire(key, self.lock_seconds)
+            await pipe.execute()
+
+    async def succeeded(self, email: str) -> None:
+        await self.redis.delete(self._key(email))
 
 
 class DailyCap:
@@ -113,6 +150,7 @@ async def enforce(request: Request, scope: str, device_id: str | None, settings:
         "describe": (s.rate_describe_device_per_min, s.rate_describe_ip_per_min),
         "ask": (s.rate_ask_device_per_min, s.rate_ask_ip_per_min),
         "auth": (None, s.rate_auth_ip_per_min),
+        "account": (None, s.rate_account_ip_per_min),
     }
     device_limit, ip_limit = limits[scope]
     waits = []
@@ -135,3 +173,7 @@ def limited(scope: str):
 
 async def limit_auth(request: Request) -> None:
     await enforce(request, "auth", None, request.app.state.settings)
+
+
+async def limit_account(request: Request) -> None:
+    await enforce(request, "account", None, request.app.state.settings)

@@ -34,6 +34,8 @@ fun VisionMirrorRoot(
         themeMode = settings.themeMode,
         highContrast = settings.highContrast,
         reduceMotion = settings.reduceMotion,
+        fontChoice = settings.fontChoice,
+        textScale = settings.textScale,
         haptics = haptics,
     ) {
         AppNav(rememberNavController(), start, session, speech, haptics, earcons)

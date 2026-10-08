@@ -100,11 +100,17 @@ object VmIcons {
         "M8 11v.01", "M10.5 7.5v.01", "M14.5 7.5v.01",
     )
 
+    /** Switch between the front and back camera. */
+    val Flip = icon("Flip", "M4.5 8.5h13", "M14 5l3.5 3.5L14 12", "M19.5 15.5h-13", "M10 12l-3.5 3.5L10 19")
+    val TextSize = icon("TextSize", "M3.5 19L8 7l4.5 12", "M5 15h6", "M15.5 19l2.5-6 2.5 6", "M16.3 17h3.4")
+    val Person = icon("Person", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M4.5 20c.8-3.6 3.7-5.5 7.5-5.5s6.7 1.9 7.5 5.5")
+    val Tool = icon("Tool", "M14.5 6.5a4 4 0 0 0 4.8 4.8L9 21.5l-6.5-6.5L14 3.5", "M16 4l4 4")
+
     /** Everything, for the Design Lab. */
     val all: List<ImageVector> by lazy {
         listOf(
             Mirror, Play, Pause, Repeat, Retake, Capture, Mic, Ask, Settings, Check, Close, Back,
-            Warning, Detail, Outfit, Speaker, Lock, Offline, Info, Palette,
+            Warning, Detail, Outfit, Speaker, Lock, Offline, Info, Palette, Flip, TextSize, Person, Tool,
         )
     }
 }

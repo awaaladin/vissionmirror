@@ -10,7 +10,9 @@ import ai.visionmirror.onboarding.OnboardingScreen
 import ai.visionmirror.session.AnalysingScreen
 import ai.visionmirror.session.ResultScreen
 import ai.visionmirror.session.SessionViewModel
+import ai.visionmirror.developer.DeveloperScreen
 import ai.visionmirror.settings.SettingsScreen
+import ai.visionmirror.settings.VoicePickerScreen
 import ai.visionmirror.ui.LocalNavAnimatedScope
 import ai.visionmirror.ui.LocalSharedTransitionScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -32,6 +34,8 @@ object Routes {
     const val RESULT = "result"
     const val SETTINGS = "settings"
     const val LAB = "lab"
+    const val VOICES = "voices"
+    const val DEVELOPER = "developer"
 }
 
 /**
@@ -97,6 +101,16 @@ fun AppNav(
                     SettingsScreen(
                         session = session,
                         speaker = speech,
+                        onBack = { nav.popBackStack() },
+                        onOpenVoices = { nav.navigate(Routes.VOICES) },
+                        onOpenDeveloper = { nav.navigate(Routes.DEVELOPER) },
+                    )
+                }
+                screen(Routes.VOICES) {
+                    VoicePickerScreen(onBack = { nav.popBackStack() })
+                }
+                screen(Routes.DEVELOPER) {
+                    DeveloperScreen(
                         onBack = { nav.popBackStack() },
                         onOpenLab = { nav.navigate(Routes.LAB) },
                     )
