@@ -2,3 +2,5 @@
 sdk.dir=C\:\Users\YOU\AppData\Local\Android\Sdk
 # Emulator -> host machine is 10.0.2.2. Use your LAN IP or deployed URL for a real phone. Trailing slash required.
 API_BASE_URL=http://10.0.2.2:8000/
+# Release builds always use this (must be https://). Defaults to the production backend.
+API_BASE_URL_RELEASE=https://visionmirror-api.vercel.app/

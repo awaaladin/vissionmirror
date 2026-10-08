@@ -18,7 +18,14 @@ Goal: a public **HTTPS** URL the Android app can call. Render is the easiest pat
 2. **Create a fresh Gemini key** at https://aistudio.google.com/apikey and delete the one pasted into earlier chats.
 3. Decide your frontend origin (the web app's exact URL, e.g. `https://visionmirror.vercel.app`). The Android app does not need this.
 
-## Deploy on Vercel (what this project currently uses)
+## Live deployment
+
+- **API:** https://visionmirror-api.vercel.app (Vercel project `visionmirror-api`, team "Awa's projects"). Every push to `main` on `github.com/awaaladin/vissionmirror` redeploys it (root directory `backend`).
+- **Redis:** Upstash for Redis, resource `visionmirror-redis`, created through the Vercel Marketplace and connected to the project (it supplies `REDIS_URL`). Check its plan and usage in the Vercel dashboard under Storage / Integrations. The app uses roughly 10-15 Redis commands per request and keeps almost nothing (sessions expire after 10 minutes), so a free plan is plenty.
+- **Verify any time:** `python backend/scripts/smoke_test.py https://visionmirror-api.vercel.app --photo <a real photo>` (2 AI calls).
+- **Android:** debug builds use `API_BASE_URL` from `android/local.properties` (plain http allowed, for a local server); release builds always use `API_BASE_URL_RELEASE` (default the URL above) and refuse non-HTTPS.
+
+## Deploy on Vercel (how it was set up)
 
 Vercel runs the API as a serverless function, so it needs an **external Redis** (it cannot host one). Use a free Upstash Redis (Vercel Marketplace, or console.upstash.com) and give the API its `rediss://` URL as `REDIS_URL`.
 

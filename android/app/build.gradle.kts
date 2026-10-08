@@ -14,6 +14,9 @@ val localProps = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
 val apiBaseUrl: String = localProps.getProperty("API_BASE_URL", "http://10.0.2.2:8000/")
+// Release builds ignore API_BASE_URL (which is for debugging against a local server) and must use HTTPS.
+val releaseApiBaseUrl: String = localProps.getProperty("API_BASE_URL_RELEASE", "https://visionmirror-api.vercel.app/")
+require(releaseApiBaseUrl.startsWith("https://")) { "API_BASE_URL_RELEASE must start with https:// (got $releaseApiBaseUrl)" }
 
 // Release signing comes from keystore.properties (git-ignored; see keystore.properties.example).
 val keystoreProps = Properties().apply {
@@ -46,6 +49,7 @@ android {
 
     buildTypes {
         release {
+            buildConfigField("String", "API_BASE_URL", "\"$releaseApiBaseUrl\"")
             signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
