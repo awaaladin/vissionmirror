@@ -66,8 +66,9 @@ object NetworkModule {
         plain.newBuilder()
             .addInterceptor(BearerInterceptor(tokens))
             .authenticator(RefreshAuthenticator(tokens))
-            // Describing can take a while on a slow link; the user hears reassurance meanwhile.
-            .readTimeout(60, TimeUnit.SECONDS)
+            // The backend's describe takes ~10-15 s normally and longer if the AI provider retries; the user
+            // hears reassurance meanwhile.
+            .readTimeout(90, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
 

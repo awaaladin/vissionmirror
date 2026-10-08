@@ -14,6 +14,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 import java.io.IOException
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -60,6 +61,9 @@ class MirrorRepositoryImpl @Inject constructor(
         if (response.isSuccessful && body != null) Result.success(body) else Result.failure(mapError(response))
     } catch (e: CancellationException) {
         throw e
+    } catch (e: SocketTimeoutException) {
+        // Connected but slow (the AI can take 10-15 s): not the same as being offline.
+        Result.failure(AppError.Server("That is taking longer than I expected. Please try again."))
     } catch (e: IOException) {
         Result.failure(AppError.Offline(e))
     } catch (e: Exception) {
@@ -76,7 +80,10 @@ class MirrorRepositoryImpl @Inject constructor(
             404 -> AppError.SessionExpired(spoken ?: "That photo has expired. Let's take a new one.")
             413 -> AppError.ImageTooLarge(spoken ?: "That photo was too big. Let's take another.")
             415 -> AppError.UnsupportedImage(spoken ?: "I couldn't read that photo. Let's take another.")
-            429 -> {
+            // The service's daily AI budget is spent: retrying in a couple of minutes cannot help, so don't.
+            429 -> if (body?.code == "daily_limit_reached") {
+                AppError.Server(spoken ?: "I've reached my limit for today. Please try again tomorrow.")
+            } else {
                 val wait = response.headers()["Retry-After"]?.trim()?.toIntOrNull()
                     ?.coerceIn(1, MAX_RETRY_AFTER) ?: AppError.DEFAULT_RETRY_SECONDS
                 AppError.RateLimited(wait, spoken ?: "I'm a little busy. I'll try again in $wait seconds.")

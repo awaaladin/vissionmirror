@@ -1,4 +1,4 @@
-package ai.visionmirror
+﻿package ai.visionmirror
 
 import ai.visionmirror.data.api.AppError
 import ai.visionmirror.data.api.AuthApi
@@ -129,6 +129,36 @@ class RepositoryTest {
         assertEquals("Slow down a little.", e.spokenText)
     }
 
+    @Test fun dailyLimitIsNotTreatedAsARetryableRateLimit() = runTest {
+        describeBehaviour = {
+            err(
+                429,
+                """{"code":"daily_limit_reached","message":"m","spoken_text":"I've reached my limit for today. Please try again tomorrow."}""",
+                "Retry-After" to "40000",
+            )
+        }
+        val e = repo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull()
+        assertTrue("was $e", e is AppError.Server)
+        assertEquals("I've reached my limit for today. Please try again tomorrow.", (e as AppError.Server).spokenText)
+    }
+
+    @Test fun aSlowServerIsNotReportedAsOffline() = runTest {
+        val slowApi = object : MirrorApi {
+            override suspend fun describe(
+                image: okhttp3.MultipartBody.Part,
+                detailLevel: okhttp3.RequestBody,
+                language: okhttp3.RequestBody,
+            ): retrofit2.Response<ai.visionmirror.data.api.DescribeResponse> = throw java.net.SocketTimeoutException("read timed out")
+            override suspend fun ask(body: ai.visionmirror.data.api.AskRequest) = throw java.net.SocketTimeoutException()
+            override suspend fun deleteSession(id: String) = throw java.net.SocketTimeoutException()
+            override suspend fun health() = throw java.net.SocketTimeoutException()
+        }
+        val slowRepo = MirrorRepositoryImpl(slowApi, Json { ignoreUnknownKeys = true })
+        val e = slowRepo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull()
+        assertTrue("was $e", e is AppError.Server)
+        assertTrue(e !is AppError.Offline)
+    }
+
     @Test fun rateLimitWithoutHeaderUsesADefault() = runTest {
         describeBehaviour = { err(429, """{"code":"rate_limited","message":"m","spoken_text":""}""") }
         val e = repo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull() as AppError.RateLimited
@@ -141,7 +171,7 @@ class RepositoryTest {
         }
         val e = repo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull()
         assertTrue(e is AppError.UnsupportedImage)
-        assertEquals("I can not read that photo.", e!!.spokenText)
+        assertEquals("I can not read that photo.", (e as AppError).spokenText)
     }
 
     @Test fun missingSessionMapsToSessionExpired() = runTest {
