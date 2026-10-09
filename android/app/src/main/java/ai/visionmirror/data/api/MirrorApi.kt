@@ -15,6 +15,12 @@ import retrofit2.http.Path
 interface AuthApi {
     @POST("v1/auth/anon")
     suspend fun anon(@Body body: AnonAuthRequest): Response<TokenResponse>
+
+    @POST("v1/auth/register")
+    suspend fun register(@Body body: RegisterRequest): Response<AccountAuthResponse>
+
+    @POST("v1/auth/login")
+    suspend fun login(@Body body: LoginRequest): Response<AccountAuthResponse>
 }
 
 /** Authenticated endpoints. Responses are raw so the repository can read error bodies and headers. */
@@ -32,6 +38,10 @@ interface MirrorApi {
 
     @DELETE("v1/session/{id}")
     suspend fun deleteSession(@Path("id") id: String): Response<Unit>
+
+    /** Permanently deletes the signed-in account on the server. */
+    @DELETE("v1/auth/me")
+    suspend fun deleteAccount(): Response<Unit>
 
     @GET("v1/health")
     suspend fun health(): Response<Unit>

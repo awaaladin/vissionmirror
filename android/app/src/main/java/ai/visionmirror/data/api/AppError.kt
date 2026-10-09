@@ -27,6 +27,9 @@ sealed class AppError(val spokenText: String, cause: Throwable? = null) : Except
 
     class Server(spoken: String) : AppError(spoken)
 
+    /** The server refused what she typed (bad email, wrong password, email already used). She can fix it. */
+    class Rejected(spoken: String) : AppError(spoken)
+
     /** 422 or an unreadable body: a bug in the app, not something she can fix. */
     class Unexpected(cause: Throwable? = null) : AppError(
         "Something went wrong on my side. Please try again in a moment.",

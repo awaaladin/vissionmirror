@@ -3,7 +3,9 @@ package ai.visionmirror.di
 import ai.visionmirror.BuildConfig
 import ai.visionmirror.data.api.AuthApi
 import ai.visionmirror.data.api.MirrorApi
+import ai.visionmirror.data.auth.AccountStorage
 import ai.visionmirror.data.auth.BearerInterceptor
+import ai.visionmirror.data.auth.DataStoreAccountStorage
 import ai.visionmirror.data.auth.DeviceIdStore
 import ai.visionmirror.data.auth.PrefsDeviceIdStore
 import ai.visionmirror.data.auth.RefreshAuthenticator
@@ -95,6 +97,7 @@ object NetworkModule {
 abstract class BindingsModule {
     @Binds abstract fun repository(impl: MirrorRepositoryImpl): MirrorRepository
     @Binds abstract fun deviceIds(impl: PrefsDeviceIdStore): DeviceIdStore
+    @Binds abstract fun accountStorage(impl: DataStoreAccountStorage): AccountStorage
     @Binds abstract fun speaker(impl: SpeechManager): Speaker
     @Binds abstract fun haptics(impl: HapticsManager): Haptics
     @Binds abstract fun earcons(impl: EarconPlayer): Earcons

@@ -1,5 +1,6 @@
 package ai.visionmirror.app
 
+import ai.visionmirror.account.AuthScreen
 import ai.visionmirror.audio.EarconPlayer
 import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.design.tokens.Motion
@@ -35,6 +36,8 @@ object Routes {
     const val SETTINGS = "settings"
     const val LAB = "lab"
     const val VOICES = "voices"
+    const val AUTH = "auth"
+    const val ACCOUNT = "account"
     const val DEVELOPER = "developer"
 }
 
@@ -51,6 +54,7 @@ object Routes {
 fun AppNav(
     nav: NavHostController,
     start: String,
+    needsAuth: Boolean,
     session: SessionViewModel,
     speech: SpeechManager,
     haptics: HapticsManager,
@@ -70,9 +74,20 @@ fun AppNav(
                     OnboardingScreen(
                         speaker = speech,
                         onFinished = {
-                            nav.navigate(Routes.MIRROR) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
+                            val next = if (needsAuth) Routes.AUTH else Routes.MIRROR
+                            nav.navigate(next) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
                         },
                     )
+                }
+                screen(Routes.AUTH) {
+                    AuthScreen(
+                        firstRun = true,
+                        onDone = { nav.navigate(Routes.MIRROR) { popUpTo(Routes.AUTH) { inclusive = true } } },
+                        onBack = null,
+                    )
+                }
+                screen(Routes.ACCOUNT) {
+                    AuthScreen(firstRun = false, onDone = { nav.popBackStack() }, onBack = { nav.popBackStack() })
                 }
                 screen(Routes.MIRROR) {
                     MirrorScreen(
@@ -103,6 +118,7 @@ fun AppNav(
                         speaker = speech,
                         onBack = { nav.popBackStack() },
                         onOpenVoices = { nav.navigate(Routes.VOICES) },
+                        onOpenAccount = { nav.navigate(Routes.ACCOUNT) },
                         onOpenDeveloper = { nav.navigate(Routes.DEVELOPER) },
                     )
                 }

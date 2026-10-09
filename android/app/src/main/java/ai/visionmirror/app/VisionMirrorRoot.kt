@@ -27,8 +27,18 @@ fun VisionMirrorRoot(
 ) {
     val loaded by appViewModel.settings.collectAsStateWithLifecycle()
     val settings = loaded ?: return // the system splash stays up until settings have loaded
+    val account by appViewModel.account.collectAsStateWithLifecycle()
+    if (!account.loaded) return
+    // She has not yet chosen between an account and guest mode.
+    val needsAuth = !account.signedIn && !account.guestChosen
     // Decided once: changing settings later must not teleport her to another screen.
-    val start = remember { if (settings.onboardingDone) Routes.MIRROR else Routes.ONBOARDING }
+    val start = remember {
+        when {
+            !settings.onboardingDone -> Routes.ONBOARDING
+            needsAuth -> Routes.AUTH
+            else -> Routes.MIRROR
+        }
+    }
 
     VisionMirrorTheme(
         themeMode = settings.themeMode,
@@ -38,6 +48,6 @@ fun VisionMirrorRoot(
         textScale = settings.textScale,
         haptics = haptics,
     ) {
-        AppNav(rememberNavController(), start, session, speech, haptics, earcons)
+        AppNav(rememberNavController(), start, needsAuth, session, speech, haptics, earcons)
     }
 }

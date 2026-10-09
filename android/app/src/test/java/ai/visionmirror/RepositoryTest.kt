@@ -152,6 +152,7 @@ class RepositoryTest {
             override suspend fun ask(body: ai.visionmirror.data.api.AskRequest) = throw java.net.SocketTimeoutException()
             override suspend fun deleteSession(id: String) = throw java.net.SocketTimeoutException()
             override suspend fun health() = throw java.net.SocketTimeoutException()
+            override suspend fun deleteAccount() = throw java.net.SocketTimeoutException()
         }
         val slowRepo = MirrorRepositoryImpl(slowApi, Json { ignoreUnknownKeys = true })
         val e = slowRepo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull()

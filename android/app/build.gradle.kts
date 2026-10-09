@@ -1,4 +1,4 @@
-﻿import java.util.Properties
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -13,9 +13,12 @@ plugins {
 val localProps = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
-val apiBaseUrl: String = localProps.getProperty("API_BASE_URL", "http://10.0.2.2:8000/")
+// The live server. Every build uses it unless API_BASE_URL says otherwise, so an APK installed on a real phone
+// works out of the box. (http://10.0.2.2:8000/ reaches a server on your PC, but only from the emulator.)
+val liveApiBaseUrl = "https://visionmirror-api.vercel.app/"
+val apiBaseUrl: String = localProps.getProperty("API_BASE_URL", liveApiBaseUrl)
 // Release builds ignore API_BASE_URL (which is for debugging against a local server) and must use HTTPS.
-val releaseApiBaseUrl: String = localProps.getProperty("API_BASE_URL_RELEASE", "https://visionmirror-api.vercel.app/")
+val releaseApiBaseUrl: String = localProps.getProperty("API_BASE_URL_RELEASE", liveApiBaseUrl)
 require(releaseApiBaseUrl.startsWith("https://")) { "API_BASE_URL_RELEASE must start with https:// (got $releaseApiBaseUrl)" }
 
 // Release signing comes from keystore.properties (git-ignored; see keystore.properties.example).

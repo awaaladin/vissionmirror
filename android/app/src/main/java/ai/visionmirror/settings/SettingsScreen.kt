@@ -48,10 +48,13 @@ fun SettingsScreen(
     speaker: Speaker,
     onBack: () -> Unit,
     onOpenVoices: () -> Unit,
+    onOpenAccount: () -> Unit,
     onOpenDeveloper: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val s by viewModel.settings.collectAsStateWithLifecycle()
+    val account by viewModel.account.collectAsStateWithLifecycle()
+    val confirmDelete by viewModel.confirmDelete.collectAsStateWithLifecycle()
 
     ScreenScaffold {
         Column(
@@ -61,6 +64,34 @@ fun SettingsScreen(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 IconAction(VmIcons.Back, "Back", onBack)
                 BasicText("Settings", style = Vm.type.headline.copy(color = Vm.colors.bone))
+            }
+
+            SettingGroup("Account") {
+                if (account.expired) {
+                    BasicText(
+                        "You were signed out because your sign-in expired. Please sign in again.",
+                        style = Vm.type.body.copy(color = Vm.colors.ember),
+                    )
+                }
+                if (account.signedIn) {
+                    BasicText(
+                        "Signed in as ${account.displayName?.let { "$it, " }.orEmpty()}${account.email}",
+                        style = Vm.type.body.copy(color = Vm.colors.bone),
+                    )
+                    GhostAction("Sign out", viewModel::signOut, Modifier.fillMaxWidth(), icon = VmIcons.Person)
+                    GhostAction(
+                        if (confirmDelete) "Tap again to permanently delete" else "Delete my account",
+                        viewModel::deleteAccount,
+                        Modifier.fillMaxWidth(),
+                        icon = VmIcons.Close,
+                    )
+                } else {
+                    BasicText(
+                        "You are using the app as a guest. An account is optional.",
+                        style = Vm.type.body.copy(color = Vm.colors.boneMuted),
+                    )
+                    GhostAction("Sign in or create an account", onOpenAccount, Modifier.fillMaxWidth(), icon = VmIcons.Person)
+                }
             }
 
             SettingGroup("Text") {

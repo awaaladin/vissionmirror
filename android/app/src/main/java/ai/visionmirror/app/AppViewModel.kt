@@ -1,6 +1,8 @@
 package ai.visionmirror.app
 
 import ai.visionmirror.audio.SpeechManager
+import ai.visionmirror.data.auth.AccountRepository
+import ai.visionmirror.data.auth.AccountState
 import ai.visionmirror.data.settings.Settings
 import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.haptics.HapticsManager
@@ -22,7 +24,11 @@ class AppViewModel @Inject constructor(
     private val store: SettingsStore,
     speech: SpeechManager,
     haptics: HapticsManager,
+    accounts: AccountRepository,
 ) : ViewModel() {
+
+    /** Also makes sure the saved sign-in is loaded before the first request is made. */
+    val account: StateFlow<AccountState> = accounts.state
 
     val settings: StateFlow<Settings?> = store.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)

@@ -42,8 +42,28 @@ class TokenProvider @Inject constructor(
     @Volatile private var token: String? = null
     @Volatile private var expiresAtMs: Long = 0
 
+    /** Set while she is signed in. It is used instead of a guest token. */
+    @Volatile private var userToken: String? = null
+
+    /** Called once when the server rejects the signed-in token (expired, or the account was deleted). */
+    @Volatile var onUserTokenRejected: (() -> Unit)? = null
+
+    fun setUserToken(token: String?) {
+        userToken = token
+    }
+
     /** [stale] is the token the caller just saw rejected; if we already hold a newer one, use that. */
-    suspend fun token(stale: String? = null): String = mutex.withLock {
+    suspend fun token(stale: String? = null): String {
+        userToken?.let { user ->
+            if (user != stale) return user
+            // The server no longer accepts her account token: sign her out and carry on as a guest.
+            userToken = null
+            onUserTokenRejected?.invoke()
+        }
+        return guestToken(stale)
+    }
+
+    private suspend fun guestToken(stale: String?): String = mutex.withLock {
         val current = token
         val fresh = current != null && clock.nowMs() < expiresAtMs - REFRESH_MARGIN_MS
         if (fresh && current != stale) return current!!

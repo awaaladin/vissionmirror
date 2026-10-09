@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisionMirror: download for Android</title>
+<meta name="description" content="VisionMirror is a talking mirror for people who are blind or have low vision. It describes your outfit and hair out loud and points out anything to fix. Free download for Android.">
+<meta name="theme-color" content="#0C0D10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230C0D10'/%3E%3Cellipse cx='12' cy='12' rx='5.5' ry='7.5' fill='none' stroke='%23E0A458' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+@font-face{font-family:"Atkinson Hyperlegible Next";src:url("fonts/AtkinsonHyperlegibleNext.ttf") format("truetype");font-weight:200 800;font-display:swap}
+:root{
+  --ink:#0C0D10;--surface:#14161B;--raised:#1B1E25;--hairline:#2A2D36;
+  --bone:#EFE9DD;--muted:#B9B3A6;--brass:#E0A458;--champagne:#F5D9A0;--ember:#FF8A6B;--on-brass:#0C0D10;
+  --size:112.5%;
+}
+:root[data-theme="light"]{
+  --ink:#F6F1E7;--surface:#FBF8F1;--raised:#FDFBF6;--hairline:#D8D0C0;
+  --bone:#1B1710;--muted:#4A4438;--brass:#5F3A06;--champagne:#77490A;--ember:#922710;--on-brass:#FBF8F1;
+}
+:root[data-theme="contrast"]{
+  --ink:#000;--surface:#000;--raised:#000;--hairline:#fff;
+  --bone:#fff;--muted:#fff;--brass:#FFD400;--champagne:#FFD400;--ember:#FFD400;--on-brass:#000;
+}
+*{box-sizing:border-box}
+html{font-size:var(--size);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ink);color:var(--bone);font-family:"Atkinson Hyperlegible Next",system-ui,sans-serif;line-height:1.6;
+  background-image:radial-gradient(120% 60% at 50% -10%,rgba(224,164,88,.14),transparent 60%)}
+:root[data-theme="light"] body,:root[data-theme="contrast"] body{background-image:none}
+a{color:var(--champagne)}
+:focus-visible{outline:3px solid var(--champagne);outline-offset:3px;border-radius:6px}
+.skip{position:absolute;left:-999px;top:0;background:var(--brass);color:var(--on-brass);padding:.75rem 1rem;z-index:10}
+.skip:focus{left:0}
+.wrap{max-width:46rem;margin:0 auto;padding:0 1.25rem}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:1rem 0}
+.brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.15rem;letter-spacing:.01em}
+.tools{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.tools button,.tools select{font:inherit;color:var(--bone);background:var(--surface);border:1px solid var(--hairline);border-radius:.8rem;min-height:2.75rem;min-width:2.75rem;padding:0 .8rem;cursor:pointer}
+.tools button[aria-pressed="true"]{border-color:var(--champagne)}
+h1{font-size:2.3rem;line-height:1.15;margin:2.2rem 0 1rem;font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.5rem;margin:3rem 0 1rem;font-weight:650;color:var(--brass)}
+h3{font-size:1.1rem;margin:0}
+p{margin:.6rem 0}
+.lead{font-size:1.2rem;color:var(--muted);max-width:38rem}
+.card{background:var(--surface);border:1px solid var(--hairline);border-radius:1.4rem;padding:1.5rem;margin:1.75rem 0}
+.btn{display:flex;align-items:center;justify-content:center;gap:.7rem;width:100%;min-height:4.5rem;border-radius:1.2rem;border:2px solid transparent;
+  background:linear-gradient(180deg,var(--champagne),var(--brass));color:var(--on-brass);font:inherit;font-weight:700;font-size:1.3rem;text-decoration:none;cursor:pointer}
+:root[data-theme="light"] .btn{background:var(--brass)}
+:root[data-theme="contrast"] .btn{background:var(--brass);border-color:#fff}
+.btn:hover{filter:brightness(1.06)}
+.btn[aria-disabled="true"]{opacity:.55;pointer-events:none}
+.meta{color:var(--muted);font-size:.95rem;margin-top:.9rem}
+.sha{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.6rem}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.82rem;word-break:break-all;background:var(--raised);border:1px solid var(--hairline);border-radius:.5rem;padding:.25rem .5rem;display:inline-block}
+.ghost{font:inherit;color:var(--bone);background:transparent;border:1px solid var(--hairline);border-radius:.8rem;min-height:2.75rem;padding:0 1rem;cursor:pointer}
+ol.steps{list-style:none;counter-reset:s;padding:0;margin:0;display:grid;gap:1rem}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:3rem 1fr;gap:1rem;align-items:start;background:var(--surface);border:1px solid var(--hairline);border-radius:1.2rem;padding:1.1rem}
+ol.steps li::before{content:counter(s);display:grid;place-items:center;width:3rem;height:3rem;border-radius:50%;border:2px solid var(--brass);color:var(--champagne);font-weight:700;font-size:1.3rem}
+ol.steps strong{display:block;font-size:1.1rem}
+details{background:var(--surface);border:1px solid var(--hairline);border-radius:1.2rem;margin:.8rem 0;overflow:hidden}
+summary{cursor:pointer;padding:1.1rem 1.2rem;font-weight:650;font-size:1.1rem;list-style:none;display:flex;justify-content:space-between;gap:1rem;min-height:3.5rem;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:1.5rem;color:var(--champagne);flex:none}
+details[open] summary::after{content:"\2212"}
+details .body{padding:0 1.2rem 1.2rem;color:var(--bone)}
+details .body ol,details .body ul{padding-left:1.3rem;margin:.5rem 0}
+details .body li{margin:.4rem 0}
+.note{border-left:4px solid var(--brass);padding:.2rem 1rem;color:var(--muted);margin:1rem 0}
+.notandroid{display:none;border:1px solid var(--ember);border-radius:1.2rem;padding:1rem 1.2rem;margin:1.5rem 0;color:var(--bone)}
+.qr{display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap}
+.qr svg{width:9rem;height:9rem;background:#fff;border-radius:.8rem;padding:.5rem;flex:none}
+ul.clean{padding-left:1.2rem}
+footer{color:var(--muted);font-size:.95rem;padding:3rem 0 4rem}
+@media (prefers-reduced-motion:no-preference){.btn{transition:filter .2s,transform .15s}.btn:active{transform:scale(.98)}}
+@media (min-width:40rem){h1{font-size:3rem}}
+</style>
+</head>
+<body>
+<a class="skip" href="#download">Skip to download</a>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="color:var(--brass)"><ellipse cx="12" cy="12" rx="6" ry="8.2"/><path d="M9 7.5a4.5 4.5 0 0 1 4-1.3"/></svg>
+      VisionMirror
+    </div>
+    <div class="tools" role="group" aria-label="Page display options">
+      <button type="button" id="smaller" aria-label="Make text smaller">A&minus;</button>
+      <button type="button" id="larger" aria-label="Make text larger">A+</button>
+      <label class="sr" for="theme" style="position:absolute;left:-999px">Colour theme</label>
+      <select id="theme" aria-label="Colour theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="contrast">High contrast</option>
+      </select>
+    </div>
+  </header>
+
+  <main id="main">
+    <h1>A talking mirror that tells you how you look.</h1>
+    <p class="lead">Take a photo and VisionMirror describes your outfit and hair out loud, and points out anything to fix: a stain, a crease, colours that clash. Then ask it questions with your voice. No one else needs to be there.</p>
+
+    <div class="notandroid" id="notAndroid" role="note">
+      <strong>Open this page on your Android phone.</strong>
+      <p>VisionMirror installs on Android phones only. On a computer, send this link to your phone, or scan the code below with your phone's camera.</p>
+    </div>
+
+    <section class="card" id="download" aria-labelledby="dl-h">
+      <h2 id="dl-h" style="margin-top:0">Download</h2>
+      <a class="btn" id="dlBtn" href="downloads/VisionMirror.apk" download="VisionMirror.apk" aria-describedby="dlInfo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+        <span id="dlLabel">Download VisionMirror for Android</span>
+      </a>
+      <p class="meta" id="dlInfo">Free. Needs Android 8 or newer, and the camera and microphone. No computer or cable needed.</p>
+      <div class="sha" id="shaRow" hidden>
+        <span class="meta" style="margin:0">Checksum (SHA-256):</span>
+        <code id="sha"></code>
+        <button type="button" class="ghost" id="copySha">Copy</button>
+      </div>
+    </section>
+
+    <h2 id="install">Install it in four steps</h2>
+    <ol class="steps">
+      <li><div><strong>Download the file</strong>Tap the Download button above. Your phone may show a warning about this type of file. That is normal for apps installed outside the Play Store; see <a href="#trouble">If your browser refuses or warns</a>.</div></li>
+      <li><div><strong>Open it</strong>Tap "Open" when the download finishes. Or open the Files app, then Downloads, and tap <em>VisionMirror.apk</em>.</div></li>
+      <li><div><strong>Allow the install, once</strong>If your phone says it isn't allowed to install apps from this source, tap <em>Settings</em>, turn on <em>Allow from this source</em>, press Back, then tap <em>Install</em>.</div></li>
+      <li><div><strong>Open VisionMirror</strong>It speaks a short welcome and asks for the camera. Say or tap "continue" and follow the voice.</div></li>
+    </ol>
+
+    <h2 id="trouble">If your browser refuses or warns</h2>
+    <p>Chrome and other browsers are careful with files that install apps. Find what your phone is showing:</p>
+
+    <details>
+      <summary>"This type of file can harm your device" / "Download anyway?"</summary>
+      <div class="body">
+        <p>This appears for every app that isn't from the Play Store. It does not mean the file is damaged.</p>
+        <ol>
+          <li>Tap <strong>Download anyway</strong> (or <strong>Keep</strong> / <strong>OK</strong>).</li>
+          <li>If the message disappeared, open Chrome's menu (three dots), choose <strong>Downloads</strong>, and tap <em>VisionMirror.apk</em>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>"Blocked" / "Dangerous file blocked" / "Can't download securely"</summary>
+      <div class="body">
+        <ol>
+          <li>Open Chrome's menu (three dots) &rarr; <strong>Downloads</strong>. Find the blocked file.</li>
+          <li>Tap the three dots next to it, or tap the file, then choose <strong>Keep</strong> or <strong>Download anyway</strong>.</li>
+          <li>Still blocked? Open Chrome &rarr; menu &rarr; <strong>Settings</strong> &rarr; <strong>Privacy and security</strong> &rarr; <strong>Safe Browsing</strong>, and choose <strong>Standard protection</strong> (not Enhanced) just for this download. Turn Enhanced back on afterwards if you like.</li>
+          <li>Or try another browser such as Firefox, Samsung Internet or Edge: the same link works in all of them.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>"For your security, your phone isn't allowed to install unknown apps from this source"</summary>
+      <div class="body">
+        <ol>
+          <li>Tap <strong>Settings</strong> in that message.</li>
+          <li>Turn on <strong>Allow from this source</strong>. (It is listed under the browser you used, for example Chrome.)</li>
+          <li>Press Back, then tap <strong>Install</strong>.</li>
+        </ol>
+        <p class="note">You can turn that permission off again afterwards: Settings &rarr; Apps &rarr; your browser &rarr; Install unknown apps.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Google Play Protect says "Blocked" or "App not verified"</summary>
+      <div class="body">
+        <ol>
+          <li>Tap <strong>More details</strong>, then <strong>Install anyway</strong>.</li>
+          <li>If you only see "Scan app", choose it, then <strong>Install anyway</strong> after the scan.</li>
+          <li>If there is no such choice: open the Play Store &rarr; your profile picture &rarr; <strong>Play Protect</strong> &rarr; the gear icon, and switch off <em>Improve harmful app detection</em> briefly. Install, then switch it back on.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>The download keeps failing or stops halfway</summary>
+      <div class="body">
+        <ul>
+          <li>Check you have about 100 MB of free storage and a steady connection (Wi-Fi is best).</li>
+          <li>Delete the partial file in Downloads and try again.</li>
+          <li>Try another browser.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>"App not installed" or "There was a problem parsing the package"</summary>
+      <div class="body">
+        <ul>
+          <li>The file may not have finished downloading. Delete it and download again.</li>
+          <li>If an older VisionMirror is installed and the new one won't replace it, uninstall the old one first (your settings will reset).</li>
+          <li>Make sure your phone runs Android 8 or newer: Settings &rarr; About phone.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>It's a work or school phone</summary>
+      <div class="body"><p>Managed phones often block apps from outside the Play Store. Use a personal phone, or ask whoever manages the device.</p></div>
+    </details>
+
+    <details>
+      <summary>Check the file is genuine (optional)</summary>
+      <div class="body">
+        <p>Every file has a fingerprint. After downloading, a tool such as a "hash checker" app can show its SHA-256. It should match the checksum shown in the Download box above. If it doesn't, delete the file and download again from this page.</p>
+      </div>
+    </details>
+
+    <h2>Good to know</h2>
+    <ul class="clean">
+      <li><strong>Camera:</strong> to guide you into frame and take the photo. You can switch between the front and back camera.</li>
+      <li><strong>Microphone:</strong> so you can ask follow-up questions out loud. Optional: everything also works by touch.</li>
+      <li><strong>Privacy:</strong> your photo is analysed, kept for a few minutes only so you can ask questions about it, then deleted. You can delete it instantly. Location and phone details are removed from every photo.</li>
+      <li><strong>Accounts:</strong> optional. You can use the app as a guest, or sign up with an email address so it remembers you.</li>
+      <li><strong>Needs internet</strong> to describe your photo. Framing guidance works without it.</li>
+      <li><strong>Your settings are saved</strong> on your phone: voice, text size, theme and more.</li>
+    </ul>
+
+    <h2>Share this page</h2>
+    <div class="qr card">
+      <div id="qr" aria-hidden="true">__QR__</div>
+      <div>
+        <p style="margin-top:0">Point a phone camera at this code to open this page. Or copy the link:</p>
+        <p><code id="pageUrl"></code></p>
+        <button type="button" class="ghost" id="copyUrl">Copy link</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>VisionMirror <span id="ver"></span>. Described by AI, so it can make mistakes: treat it as a helpful friend, not a guarantee. It never rates how you look.</p>
+    <p>Text is set in <a href="fonts/OFL.txt">Atkinson Hyperlegible Next</a>, designed by the Braille Institute for readability.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, store=window.localStorage;
+  function get(k,d){try{return store.getItem(k)||d}catch(e){return d}}
+  function put(k,v){try{store.setItem(k,v)}catch(e){}}
+
+  // Display options are remembered.
+  var size=parseFloat(get('vm-size','112.5'));
+  function applySize(){size=Math.min(200,Math.max(87.5,size));root.style.setProperty('--size',size+'%');put('vm-size',size)}
+  applySize();
+  document.getElementById('smaller').onclick=function(){size-=12.5;applySize()};
+  document.getElementById('larger').onclick=function(){size+=12.5;applySize()};
+  var theme=document.getElementById('theme'), t=get('vm-theme','dark');
+  theme.value=t; if(t!=='dark')root.setAttribute('data-theme',t);
+  theme.onchange=function(){put('vm-theme',theme.value);if(theme.value==='dark')root.removeAttribute('data-theme');else root.setAttribute('data-theme',theme.value)};
+
+  // Show the "use an Android phone" note on other devices.
+  if(!/Android/i.test(navigator.userAgent)) document.getElementById('notAndroid').style.display='block';
+
+  // Page link
+  var url=location.origin+location.pathname;
+  document.getElementById('pageUrl').textContent=url;
+  function copy(text,btn){
+    (navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){var o=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=o},1800)},function(){window.prompt('Copy this:',text)});
+  }
+  document.getElementById('copyUrl').onclick=function(){copy(url,this)};
+
+  // Version, size and checksum come from release.json, written when each build is published.
+  fetch('release.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():Promise.reject()}).then(function(rel){
+    document.getElementById('dlLabel').textContent='Download VisionMirror '+rel.version+' ('+rel.sizeMB+' MB)';
+    document.getElementById('ver').textContent=rel.version;
+    document.getElementById('sha').textContent=rel.sha256;
+    document.getElementById('shaRow').hidden=false;
+    document.getElementById('copySha').onclick=function(){copy(rel.sha256,this)};
+  }).catch(function(){
+    var b=document.getElementById('dlBtn');
+    document.getElementById('dlInfo').textContent='The download is being prepared. Please try again in a few minutes.';
+    b.setAttribute('aria-disabled','true');
+  });
+})();
+</script>
+</body>
+</html>

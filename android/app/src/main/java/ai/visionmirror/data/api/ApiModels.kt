@@ -15,6 +15,32 @@ data class TokenResponse(
     @SerialName("expires_in") val expiresIn: Long,
 )
 
+@Serializable
+data class RegisterRequest(
+    val email: String,
+    val password: String,
+    @SerialName("display_name") val displayName: String? = null,
+)
+
+@Serializable
+data class LoginRequest(val email: String, val password: String)
+
+@Serializable
+data class UserOut(
+    val id: String,
+    val email: String,
+    @SerialName("display_name") val displayName: String? = null,
+)
+
+/** Sign up and sign in both answer with a long-lived token for the account. */
+@Serializable
+data class AccountAuthResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("token_type") val tokenType: String = "bearer",
+    @SerialName("expires_in") val expiresIn: Long,
+    val user: UserOut,
+)
+
 enum class DetailLevel(val wire: String, val label: String) {
     Brief("brief", "Brief"),
     Standard("standard", "Standard"),

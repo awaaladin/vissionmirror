@@ -5,6 +5,9 @@ import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.SpeechManager.Priority
 import ai.visionmirror.audio.say
 import ai.visionmirror.data.api.DetailLevel
+import ai.visionmirror.data.api.AppError
+import ai.visionmirror.data.auth.AccountRepository
+import ai.visionmirror.data.auth.AccountState
 import ai.visionmirror.data.settings.CameraFacing
 import ai.visionmirror.data.settings.Settings
 import ai.visionmirror.data.settings.SettingsStore
@@ -14,6 +17,7 @@ import android.speech.tts.Voice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -60,7 +64,39 @@ const val DEVELOPER_TAPS = 7
 class SettingsViewModel @Inject constructor(
     private val store: SettingsStore,
     private val speech: SpeechManager,
+    private val accounts: AccountRepository,
 ) : ViewModel() {
+
+    val account: StateFlow<AccountState> = accounts.state
+
+    /** Deleting an account cannot be undone, so it takes two taps. */
+    private val _confirmDelete = MutableStateFlow(false)
+    val confirmDelete: StateFlow<Boolean> = _confirmDelete
+
+    fun signOut() {
+        viewModelScope.launch {
+            accounts.signOut()
+            speech.say("Signed out. You're using the app as a guest.", Priority.Interrupt)
+        }
+    }
+
+    fun deleteAccount() {
+        if (!_confirmDelete.value) {
+            _confirmDelete.value = true
+            speech.say("Tap again to permanently delete your account. This cannot be undone.", Priority.Interrupt)
+            return
+        }
+        _confirmDelete.value = false
+        viewModelScope.launch {
+            accounts.deleteAccount()
+                .onSuccess { speech.say("Your account was deleted.", Priority.Interrupt) }
+                .onFailure { speech.say((it as? AppError)?.spokenText ?: "I couldn't delete your account. Please try again.", Priority.Interrupt) }
+        }
+    }
+
+    fun dismissExpiredNote() {
+        viewModelScope.launch { accounts.dismissExpiredNote() }
+    }
 
     val settings: StateFlow<Settings> = store.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, Settings())

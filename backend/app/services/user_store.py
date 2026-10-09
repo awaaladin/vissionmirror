@@ -104,7 +104,7 @@ class MemoryUserStore(UserStore):
 class PostgresUserStore(UserStore):
     """asyncpg with a small lazily-created pool (serverless: each instance holds at most a few connections)."""
 
-    def __init__(self, dsn: str, max_connections: int = 3):
+    def __init__(self, dsn: str, max_connections: int = 2):
         self.dsn, self.ssl = normalize_dsn(dsn)
         self.max_connections = max_connections
         self._pool: asyncpg.Pool | None = None

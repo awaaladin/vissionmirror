@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // The system splash stays up until settings are loaded, so we know whether to show onboarding.
-        installSplashScreen().setKeepOnScreenCondition { appViewModel.settings.value == null }
+        installSplashScreen().setKeepOnScreenCondition { appViewModel.settings.value == null || !appViewModel.account.value.loaded }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent { VisionMirrorRoot(speech, haptics, earcons) }

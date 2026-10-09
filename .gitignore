@@ -5,3 +5,7 @@ __pycache__/
 node_modules/
 samples/
 .vercel
+site/index.html
+site/release.json
+site/downloads/*.apk
+site/.vercel

@@ -27,7 +27,8 @@ WEBP = make_image("WEBP")
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(secret_key="test-secret-key-that-is-at-least-32-characters")
+    # _env_file=None: tests must never read the real .env (it holds the live database URL and API keys).
+    return Settings(secret_key="test-secret-key-that-is-at-least-32-characters", _env_file=None)
 
 
 @pytest.fixture
