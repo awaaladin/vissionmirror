@@ -30,6 +30,8 @@ data class Settings(
     val voiceName: String? = null,
     /** Natural Nigerian voice from the internet; the phone's own voice is the fallback. */
     val cloudVoice: Boolean = true,
+    /** Listen for "Adanna" while the app is open. */
+    val wakeWord: Boolean = true,
     /** Which language she is spoken to in (and, where the phone can, listened to in). */
     val language: ResponseLanguage = ResponseLanguage.NigerianEnglish,
     val detailLevel: DetailLevel = DetailLevel.Standard,
@@ -63,6 +65,7 @@ class DataStoreSettings @Inject constructor(
         val voiceName = stringPreferencesKey("voice_name")
         val language = stringPreferencesKey("language")
         val cloudVoice = booleanPreferencesKey("cloud_voice")
+        val wakeWord = booleanPreferencesKey("wake_word")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
         val theme = stringPreferencesKey("theme_mode")
@@ -82,6 +85,7 @@ class DataStoreSettings @Inject constructor(
             speechRate = this[Keys.speechRate] ?: d.speechRate,
             voiceName = this[Keys.voiceName],
             cloudVoice = this[Keys.cloudVoice] ?: d.cloudVoice,
+            wakeWord = this[Keys.wakeWord] ?: d.wakeWord,
             language = ResponseLanguage.fromApiTag(this[Keys.language]),
             detailLevel = DetailLevel.entries.firstOrNull { it.wire == this[Keys.detail] } ?: d.detailLevel,
             haptics = this[Keys.haptics] ?: d.haptics,
@@ -106,6 +110,7 @@ class DataStoreSettings @Inject constructor(
             p[Keys.speechRate] = s.speechRate
             p[Keys.language] = s.language.apiTag
             p[Keys.cloudVoice] = s.cloudVoice
+            p[Keys.wakeWord] = s.wakeWord
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire
             p[Keys.haptics] = s.haptics

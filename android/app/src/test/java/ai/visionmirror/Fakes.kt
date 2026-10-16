@@ -55,6 +55,7 @@ class FakeVoice : VoiceInput {
     private val _events = MutableSharedFlow<VoiceEvent>(extraBufferCapacity = 16)
     override val events: SharedFlow<VoiceEvent> = _events
     override var isAvailable = true
+    override val busy = MutableStateFlow(false)
     var starts = 0
     var finishes = 0
     var cancels = 0
@@ -87,8 +88,11 @@ class FakeRepo : MirrorRepository {
     val questions = mutableListOf<String>()
     val deleted = mutableListOf<String>()
 
-    override suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String): Result<DescribeResponse> {
+    val sceneFlags = mutableListOf<Boolean>()
+
+    override suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String, scene: Boolean): Result<DescribeResponse> {
         describeDetails += detail
+        sceneFlags += scene
         return describeResults.removeFirstOrNull() ?: Result.failure(AppError.Unexpected())
     }
 
@@ -108,3 +112,10 @@ fun described(session: String? = "s1", text: String = "You look good.", usable: 
     spokenText = text,
     confidence = 0.8f,
 )
+
+
+class FakeWake : ai.visionmirror.audio.WakeSource {
+    private val _wakes = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    override val wakes: SharedFlow<String> = _wakes
+    fun wake(request: String = "") { _wakes.tryEmit(request) }
+}

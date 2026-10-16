@@ -32,6 +32,7 @@ interface MirrorApi {
         @Part image: MultipartBody.Part,
         @Part("detail_level") detailLevel: RequestBody,
         @Part("language") language: RequestBody,
+        @Part("mode") mode: RequestBody,
     ): Response<DescribeResponse>
 
     @POST("v1/ask")

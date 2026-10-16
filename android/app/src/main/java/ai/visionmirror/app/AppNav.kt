@@ -3,7 +3,12 @@ package ai.visionmirror.app
 import ai.visionmirror.account.AuthScreen
 import ai.visionmirror.audio.EarconPlayer
 import ai.visionmirror.audio.SpeechManager
+import ai.visionmirror.audio.say
+import ai.visionmirror.assistant.AssistantAction
 import ai.visionmirror.design.tokens.Motion
+import ai.visionmirror.home.HomeScreen
+import ai.visionmirror.look.LookMode
+import ai.visionmirror.look.LookScreen
 import ai.visionmirror.haptics.HapticsManager
 import ai.visionmirror.lab.DesignLabScreen
 import ai.visionmirror.mirror.MirrorScreen
@@ -24,13 +29,19 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
 object Routes {
     const val ONBOARDING = "onboarding"
+    const val HOME = "home"
     const val MIRROR = "mirror"
+    const val LOOK = "look/{mode}"
+    fun look(mode: LookMode) = "look/${mode.route}"
     const val ANALYSING = "analysing"
     const val RESULT = "result"
     const val SETTINGS = "settings"
@@ -60,6 +71,27 @@ fun AppNav(
     haptics: HapticsManager,
     earcons: EarconPlayer,
 ) {
+    var greeted by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    // Her voice can take her anywhere once she is past onboarding and sign-in.
+    LaunchedEffect(Unit) {
+        session.actions.collect { action ->
+            val here = nav.currentDestination?.route
+            if (here == Routes.ONBOARDING || here == Routes.AUTH || here == Routes.ACCOUNT) return@collect
+            val route = when (action) {
+                AssistantAction.OpenMirror -> Routes.MIRROR
+                AssistantAction.OpenRead -> Routes.look(LookMode.Read)
+                AssistantAction.OpenColour -> Routes.look(LookMode.Colour)
+                AssistantAction.OpenLook -> Routes.look(LookMode.Around)
+                AssistantAction.OpenSettings -> Routes.SETTINGS
+                AssistantAction.OpenHome -> Routes.HOME
+            }
+            nav.navigate(route) {
+                popUpTo(Routes.HOME)
+                launchSingleTop = true
+            }
+        }
+    }
+
     SharedTransitionLayout {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             NavHost(
@@ -74,7 +106,7 @@ fun AppNav(
                     OnboardingScreen(
                         speaker = speech,
                         onFinished = {
-                            val next = if (needsAuth) Routes.AUTH else Routes.MIRROR
+                            val next = if (needsAuth) Routes.AUTH else Routes.HOME
                             nav.navigate(next) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
                         },
                     )
@@ -82,12 +114,38 @@ fun AppNav(
                 screen(Routes.AUTH) {
                     AuthScreen(
                         firstRun = true,
-                        onDone = { nav.navigate(Routes.MIRROR) { popUpTo(Routes.AUTH) { inclusive = true } } },
+                        onDone = { nav.navigate(Routes.HOME) { popUpTo(Routes.AUTH) { inclusive = true } } },
                         onBack = null,
                     )
                 }
                 screen(Routes.ACCOUNT) {
                     AuthScreen(firstRun = false, onDone = { nav.popBackStack() }, onBack = { nav.popBackStack() })
+                }
+                screen(Routes.HOME) {
+                    HomeScreen(
+                        session = session,
+                        onMirror = { nav.navigate(Routes.MIRROR) },
+                        onRead = { nav.navigate(Routes.look(LookMode.Read)) },
+                        onColour = { nav.navigate(Routes.look(LookMode.Colour)) },
+                        onLook = { nav.navigate(Routes.look(LookMode.Around)) },
+                        onSettings = { nav.navigate(Routes.SETTINGS) },
+                        onGreet = {
+                            if (!greeted) {
+                                greeted = true
+                                speech.say("I'm Adanna. Say my name, then what you need.", SpeechManager.Priority.Queue)
+                            }
+                        },
+                    )
+                }
+                composable(Routes.LOOK) { entry ->
+                    CompositionLocalProvider(LocalNavAnimatedScope provides this) {
+                        LookScreen(
+                            mode = LookMode.fromRoute(entry.arguments?.getString("mode")),
+                            session = session,
+                            onDescribed = { nav.navigate(Routes.ANALYSING) },
+                            onBack = { nav.popBackStack(Routes.HOME, inclusive = false) },
+                        )
+                    }
                 }
                 screen(Routes.MIRROR) {
                     MirrorScreen(
@@ -102,14 +160,14 @@ fun AppNav(
                         onDone = {
                             nav.navigate(Routes.RESULT) { popUpTo(Routes.ANALYSING) { inclusive = true } }
                         },
-                        onBack = { nav.popBackStack(Routes.MIRROR, inclusive = false) },
+                        onBack = { nav.popBackStack(Routes.HOME, inclusive = false) },
                     )
                 }
                 screen(Routes.RESULT) {
                     ResultScreen(
                         session = session,
                         speaker = speech,
-                        onRetake = { nav.popBackStack(Routes.MIRROR, inclusive = false) },
+                        onRetake = { nav.popBackStack(Routes.HOME, inclusive = false) },
                     )
                 }
                 screen(Routes.SETTINGS) {

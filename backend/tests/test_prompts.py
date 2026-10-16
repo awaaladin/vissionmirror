@@ -122,3 +122,10 @@ def test_nigerian_english_voice_only_for_en_ng():
     assert "Nigerian" in ng and "agbada" in ng
     assert "language with code" not in ng
     assert "Nigerian English" not in prompts.describe_system_prompt("standard", "en")
+
+
+def test_scene_mode_prompt_is_about_surroundings_and_keeps_safety():
+    p = prompts.describe_system_prompt("standard", "en-NG", "scene")
+    assert "Adanna" in p and "Hazards first" in p and "Do not identify real people" in p
+    assert "talking mirror" not in p
+    assert "talking mirror" in prompts.describe_system_prompt("standard", "en")

@@ -22,7 +22,7 @@ class ProviderError(APIError):
 class VisionProvider(ABC):
     @abstractmethod
     async def describe(
-        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str
+        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror"
     ) -> DescribeAnalysis: ...
 
     @abstractmethod

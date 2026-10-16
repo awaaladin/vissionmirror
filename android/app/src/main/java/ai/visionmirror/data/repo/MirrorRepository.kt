@@ -19,7 +19,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 interface MirrorRepository {
-    suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String = "en"): Result<DescribeResponse>
+    /** [scene] = describe the surroundings ("look around") instead of the person's outfit. */
+    suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String = "en", scene: Boolean = false): Result<DescribeResponse>
     suspend fun ask(sessionId: String, question: String, language: String = "en"): Result<AskResponse>
 
     /** Fire-and-forget cleanup. A 404 means "already gone" and counts as success. */
@@ -32,14 +33,17 @@ class MirrorRepositoryImpl @Inject constructor(
     private val json: Json,
 ) : MirrorRepository {
 
-    override suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String): Result<DescribeResponse> =
+    override suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String, scene: Boolean): Result<DescribeResponse> =
         call {
             // EXIF and location were already stripped when the JPEG was re-encoded (see ImageProcessor).
             val image = MultipartBody.Part.createFormData(
                 "image", "photo.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()),
             )
             val text = "text/plain".toMediaType()
-            api.describe(image, detail.wire.toRequestBody(text), language.toRequestBody(text))
+            api.describe(
+                image, detail.wire.toRequestBody(text), language.toRequestBody(text),
+                (if (scene) "scene" else "mirror").toRequestBody(text),
+            )
         }
 
     override suspend fun ask(sessionId: String, question: String, language: String): Result<AskResponse> =

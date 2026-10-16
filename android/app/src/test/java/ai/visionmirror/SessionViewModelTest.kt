@@ -38,13 +38,14 @@ class SessionViewModelTest {
     private val connectivity = FakeConnectivity()
     private val settings = FakeSettings()
     private val permissions = FakePermissions()
+    private val wake = FakeWake()
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun vm() = SessionViewModel(
-        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions,
+        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake,
         CoroutineScope(dispatcher),
     )
 
@@ -349,5 +350,41 @@ class SessionViewModelTest {
         advanceUntilIdle()
         assertEquals(3, repo.questions.size)
         assertEquals("It is neat.", vm.state.value.displayText)
+    }
+
+    @Test fun saidAnywhere_adannaWithAQuestionAnswersAboutThePhoto() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        repo.askResults += Result.success(AskResponse("It is neat.", "It is neat.", 0.9f))
+        val vm = vm()
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+        wake.wake("is my shirt neat")
+        advanceUntilIdle()
+        assertEquals(listOf("is my shirt neat"), repo.questions)
+    }
+
+    @Test fun saidAnywhere_adannaThenARequestOpensATool() = runTest(dispatcher) {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.actions.test {
+            wake.wake()
+            advanceUntilIdle()
+            assertEquals(1, voice.starts)
+            assertEquals(AskPhase.Listening, vm.state.value.ask)
+            voice.emit(VoiceEvent.Final("read this"))
+            advanceUntilIdle()
+            assertEquals(ai.visionmirror.assistant.AssistantAction.OpenRead, awaitItem())
+            assertEquals(AskPhase.Idle, vm.state.value.ask)
+        }
+    }
+
+    @Test fun adannaWithAToolRequestInOneBreath() = runTest(dispatcher) {
+        val vm = vm()
+        advanceUntilIdle()
+        vm.actions.test {
+            wake.wake("look around")
+            advanceUntilIdle()
+            assertEquals(ai.visionmirror.assistant.AssistantAction.OpenLook, awaitItem())
+        }
     }
 }

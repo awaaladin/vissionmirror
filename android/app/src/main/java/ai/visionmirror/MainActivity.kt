@@ -5,6 +5,7 @@ import ai.visionmirror.app.HardwareKeys
 import ai.visionmirror.app.VisionMirrorRoot
 import ai.visionmirror.audio.EarconPlayer
 import ai.visionmirror.audio.SpeechManager
+import ai.visionmirror.audio.WakeWordListener
 import ai.visionmirror.haptics.HapticsManager
 import android.os.Bundle
 import android.view.KeyEvent
@@ -22,6 +23,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var haptics: HapticsManager
     @Inject lateinit var earcons: EarconPlayer
     @Inject lateinit var keys: HardwareKeys
+    @Inject lateinit var wake: WakeWordListener
 
     private val appViewModel: AppViewModel by viewModels()
 
@@ -44,7 +46,13 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    override fun onStart() {
+        super.onStart()
+        wake.setForeground(true)
+    }
+
     override fun onStop() {
+        wake.setForeground(false)
         speech.stop()
         super.onStop()
     }

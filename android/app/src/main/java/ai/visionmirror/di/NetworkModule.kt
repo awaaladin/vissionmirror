@@ -27,6 +27,8 @@ import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.Speaker
 import ai.visionmirror.audio.SystemVoiceInput
 import ai.visionmirror.audio.VoiceInput
+import ai.visionmirror.audio.WakeSource
+import ai.visionmirror.audio.WakeWordListener
 import ai.visionmirror.haptics.Haptics
 import ai.visionmirror.haptics.HapticsManager
 import dagger.Binds
@@ -111,4 +113,5 @@ abstract class BindingsModule {
     @Binds abstract fun connectivity(impl: ConnectivityMonitor): Connectivity
     @Binds abstract fun permissions(impl: SystemPermissionChecker): PermissionChecker
     @Binds abstract fun voiceInput(impl: SystemVoiceInput): VoiceInput
+    @Binds abstract fun wakeSource(impl: WakeWordListener): WakeSource
 }

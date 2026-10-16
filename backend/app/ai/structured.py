@@ -45,14 +45,14 @@ class StructuredProvider(VisionProvider):
         """Return the model's raw text reply (expected to be JSON for model_cls)."""
 
     async def describe(
-        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str
+        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror"
     ) -> DescribeAnalysis:
         result = await self._structured(
-            system=prompts.describe_system_prompt(detail_level, language),
+            system=prompts.describe_system_prompt(detail_level, language, mode),
             messages=[
                 {
                     "role": "user",
-                    "parts": [_image_part(image, media_type), {"type": "text", "text": prompts.DESCRIBE_USER_TEXT}],
+                    "parts": [_image_part(image, media_type), {"type": "text", "text": prompts.SCENE_USER_TEXT if mode == "scene" else prompts.DESCRIBE_USER_TEXT}],
                 }
             ],
             model_cls=DescribeAnalysis,

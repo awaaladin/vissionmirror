@@ -34,8 +34,8 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
     implementation(libs.mlkit.face)
+    implementation(libs.mlkit.text)
     implementation(libs.datastore)
     implementation(libs.splashscreen)
     implementation(libs.profileinstaller)

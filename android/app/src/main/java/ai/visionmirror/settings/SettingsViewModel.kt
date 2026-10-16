@@ -121,6 +121,11 @@ class SettingsViewModel @Inject constructor(
         speech.say("${language.label}.", Priority.Interrupt)
     }
 
+    fun setWakeWord(on: Boolean) {
+        update { it.copy(wakeWord = on) }
+        speech.say(if (on) "I'll listen for my name." else "I won't listen for my name.", Priority.Interrupt)
+    }
+
     fun setCloudVoice(on: Boolean) {
         update { it.copy(cloudVoice = on) }
         speech.setCloudVoice(on)

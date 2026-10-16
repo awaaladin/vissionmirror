@@ -11,6 +11,10 @@ import ai.visionmirror.audio.VoiceCommands
 import ai.visionmirror.audio.VoiceEvent
 import ai.visionmirror.audio.VoiceFailure
 import ai.visionmirror.audio.VoiceInput
+import ai.visionmirror.audio.WakeSource
+import ai.visionmirror.audio.WakeWord
+import ai.visionmirror.assistant.AssistantAction
+import ai.visionmirror.assistant.AssistantIntents
 import ai.visionmirror.audio.say
 import ai.visionmirror.data.api.AppError
 import ai.visionmirror.data.api.AskResponse
@@ -30,7 +34,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -100,6 +107,7 @@ class SessionViewModel @Inject constructor(
     private val connectivity: Connectivity,
     private val settings: SettingsStore,
     private val permissions: PermissionChecker,
+    private val wake: WakeSource,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -113,7 +121,12 @@ class SessionViewModel @Inject constructor(
     private val _events = Channel<SessionEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    private enum class ListenMode { None, Question, Command }
+    /** Places her voice asked to go ("Adanna, read this"). The navigation host acts on them. */
+    private val _actions = MutableSharedFlow<AssistantAction>(extraBufferCapacity = 4)
+    val actions: SharedFlow<AssistantAction> = _actions.asSharedFlow()
+
+    /** Command = the short window after a reading; Assistant = right after she said "Adanna". */
+    private enum class ListenMode { None, Question, Command, Assistant }
 
     private var listenMode = ListenMode.None
     private var jpeg: ByteArray? = null
@@ -122,6 +135,7 @@ class SessionViewModel @Inject constructor(
     private var lastDescriptionSpeechId: String? = null
     private var voiceCommandsEnabled = true
     private var language = ResponseLanguage.NigerianEnglish
+    private var sceneMode = false
 
     init {
         viewModelScope.launch {
@@ -132,6 +146,7 @@ class SessionViewModel @Inject constructor(
             }
         }
         viewModelScope.launch { voice.events.collect(::onVoiceEvent) }
+        viewModelScope.launch { wake.wakes.collect(::onWake) }
         // Offline queue: the moment we are online again, describe the waiting photo.
         viewModelScope.launch {
             connectivity.online.distinctUntilChanged().collect { online ->
@@ -152,16 +167,18 @@ class SessionViewModel @Inject constructor(
 
     // ---- describe --------------------------------------------------------------------------
 
-    fun submitPhoto(jpegBytes: ByteArray, preview: Bitmap?) {
+    /** [scene] = the photo is of surroundings ("look around"), not of her. */
+    fun submitPhoto(jpegBytes: ByteArray, preview: Bitmap?, scene: Boolean = false) {
         endRemoteSession()
         jpeg = jpegBytes
+        sceneMode = scene
         _state.update {
             it.copy(
                 phase = Phase.Analysing, photo = preview, result = null, displayText = "",
                 conversation = emptyList(), ask = AskPhase.Idle, banner = null, refreshing = false,
             )
         }
-        speaker.say("One moment. I'm looking at you.", Priority.Interrupt)
+        speaker.say(if (scene) "One moment. Let me see." else "One moment. I'm looking at you.", Priority.Interrupt)
         startDescribe()
     }
 
@@ -170,7 +187,7 @@ class SessionViewModel @Inject constructor(
         val detail = _state.value.detail
         describeJob?.cancel()
         describeJob = viewModelScope.launch {
-            repo.describe(bytes, detail, language.apiTag)
+            repo.describe(bytes, detail, language.apiTag, sceneMode)
                 .onSuccess(::onDescribed)
                 .onFailure { onDescribeFailed(it, attempt, networkAttempt) }
         }
@@ -321,7 +338,7 @@ class SessionViewModel @Inject constructor(
             // SpeechStarted is deliberately ignored: she is only heard after the words "special request".
             VoiceEvent.SpeechStarted -> Unit
             is VoiceEvent.Level -> _micLevel.value = e.level
-            is VoiceEvent.Partial -> if (listenMode == ListenMode.Question) _state.update { it.copy(partialQuestion = e.text) }
+            is VoiceEvent.Partial -> if (listenMode == ListenMode.Question || listenMode == ListenMode.Assistant) _state.update { it.copy(partialQuestion = e.text) }
             is VoiceEvent.Final -> onHeard(e.text)
             is VoiceEvent.Failed -> onVoiceFailed(e.reason)
         }
@@ -338,13 +355,8 @@ class SessionViewModel @Inject constructor(
             }
             ListenMode.Command -> {
                 earcons.play(Earcon.ListeningOff)
-                // The mic only wakes up for the key phrase. "Special request, is my shirt tucked in" asks straight
-                // away; "special request" alone opens the mic for the question. Everything else must be a command.
-                val request = VoiceCommands.specialRequest(text)
-                if (request != null) {
-                    if (request.isNotBlank() && sessionId != null) submitQuestion(request) else startAsking()
-                    return
-                }
+                // The command window also answers to her name: "Adanna, is my shirt tucked in".
+                WakeWord.matches(text)?.let { handleWake(it.request); return }
                 when (VoiceCommands.parse(text)) {
                     VoiceCommand.Ask -> startAsking()
                     VoiceCommand.Retake -> retake()
@@ -354,6 +366,11 @@ class SessionViewModel @Inject constructor(
                     VoiceCommand.Stop -> speaker.stop()
                     else -> Unit // not a command: stay quiet rather than guess
                 }
+            }
+            ListenMode.Assistant -> {
+                earcons.play(Earcon.ListeningOff)
+                _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
+                handleRequest(text)
             }
             ListenMode.None -> Unit
         }
@@ -376,7 +393,65 @@ class SessionViewModel @Inject constructor(
             _state.update { it.copy(banner = line) }
             speaker.say(line, Priority.Interrupt)
         }
+        if (mode == ListenMode.Assistant) {
+            _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
+            earcons.play(Earcon.ListeningOff)
+            speaker.say(
+                if (reason == VoiceFailure.NoSpeech) "I didn't catch that. Say my name and try again." else "I couldn't hear you just now. Say my name and try again.",
+                Priority.Interrupt,
+            )
+        }
         // A failed command window is silent on purpose: she did not ask for anything.
+    }
+
+    // ---- assistant: "Adanna ..." -------------------------------------------------------------
+
+    /** The wake word was heard anywhere in the app. [request] is what she said after it, if anything. */
+    private fun onWake(request: String) {
+        if (listenMode == ListenMode.Question || listenMode == ListenMode.Assistant) return
+        haptics.click()
+        handleWake(request)
+    }
+
+    private fun handleWake(request: String) {
+        if (request.isNotBlank()) {
+            speaker.stop()
+            handleRequest(request)
+            return
+        }
+        if (!permissions.hasMic()) return
+        speaker.stop()
+        listenMode = ListenMode.Assistant
+        _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
+        earcons.play(Earcon.ListeningOn)
+        voice.start(language.recognitionTag())
+    }
+
+    /** What she asked for: a control word, a place to go, or (when there is a photo) a question about it. */
+    private fun handleRequest(raw: String) {
+        val text = WakeWord.strip(raw)
+        val hasPhoto = sessionId != null
+        VoiceCommands.parse(text)?.let { command ->
+            when (command) {
+                VoiceCommand.Stop -> { speaker.stop(); return }
+                VoiceCommand.Retake -> if (hasPhoto) { retake(); return }
+                VoiceCommand.Repeat -> if (hasPhoto) { repeat(); return }
+                VoiceCommand.Pause -> if (hasPhoto) { speaker.pause(); return }
+                VoiceCommand.Resume -> if (hasPhoto) { speaker.resume(); return }
+                VoiceCommand.Ask -> if (hasPhoto) { startAsking(); return }
+                VoiceCommand.Continue -> Unit
+            }
+            Unit
+        }
+        AssistantIntents.parse(text, hasPhoto)?.let { _actions.tryEmit(it); return }
+        if (hasPhoto) {
+            submitQuestion(text)
+        } else {
+            speaker.say(
+                "I'm ${WakeWord.NAME}. Say mirror, read, colour, or look around. Or take a photo and ask me about it.",
+                Priority.Interrupt,
+            )
+        }
     }
 
     private fun submitQuestion(question: String) {

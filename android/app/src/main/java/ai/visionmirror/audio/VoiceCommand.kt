@@ -22,16 +22,4 @@ object VoiceCommands {
         val hits = words.filter { (_, phrases) -> phrases.any { " $it " in padded } }.keys
         return hits.singleOrNull()
     }
-
-    /** The key phrase that wakes the assistant. The microphone is never open for anything else but commands. */
-    const val WAKE_PHRASE = "special request"
-
-    /**
-     * Null when [utterance] does not contain the key phrase. Otherwise whatever she said after it ("" if nothing),
-     * which is the question when she says it all in one breath.
-     */
-    fun specialRequest(utterance: String): String? {
-        val match = Regex("\\bspecial\\s+requests?\\b[\\s,.:;-]*", RegexOption.IGNORE_CASE).find(utterance) ?: return null
-        return utterance.substring(match.range.last + 1).trim()
-    }
 }

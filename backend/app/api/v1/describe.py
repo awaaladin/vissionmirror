@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 
@@ -19,6 +19,7 @@ async def describe(
     image: Annotated[UploadFile, File()],
     detail_level: Annotated[DetailLevel, Form()] = "standard",
     language: Annotated[str, Form(pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$")] = "en",
+    mode: Annotated[Literal["mirror", "scene"], Form()] = "mirror",
     device_id: str = Depends(current_device),
     _: None = Depends(limited("describe")),
     service: DescribeService = Depends(get_service),
@@ -30,4 +31,5 @@ async def describe(
         media_type=media_type,
         detail_level=detail_level,
         language=language,
+        mode=mode,
     )

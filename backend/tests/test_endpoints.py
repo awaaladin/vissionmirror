@@ -150,3 +150,17 @@ async def test_session_is_private_to_its_device(client, auth):
     # Owner still has it.
     r = await client.post("/v1/ask", headers=auth, json={"session_id": sid, "question": "hi"})
     assert r.status_code == 200
+
+
+async def test_describe_scene_mode_is_accepted(client):
+    from tests.conftest import JPEG, get_token
+
+    h = await get_token(client)
+    r = await client.post(
+        "/v1/describe", headers=h, files={"image": ("p.jpg", JPEG, "image/jpeg")}, data={"mode": "scene"}
+    )
+    assert r.status_code == 200 and "table" in r.json()["spoken_text"]
+    bad = await client.post(
+        "/v1/describe", headers=h, files={"image": ("p.jpg", JPEG, "image/jpeg")}, data={"mode": "nope"}
+    )
+    assert bad.status_code == 422

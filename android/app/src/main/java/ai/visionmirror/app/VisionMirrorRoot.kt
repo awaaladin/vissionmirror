@@ -36,7 +36,7 @@ fun VisionMirrorRoot(
         when {
             !settings.onboardingDone -> Routes.ONBOARDING
             needsAuth -> Routes.AUTH
-            else -> Routes.MIRROR
+            else -> Routes.HOME
         }
     }
 

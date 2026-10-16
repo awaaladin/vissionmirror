@@ -10,7 +10,10 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,6 +38,9 @@ sealed interface VoiceEvent {
 interface VoiceInput {
     val events: SharedFlow<VoiceEvent>
     val isAvailable: Boolean
+
+    /** True from start until the recogniser has finished, failed or been cancelled. */
+    val busy: StateFlow<Boolean>
     fun start(language: String? = null)
 
     /** Stop listening and deliver what was heard so far (hold-to-talk release). */
@@ -49,6 +55,8 @@ class SystemVoiceInput @Inject constructor(
     private val main = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
     private var smoothed = 0f
+    private val _busy = MutableStateFlow(false)
+    override val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
     private val _events = MutableSharedFlow<VoiceEvent>(extraBufferCapacity = 64)
     override val events: SharedFlow<VoiceEvent> = _events.asSharedFlow()
@@ -62,6 +70,7 @@ class SystemVoiceInput @Inject constructor(
             return@onMain
         }
         smoothed = 0f
+        _busy.value = true
         recognizer = SpeechRecognizer.createSpeechRecognizer(context).also { r ->
             r.setRecognitionListener(listener)
             r.startListening(
@@ -89,6 +98,7 @@ class SystemVoiceInput @Inject constructor(
             destroy()
         }
         recognizer = null
+        _busy.value = false
     }
 
     private fun onMain(block: () -> Unit) {
@@ -117,6 +127,7 @@ class SystemVoiceInput @Inject constructor(
             _events.tryEmit(if (text.isNullOrBlank()) VoiceEvent.Failed(VoiceFailure.NoSpeech) else VoiceEvent.Final(text))
             recognizer?.destroy()
             recognizer = null
+            _busy.value = false
         }
 
         override fun onError(error: Int) {
@@ -132,6 +143,7 @@ class SystemVoiceInput @Inject constructor(
             _events.tryEmit(VoiceEvent.Failed(reason))
             recognizer?.destroy()
             recognizer = null
+            _busy.value = false
         }
     }
 

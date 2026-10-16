@@ -162,7 +162,9 @@ class MockProvider(VisionProvider):
             return self.scenario
         return SCENARIOS[hashlib.sha256(image).digest()[0] % len(SCENARIOS)]
 
-    async def describe(self, *, image, media_type, detail_level, language) -> DescribeAnalysis:
+    async def describe(self, *, image, media_type, detail_level, language, mode="mirror") -> DescribeAnalysis:
+        if mode == "scene":
+            return _scene()
         name = self._pick(image)
         return _dark() if name == "dark" else _BUILDERS[name](detail_level)
 
@@ -186,3 +188,15 @@ class MockProvider(VisionProvider):
             return AskResponse(answer_text=text, spoken_text=text, confidence=0.8)
         text = f"{analysis.summary} You can ask me about the colours, your hair, or anything that looks off."
         return AskResponse(answer_text=text, spoken_text=text, confidence=0.6)
+
+
+def _scene() -> DescribeAnalysis:
+    text = "You are in a room. There is a table ahead of you with a blue cup on it. The door is on your right."
+    return DescribeAnalysis(
+        image_quality=ImageQuality(usable=True),
+        summary="A room with a table, a blue cup and a door.",
+        outfit=[OutfitItem(item="table", description="ahead of you", color="brown", pattern=None)],
+        colour_harmony=ColourHarmony(verdict="unsure", explanation="Mostly brown and blue."),
+        spoken_text=text,
+        confidence=0.7,
+    )

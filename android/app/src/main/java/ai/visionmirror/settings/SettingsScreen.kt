@@ -142,6 +142,12 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SettingToggleRow(
+                    "Say my name to wake me",
+                    s.wakeWord,
+                    viewModel::setWakeWord,
+                    description = "While the app is open, I listen for “Adanna” or “special request”. I stop listening when you leave the app. Your phone's speech service hears the audio.",
+                )
+                SettingToggleRow(
                     "Natural Nigerian voice",
                     s.cloudVoice,
                     viewModel::setCloudVoice,
