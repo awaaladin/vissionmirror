@@ -32,6 +32,8 @@ data class Settings(
     val cloudVoice: Boolean = true,
     /** Listen for "Adanna" while the app is open. */
     val wakeWord: Boolean = true,
+    /** Screen brightness while the app is open, 0.05..1. Negative = follow the phone. */
+    val brightness: Float = -1f,
     /** Which language she is spoken to in (and, where the phone can, listened to in). */
     val language: ResponseLanguage = ResponseLanguage.NigerianEnglish,
     val detailLevel: DetailLevel = DetailLevel.Standard,
@@ -66,6 +68,7 @@ class DataStoreSettings @Inject constructor(
         val language = stringPreferencesKey("language")
         val cloudVoice = booleanPreferencesKey("cloud_voice")
         val wakeWord = booleanPreferencesKey("wake_word")
+        val brightness = floatPreferencesKey("brightness")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
         val theme = stringPreferencesKey("theme_mode")
@@ -86,6 +89,7 @@ class DataStoreSettings @Inject constructor(
             voiceName = this[Keys.voiceName],
             cloudVoice = this[Keys.cloudVoice] ?: d.cloudVoice,
             wakeWord = this[Keys.wakeWord] ?: d.wakeWord,
+            brightness = this[Keys.brightness] ?: d.brightness,
             language = ResponseLanguage.fromApiTag(this[Keys.language]),
             detailLevel = DetailLevel.entries.firstOrNull { it.wire == this[Keys.detail] } ?: d.detailLevel,
             haptics = this[Keys.haptics] ?: d.haptics,
@@ -111,6 +115,7 @@ class DataStoreSettings @Inject constructor(
             p[Keys.language] = s.language.apiTag
             p[Keys.cloudVoice] = s.cloudVoice
             p[Keys.wakeWord] = s.wakeWord
+            p[Keys.brightness] = s.brightness
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire
             p[Keys.haptics] = s.haptics

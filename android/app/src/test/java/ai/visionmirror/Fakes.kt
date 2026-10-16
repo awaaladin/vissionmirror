@@ -114,6 +114,13 @@ fun described(session: String? = "s1", text: String = "You look good.", usable: 
 )
 
 
+class FakeDevice : ai.visionmirror.assistant.DeviceControls {
+    val calls = mutableListOf<String>()
+    override fun volume(steps: Int): String { calls += "volume $steps"; return "Louder." }
+    override fun volumeMax(): String { calls += "max"; return "Full volume." }
+    override fun nextVoice(): String { calls += "voice"; return "Voice 2 of 3." }
+}
+
 class FakeWake : ai.visionmirror.audio.WakeSource {
     private val _wakes = MutableSharedFlow<String>(extraBufferCapacity = 4)
     override val wakes: SharedFlow<String> = _wakes

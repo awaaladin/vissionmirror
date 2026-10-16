@@ -19,6 +19,8 @@ import ai.visionmirror.data.repo.MirrorRepository
 import ai.visionmirror.data.settings.DataStoreSettings
 import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.data.repo.MirrorRepositoryImpl
+import ai.visionmirror.assistant.AndroidDeviceControls
+import ai.visionmirror.assistant.DeviceControls
 import ai.visionmirror.audio.BackendCloudVoice
 import ai.visionmirror.audio.CloudVoice
 import ai.visionmirror.audio.EarconPlayer
@@ -114,4 +116,5 @@ abstract class BindingsModule {
     @Binds abstract fun permissions(impl: SystemPermissionChecker): PermissionChecker
     @Binds abstract fun voiceInput(impl: SystemVoiceInput): VoiceInput
     @Binds abstract fun wakeSource(impl: WakeWordListener): WakeSource
+    @Binds abstract fun deviceControls(impl: AndroidDeviceControls): DeviceControls
 }

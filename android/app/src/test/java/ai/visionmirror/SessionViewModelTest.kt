@@ -39,13 +39,14 @@ class SessionViewModelTest {
     private val settings = FakeSettings()
     private val permissions = FakePermissions()
     private val wake = FakeWake()
+    private val device = FakeDevice()
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun vm() = SessionViewModel(
-        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake,
+        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake, device,
         CoroutineScope(dispatcher),
     )
 
@@ -386,5 +387,33 @@ class SessionViewModelTest {
             advanceUntilIdle()
             assertEquals(ai.visionmirror.assistant.AssistantAction.OpenLook, awaitItem())
         }
+    }
+
+    @Test fun settingsCanBeChangedByVoice() = runTest(dispatcher) {
+        val vm = vm()
+        advanceUntilIdle()
+        wake.wake("make the text bigger")
+        advanceUntilIdle()
+        assertEquals(ai.visionmirror.settings.TextSize.Large.scale, settings.flow.value.textScale, 0.001f)
+        assertEquals("Bigger text.", speaker.spoken.last())
+
+        wake.wake("speak Hausa")
+        advanceUntilIdle()
+        assertEquals(ai.visionmirror.audio.ResponseLanguage.Hausa, settings.flow.value.language)
+
+        wake.wake("louder")
+        advanceUntilIdle()
+        assertEquals(listOf("volume 1"), device.calls)
+    }
+
+    @Test fun aQuestionAboutThePhotoIsNotMistakenForASetting() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        repo.askResults += Result.success(AskResponse("Yes.", "Yes.", 0.9f))
+        val vm = vm()
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+        wake.wake("is the text on my shirt readable")
+        advanceUntilIdle()
+        assertEquals(listOf("is the text on my shirt readable"), repo.questions)
     }
 }

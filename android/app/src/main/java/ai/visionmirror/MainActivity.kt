@@ -14,6 +14,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -32,6 +36,17 @@ class MainActivity : ComponentActivity() {
         installSplashScreen().setKeepOnScreenCondition { appViewModel.settings.value == null || !appViewModel.account.value.loaded }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // "Adanna, brighter": the screen brightness is a setting, applied to this window only.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                appViewModel.settings.collect { s ->
+                    val value = s?.brightness ?: return@collect
+                    window.attributes = window.attributes.apply {
+                        screenBrightness = if (value < 0f) android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE else value
+                    }
+                }
+            }
+        }
         setContent { VisionMirrorRoot(speech, haptics, earcons) }
     }
 

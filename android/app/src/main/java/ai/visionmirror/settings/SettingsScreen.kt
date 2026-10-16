@@ -201,6 +201,14 @@ fun SettingsScreen(
             }
 
             SettingGroup("Look") {
+                BasicText("Screen brightness", style = Vm.type.label.copy(color = Vm.colors.bone))
+                val levels = listOf("Auto" to -1f, "Low" to 0.25f, "Medium" to 0.6f, "Full" to 1f)
+                SegmentedControl(
+                    options = levels.map { it.first },
+                    selectedIndex = levels.indexOfFirst { kotlin.math.abs(it.second - s.brightness) < 0.15f || (s.brightness < 0f && it.second < 0f) }.coerceAtLeast(0),
+                    onSelect = { viewModel.setBrightness(levels[it].second) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 BasicText("Theme", style = Vm.type.label.copy(color = Vm.colors.bone))
                 SegmentedControl(
                     options = ThemeMode.entries.map { it.label },

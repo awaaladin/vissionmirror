@@ -124,6 +124,7 @@ fun AppNav(
                 screen(Routes.HOME) {
                     HomeScreen(
                         session = session,
+                        speech = speech,
                         onMirror = { nav.navigate(Routes.MIRROR) },
                         onRead = { nav.navigate(Routes.look(LookMode.Read)) },
                         onColour = { nav.navigate(Routes.look(LookMode.Colour)) },

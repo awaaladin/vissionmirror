@@ -15,6 +15,9 @@ import ai.visionmirror.audio.WakeSource
 import ai.visionmirror.audio.WakeWord
 import ai.visionmirror.assistant.AssistantAction
 import ai.visionmirror.assistant.AssistantIntents
+import ai.visionmirror.assistant.DeviceControls
+import ai.visionmirror.assistant.SettingChange
+import ai.visionmirror.assistant.VoiceSettings
 import ai.visionmirror.audio.say
 import ai.visionmirror.data.api.AppError
 import ai.visionmirror.data.api.AskResponse
@@ -108,6 +111,7 @@ class SessionViewModel @Inject constructor(
     private val settings: SettingsStore,
     private val permissions: PermissionChecker,
     private val wake: WakeSource,
+    private val device: DeviceControls,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -431,6 +435,8 @@ class SessionViewModel @Inject constructor(
     private fun handleRequest(raw: String) {
         val text = WakeWord.strip(raw)
         val hasPhoto = sessionId != null
+        // Settings first: "stop listening for my name" is a setting, not the command "stop".
+        VoiceSettings.parse(text)?.let { applySetting(it); return }
         VoiceCommands.parse(text)?.let { command ->
             when (command) {
                 VoiceCommand.Stop -> { speaker.stop(); return }
@@ -451,6 +457,29 @@ class SessionViewModel @Inject constructor(
                 "I'm ${WakeWord.NAME}. Say mirror, read, colour, or look around. Or take a photo and ask me about it.",
                 Priority.Interrupt,
             )
+        }
+    }
+
+    private fun applySetting(change: SettingChange) {
+        when (change) {
+            is SettingChange.Set -> viewModelScope.launch {
+                settings.update(change.change)
+                earcons.play(Earcon.Ready)
+                speaker.say(change.say, Priority.Interrupt)
+            }
+            is SettingChange.Volume -> speaker.say(device.volume(change.steps), Priority.Interrupt)
+            SettingChange.VolumeMax -> speaker.say(device.volumeMax(), Priority.Interrupt)
+            SettingChange.NextVoice -> speaker.say(device.nextVoice(), Priority.Interrupt)
+            SettingChange.Help -> speaker.say(VoiceSettings.HELP, Priority.Interrupt)
+        }
+    }
+
+    /** The orb on Home: tap to talk to Adanna, tap again to stop. */
+    fun toggleListening() {
+        if (listenMode == ListenMode.Question || listenMode == ListenMode.Assistant) {
+            cancelAsking()
+        } else {
+            handleWake("")
         }
     }
 
