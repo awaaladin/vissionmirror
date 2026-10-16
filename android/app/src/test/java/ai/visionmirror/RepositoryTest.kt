@@ -142,7 +142,7 @@ class RepositoryTest {
         assertEquals("I've reached my limit for today. Please try again tomorrow.", (e as AppError.Server).spokenText)
     }
 
-    @Test fun aSlowServerIsNotReportedAsOffline() = runTest {
+    @Test fun aSlowServerIsReportedAsRetryableNetworkTimeout() = runTest {
         val slowApi = object : MirrorApi {
             override suspend fun describe(
                 image: okhttp3.MultipartBody.Part,
@@ -156,7 +156,7 @@ class RepositoryTest {
         }
         val slowRepo = MirrorRepositoryImpl(slowApi, Json { ignoreUnknownKeys = true })
         val e = slowRepo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull()
-        assertTrue("was $e", e is AppError.Server)
+        assertTrue("was $e", e is AppError.NetworkTimeout)
         assertTrue(e !is AppError.Offline)
     }
 

@@ -40,6 +40,18 @@ class Settings(BaseSettings):
     login_max_failures: int = 8  # wrong passwords per email before it is locked for login_lock_seconds
     login_lock_seconds: int = 900
 
+    # Azure neural voice (en-NG) for natural Nigerian speech. Empty = the app uses the phone's own voice.
+    azure_speech_key: str | None = None
+    azure_speech_region: str = "westeurope"
+    azure_speech_voice: str = "en-NG-EzinneNeural"  # or en-NG-AbeoNeural (male)
+    rate_speech_device_per_min: int = 40
+    rate_speech_ip_per_min: int = 120
+
+    # VoiceVerse translation API for Hausa, Yoruba, Igbo and Ibibio. Empty = those languages fall back to English.
+    voiceverse_url: str | None = None
+    voiceverse_api_key: str | None = None
+    voiceverse_timeout_seconds: float = 20.0
+
     # Global ceiling on AI calls (describe + ask) per UTC day, so a demo can't run up a bill.
     daily_ai_call_limit: int = 500
 

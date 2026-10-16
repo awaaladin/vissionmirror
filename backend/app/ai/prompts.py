@@ -9,7 +9,7 @@ import json
 from app.schemas.common import DetailLevel
 from app.schemas.describe import DescribeAnalysis
 
-PROMPT_VERSION = "1.2.0"  # 1.2.0: systematic inspection (missed a large mark); 1.1.0: say what is out of frame
+PROMPT_VERSION = "1.4.0"  # 1.4.0: Nigerian English voice; 1.3.0: always name visible garments in spoken_text
 
 REFUSAL_LINE = (
     "I don't judge looks, but I can tell you what I see and what could be adjusted."
@@ -53,7 +53,20 @@ HOW TO WRITE spoken_text (this is your most important output)
 - Speak to her directly using "you" and "your"."""
 
 
+_NIGERIAN_ENGLISH = (
+    "VOICE: The listener is Nigerian. Write in clear, warm Nigerian English, the way an educated Nigerian friend would speak: "
+    "natural everyday words, polite and encouraging, and short even sentences that are easy to follow when read aloud. "
+    "Use Nigerian names for clothes where they apply (agbada, buba, sokoto, iro and buba, gele, fila, ankara, kaftan, george wrapper) and say them plainly. "
+    "Do not use slang or Pidgin and do not imitate an accent in spelling; keep standard spelling, with British spellings such as colour."
+)
+
+
 def _language_line(language: str) -> str:
+    if language.lower() == "en-ng":
+        return _NIGERIAN_ENGLISH + "\n" + (
+            "LANGUAGE: Write every human-readable field in English. "
+            "Keep the JSON keys and the fixed values (severity, verdict, issue codes) exactly as specified in English."
+        )
     return (
         f"LANGUAGE: Write every human-readable field in the language with code '{language}'. "
         "Keep the JSON keys and the fixed values (severity, verdict, issue codes) exactly as specified in English."
@@ -103,7 +116,10 @@ def describe_system_prompt(detail_level: DetailLevel, language: str) -> str:
             _QUALITY_GATE,
             _INSPECTION,
             _FIELD_GUIDE,
-            _SPOKEN_RULES + "\n- " + DETAIL_GUIDE[detail_level],
+            _SPOKEN_RULES
+            + '\n- For every usable photo, name the visible clothing items in spoken_text; name each colour when it is clear. Never use "your outfit" as a substitute for saying what the garments are.'
+            + "\n- "
+            + DETAIL_GUIDE[detail_level],
             _language_line(language),
             "Respond with a single JSON object that matches the required schema, and nothing else.",
         ]

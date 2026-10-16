@@ -15,6 +15,9 @@ sealed class AppError(val spokenText: String, cause: Throwable? = null) : Except
     /** 429. [retryAfterSeconds] comes from the Retry-After header. */
     class RateLimited(val retryAfterSeconds: Int, spoken: String) : AppError(spoken)
 
+    /** A request timed out while the device was connected; the photo can be retried. */
+    class NetworkTimeout(spoken: String) : AppError(spoken)
+
     /** 404 session_not_found: expired (10 min), deleted, or not ours. A new photo is needed. */
     class SessionExpired(spoken: String) : AppError(spoken)
 

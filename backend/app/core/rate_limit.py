@@ -151,6 +151,7 @@ async def enforce(request: Request, scope: str, device_id: str | None, settings:
         "ask": (s.rate_ask_device_per_min, s.rate_ask_ip_per_min),
         "auth": (None, s.rate_auth_ip_per_min),
         "account": (None, s.rate_account_ip_per_min),
+        "speech": (s.rate_speech_device_per_min, s.rate_speech_ip_per_min),
     }
     device_limit, ip_limit = limits[scope]
     waits = []

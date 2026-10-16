@@ -1,5 +1,6 @@
 package ai.visionmirror.data.settings
 
+import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.data.api.DetailLevel
 import ai.visionmirror.design.tokens.FontChoice
 import ai.visionmirror.design.tokens.ThemeMode
@@ -27,6 +28,10 @@ data class Settings(
     val onboardingDone: Boolean = false,
     val speechRate: Float = 1.0f,
     val voiceName: String? = null,
+    /** Natural Nigerian voice from the internet; the phone's own voice is the fallback. */
+    val cloudVoice: Boolean = true,
+    /** Which language she is spoken to in (and, where the phone can, listened to in). */
+    val language: ResponseLanguage = ResponseLanguage.NigerianEnglish,
     val detailLevel: DetailLevel = DetailLevel.Standard,
     val haptics: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.Dark,
@@ -56,6 +61,8 @@ class DataStoreSettings @Inject constructor(
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val speechRate = floatPreferencesKey("speech_rate")
         val voiceName = stringPreferencesKey("voice_name")
+        val language = stringPreferencesKey("language")
+        val cloudVoice = booleanPreferencesKey("cloud_voice")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
         val theme = stringPreferencesKey("theme_mode")
@@ -74,6 +81,8 @@ class DataStoreSettings @Inject constructor(
             onboardingDone = this[Keys.onboardingDone] ?: d.onboardingDone,
             speechRate = this[Keys.speechRate] ?: d.speechRate,
             voiceName = this[Keys.voiceName],
+            cloudVoice = this[Keys.cloudVoice] ?: d.cloudVoice,
+            language = ResponseLanguage.fromApiTag(this[Keys.language]),
             detailLevel = DetailLevel.entries.firstOrNull { it.wire == this[Keys.detail] } ?: d.detailLevel,
             haptics = this[Keys.haptics] ?: d.haptics,
             themeMode = ThemeMode.entries.firstOrNull { it.name == this[Keys.theme] } ?: d.themeMode,
@@ -95,6 +104,8 @@ class DataStoreSettings @Inject constructor(
             val s = transform(old)
             p[Keys.onboardingDone] = s.onboardingDone
             p[Keys.speechRate] = s.speechRate
+            p[Keys.language] = s.language.apiTag
+            p[Keys.cloudVoice] = s.cloudVoice
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire
             p[Keys.haptics] = s.haptics

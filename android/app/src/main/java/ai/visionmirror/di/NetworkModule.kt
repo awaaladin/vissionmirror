@@ -13,11 +13,14 @@ import ai.visionmirror.data.auth.TokenProvider
 import ai.visionmirror.data.net.Connectivity
 import ai.visionmirror.data.net.ConnectivityMonitor
 import ai.visionmirror.data.net.PermissionChecker
+import ai.visionmirror.data.net.RetryInterceptor
 import ai.visionmirror.data.net.SystemPermissionChecker
 import ai.visionmirror.data.repo.MirrorRepository
 import ai.visionmirror.data.settings.DataStoreSettings
 import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.data.repo.MirrorRepositoryImpl
+import ai.visionmirror.audio.BackendCloudVoice
+import ai.visionmirror.audio.CloudVoice
 import ai.visionmirror.audio.EarconPlayer
 import ai.visionmirror.audio.Earcons
 import ai.visionmirror.audio.SpeechManager
@@ -81,8 +84,10 @@ object NetworkModule {
     fun appScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private fun baseClient() = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS) // slow mobile networks need longer to connect, not to give up
         .readTimeout(20, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
+        .addInterceptor(RetryInterceptor())
 
     // Base URL comes from BuildConfig (local.properties), never hard-coded.
     private fun retrofit(client: OkHttpClient, json: Json) = Retrofit.Builder()
@@ -99,6 +104,7 @@ abstract class BindingsModule {
     @Binds abstract fun deviceIds(impl: PrefsDeviceIdStore): DeviceIdStore
     @Binds abstract fun accountStorage(impl: DataStoreAccountStorage): AccountStorage
     @Binds abstract fun speaker(impl: SpeechManager): Speaker
+    @Binds abstract fun cloudVoice(impl: BackendCloudVoice): CloudVoice
     @Binds abstract fun haptics(impl: HapticsManager): Haptics
     @Binds abstract fun earcons(impl: EarconPlayer): Earcons
     @Binds abstract fun settings(impl: DataStoreSettings): SettingsStore

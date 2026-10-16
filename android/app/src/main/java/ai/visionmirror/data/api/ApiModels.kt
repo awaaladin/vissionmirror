@@ -107,6 +107,9 @@ data class DescribeResponse(
 )
 
 @Serializable
+data class SpeechRequest(val text: String, val rate: Float = 1f)
+
+@Serializable
 data class AskRequest(
     @SerialName("session_id") val sessionId: String,
     val question: String,

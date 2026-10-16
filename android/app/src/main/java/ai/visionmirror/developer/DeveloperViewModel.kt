@@ -30,7 +30,9 @@ class DeveloperViewModel @Inject constructor(
     private val speech: SpeechManager,
 ) : ViewModel() {
 
-    private val _ui = MutableStateFlow(DeveloperUi(voiceInfo = "${speech.availableVoices().size} offline voice(s) for this language"))
+    private val _ui = MutableStateFlow(DeveloperUi(
+        voiceInfo = speech.problem ?: "Working. ${speech.availableVoices().size} offline voice(s) for this language",
+    ))
     val ui: StateFlow<DeveloperUi> = _ui
 
     /** A real call to the live server's /v1/health, timed. */
@@ -55,6 +57,16 @@ class DeveloperViewModel @Inject constructor(
 
     fun speakTest() {
         speech.say("This is a test of the voice you chose. One, two, three.", Priority.Interrupt)
+        // Re-read after a moment: the engine may still have been starting.
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(1_500)
+            _ui.update {
+                it.copy(
+                    voiceInfo = speech.problem
+                        ?: "Working. If you heard nothing, turn up the MEDIA volume with the phone's volume keys.",
+                )
+            }
+        }
     }
 
     fun replayOnboarding() {

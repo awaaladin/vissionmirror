@@ -85,3 +85,13 @@ Never commit `.env`.
 ## Privacy
 
 Photos live in memory and in Redis only, with a 10-minute expiry. They are never written to disk or logged. Redis in `docker-compose.yml` has persistence turned off.
+
+## Hausa, Yoruba, Igbo and Ibibio (VoiceVerse translation)
+
+The vision model always writes English. When a request's `language` is `ha`, `yo`, `ig` or `ibb`, the spoken text is
+translated afterwards by the VoiceVerse API ([app/services/translation_service.py](app/services/translation_service.py)).
+Set `VOICEVERSE_URL` (and `VOICEVERSE_API_KEY` if it needs one) to turn it on. If the service is unset, slow or failing,
+the user hears "I can't translate right now, so I'll speak in English." followed by the English text; requests never fail
+because of translation. The stored session keeps the English, so follow-up questions are unaffected.
+
+`language: "en-NG"` asks the model for Nigerian English phrasing (see `_NIGERIAN_ENGLISH` in `app/ai/prompts.py`).

@@ -2,6 +2,7 @@ package ai.visionmirror.session
 
 import ai.visionmirror.audio.Earcon
 import ai.visionmirror.audio.Earcons
+import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.SpeechManager.Priority
 import ai.visionmirror.audio.Speaker
@@ -12,6 +13,7 @@ import ai.visionmirror.audio.VoiceFailure
 import ai.visionmirror.audio.VoiceInput
 import ai.visionmirror.audio.say
 import ai.visionmirror.data.api.AppError
+import ai.visionmirror.data.api.AskResponse
 import ai.visionmirror.data.api.DescribeResponse
 import ai.visionmirror.data.api.DetailLevel
 import ai.visionmirror.data.net.Connectivity
@@ -33,10 +35,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
 import javax.inject.Inject
 
 enum class Phase {
@@ -119,11 +121,13 @@ class SessionViewModel @Inject constructor(
     private var describeJob: Job? = null
     private var lastDescriptionSpeechId: String? = null
     private var voiceCommandsEnabled = true
+    private var language = ResponseLanguage.NigerianEnglish
 
     init {
         viewModelScope.launch {
             settings.settings.collectLatest { s ->
                 voiceCommandsEnabled = s.voiceCommands
+                language = s.language
                 if (_state.value.phase == Phase.Idle) _state.update { it.copy(detail = s.detailLevel) }
             }
         }
@@ -161,14 +165,14 @@ class SessionViewModel @Inject constructor(
         startDescribe()
     }
 
-    private fun startDescribe(attempt: Int = 0) {
+    private fun startDescribe(attempt: Int = 0, networkAttempt: Int = 0) {
         val bytes = jpeg ?: return
         val detail = _state.value.detail
         describeJob?.cancel()
         describeJob = viewModelScope.launch {
-            repo.describe(bytes, detail, deviceLanguage())
+            repo.describe(bytes, detail, language.apiTag)
                 .onSuccess(::onDescribed)
-                .onFailure { onDescribeFailed(it, attempt) }
+                .onFailure { onDescribeFailed(it, attempt, networkAttempt) }
         }
     }
 
@@ -193,10 +197,16 @@ class SessionViewModel @Inject constructor(
         lastDescriptionSpeechId = speaker.say(r.spokenText, Priority.Interrupt)
     }
 
-    private suspend fun onDescribeFailed(t: Throwable, attempt: Int) {
+    private suspend fun onDescribeFailed(t: Throwable, attempt: Int, networkAttempt: Int) {
         val error = t as? AppError ?: AppError.Unexpected(t)
         val hadResult = _state.value.result != null // refreshing detail level: keep what she already has
         when {
+            error is AppError.NetworkTimeout && networkAttempt < MAX_NETWORK_RETRIES -> {
+                retrySlowNetwork(attempt, networkAttempt)
+            }
+            error is AppError.Offline && connectivity.online.first() && networkAttempt < MAX_NETWORK_RETRIES -> {
+                retrySlowNetwork(attempt, networkAttempt)
+            }
             error is AppError.Offline -> {
                 if (hadResult) failInPlace(error) else {
                     _state.update { it.copy(phase = Phase.Offline, banner = error.spokenText) }
@@ -208,7 +218,7 @@ class SessionViewModel @Inject constructor(
                 _state.update { it.copy(banner = error.spokenText) }
                 speaker.say(error.spokenText, Priority.Interrupt)
                 delay(error.retryAfterSeconds * 1_000L)
-                startDescribe(attempt + 1)
+                startDescribe(attempt + 1, networkAttempt)
             }
             hadResult -> failInPlace(error)
             else -> {
@@ -218,6 +228,14 @@ class SessionViewModel @Inject constructor(
                 speaker.say(error.spokenText, Priority.Interrupt)
             }
         }
+    }
+
+    private suspend fun retrySlowNetwork(attempt: Int, networkAttempt: Int) {
+        val message = "Your connection is slow. I'll keep trying."
+        _state.update { it.copy(banner = message) }
+        speaker.say(message, Priority.Interrupt)
+        delay(1_000L shl networkAttempt)
+        startDescribe(attempt, networkAttempt + 1)
     }
 
     private fun failInPlace(error: AppError) {
@@ -275,7 +293,7 @@ class SessionViewModel @Inject constructor(
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
         earcons.play(Earcon.ListeningOn)
         haptics.click()
-        voice.start(deviceLanguage())
+        voice.start(language.recognitionTag())
     }
 
     /** Hold-to-talk release: deliver what was heard. */
@@ -294,12 +312,14 @@ class SessionViewModel @Inject constructor(
         if (!voiceCommandsEnabled || !permissions.hasMic()) return
         if (_state.value.phase != Phase.Result || _state.value.ask != AskPhase.Idle) return
         listenMode = ListenMode.Command
-        voice.start(deviceLanguage())
+        voice.start(language.recognitionTag())
     }
 
     private fun onVoiceEvent(e: VoiceEvent) {
         when (e) {
             VoiceEvent.Ready -> if (listenMode == ListenMode.Command) earcons.play(Earcon.ListeningOn)
+            // SpeechStarted is deliberately ignored: she is only heard after the words "special request".
+            VoiceEvent.SpeechStarted -> Unit
             is VoiceEvent.Level -> _micLevel.value = e.level
             is VoiceEvent.Partial -> if (listenMode == ListenMode.Question) _state.update { it.copy(partialQuestion = e.text) }
             is VoiceEvent.Final -> onHeard(e.text)
@@ -318,6 +338,13 @@ class SessionViewModel @Inject constructor(
             }
             ListenMode.Command -> {
                 earcons.play(Earcon.ListeningOff)
+                // The mic only wakes up for the key phrase. "Special request, is my shirt tucked in" asks straight
+                // away; "special request" alone opens the mic for the question. Everything else must be a command.
+                val request = VoiceCommands.specialRequest(text)
+                if (request != null) {
+                    if (request.isNotBlank() && sessionId != null) submitQuestion(request) else startAsking()
+                    return
+                }
                 when (VoiceCommands.parse(text)) {
                     VoiceCommand.Ask -> startAsking()
                     VoiceCommand.Retake -> retake()
@@ -361,7 +388,7 @@ class SessionViewModel @Inject constructor(
         _state.update { it.copy(ask = AskPhase.Thinking, partialQuestion = question) }
         speaker.say("Let me look.", Priority.Interrupt)
         viewModelScope.launch {
-            repo.ask(id, question, deviceLanguage())
+            askWithRetry(id, question)
                 .onSuccess { a ->
                     _state.update {
                         it.copy(
@@ -383,6 +410,20 @@ class SessionViewModel @Inject constructor(
                         _events.send(SessionEvent.NeedNewPhoto)
                     }
                 }
+        }
+    }
+
+    /** A dropped connection should not cost her the question: try again a few times, quietly, before giving up. */
+    private suspend fun askWithRetry(id: String, question: String): Result<AskResponse> {
+        var attempt = 0
+        while (true) {
+            val result = repo.ask(id, question, language.apiTag)
+            val error = result.exceptionOrNull()
+            val transient = error is AppError.NetworkTimeout || (error is AppError.Offline && connectivity.online.first())
+            if (!transient || attempt >= MAX_NETWORK_RETRIES) return result
+            if (attempt == 0) speaker.say("Your connection is slow. I'll keep trying.", Priority.Interrupt)
+            delay(1_000L shl attempt)
+            attempt++
         }
     }
 
@@ -420,13 +461,8 @@ class SessionViewModel @Inject constructor(
         super.onCleared()
     }
 
-    private fun deviceLanguage(): String {
-        val l = Locale.getDefault()
-        // Matches the API's pattern: "en" or "pt-BR", never "zh-Hans-CN".
-        return if (l.country.isNotEmpty()) "${l.language}-${l.country}" else l.language.ifEmpty { "en" }
-    }
-
     private companion object {
         const val MAX_RATE_RETRIES = 2
+        const val MAX_NETWORK_RETRIES = 4
     }
 }

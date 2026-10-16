@@ -2,6 +2,7 @@ package ai.visionmirror.data.api
 
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -35,6 +36,10 @@ interface MirrorApi {
 
     @POST("v1/ask")
     suspend fun ask(@Body body: AskRequest): Response<AskResponse>
+
+    /** Nigerian English audio (MP3) for [body]. 501 or any failure means: use the phone's own voice. */
+    @POST("v1/speech")
+    suspend fun speech(@Body body: SpeechRequest): Response<ResponseBody>
 
     @DELETE("v1/session/{id}")
     suspend fun deleteSession(@Path("id") id: String): Response<Unit>

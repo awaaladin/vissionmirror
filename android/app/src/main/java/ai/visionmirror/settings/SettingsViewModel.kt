@@ -1,6 +1,7 @@
 package ai.visionmirror.settings
 
 import ai.visionmirror.app.Spoken
+import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.SpeechManager.Priority
 import ai.visionmirror.audio.say
@@ -111,6 +112,19 @@ class SettingsViewModel @Inject constructor(
         update { it.copy(speechRate = rate.value) }
         speech.setRate(rate.value)
         speech.say("This is how fast I'll speak.", Priority.Interrupt)
+    }
+
+    fun setLanguage(language: ResponseLanguage) {
+        // A voice picked for another language would be silent or wrong here; go back to the best one for this language.
+        update { it.copy(language = language, voiceName = null) }
+        speech.setLanguage(language.speechLocales())
+        speech.say("${language.label}.", Priority.Interrupt)
+    }
+
+    fun setCloudVoice(on: Boolean) {
+        update { it.copy(cloudVoice = on) }
+        speech.setCloudVoice(on)
+        speech.say("Hello, this is how I sound.", Priority.Interrupt)
     }
 
     fun setDetail(level: DetailLevel) = update { it.copy(detailLevel = level) }

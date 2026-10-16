@@ -1,6 +1,7 @@
 package ai.visionmirror.settings
 
 import ai.visionmirror.BuildConfig
+import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.audio.SpeechManager.Priority
 import ai.visionmirror.audio.Speaker
 import ai.visionmirror.audio.say
@@ -116,6 +117,22 @@ fun SettingsScreen(
                 )
             }
 
+            SettingGroup("Language") {
+                BasicText("I speak to you in", style = Vm.type.label.copy(color = Vm.colors.bone))
+                SegmentedControl(
+                    options = ResponseLanguage.entries.map { it.label },
+                    selectedIndex = s.language.ordinal,
+                    onSelect = { viewModel.setLanguage(ResponseLanguage.entries[it]) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (s.language != ResponseLanguage.NigerianEnglish) {
+                    BasicText(
+                        "Translated for you. If the translation service is unavailable I will say so and speak English.",
+                        style = Vm.type.body.copy(color = Vm.colors.boneMuted),
+                    )
+                }
+            }
+
             SettingGroup("Voice") {
                 BasicText("Speech speed", style = Vm.type.label.copy(color = Vm.colors.bone))
                 SegmentedControl(
@@ -123,6 +140,12 @@ fun SettingsScreen(
                     selectedIndex = SpeechRate.nearest(s.speechRate).ordinal,
                     onSelect = { viewModel.setSpeechRate(SpeechRate.entries[it]) },
                     modifier = Modifier.fillMaxWidth(),
+                )
+                SettingToggleRow(
+                    "Natural Nigerian voice",
+                    s.cloudVoice,
+                    viewModel::setCloudVoice,
+                    description = "Uses the internet for a more natural voice. When you are offline I use your phone's voice.",
                 )
                 GhostAction(
                     "Voice: ${viewModel.currentVoiceLabel()}",
@@ -135,7 +158,7 @@ fun SettingsScreen(
                     "Voice commands",
                     s.voiceCommands,
                     viewModel::setVoiceCommands,
-                    description = "After I read your result, listen for “ask”, “retake” or “repeat”.",
+                    description = "After I read your result, listen briefly for “retake” or “repeat”, or for “special request” followed by your question.",
                 )
             }
 

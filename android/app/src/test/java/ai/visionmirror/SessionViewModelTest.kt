@@ -97,6 +97,30 @@ class SessionViewModelTest {
         assertTrue(speaker.spoken.any { it.contains("back online") })
     }
 
+    @Test fun slowNetworkRetriesTheSamePhotoAutomatically() = runTest(dispatcher) {
+        repo.describeResults += Result.failure(AppError.NetworkTimeout("Timed out."))
+        repo.describeResults += Result.success(described(text = "Your blue jacket."))
+        val vm = vm()
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+
+        assertEquals(2, repo.describeDetails.size)
+        assertEquals(Phase.Result, vm.state.value.phase)
+        assertEquals("Your blue jacket.", vm.state.value.displayText)
+    }
+
+    @Test fun briefConnectionDropRetriesWhenAndroidStillReportsOnline() = runTest(dispatcher) {
+        repo.describeResults += Result.failure(AppError.Offline())
+        repo.describeResults += Result.success(described(text = "Your green sweater."))
+        val vm = vm()
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+
+        assertEquals(2, repo.describeDetails.size)
+        assertEquals(Phase.Result, vm.state.value.phase)
+        assertEquals("Your green sweater.", vm.state.value.displayText)
+    }
+
     @Test fun rateLimitWaitsRetryAfterThenTriesAgain() = runTest(dispatcher) {
         repo.describeResults += Result.failure(AppError.RateLimited(5, "I'm busy. Trying again in 5 seconds."))
         repo.describeResults += Result.success(described())
@@ -269,5 +293,61 @@ class SessionViewModelTest {
         speaker.finishLast()
         advanceUntilIdle()
         assertEquals(0, voice.starts)
+    }
+
+    private suspend fun TestScope.openCommandWindow(vm: SessionViewModel) {
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+        speaker.finishLast()
+        advanceUntilIdle()
+        assertEquals(1, voice.starts)
+    }
+
+    @Test fun specialRequestWithAQuestionIsAnsweredAtOnce() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        repo.askResults += Result.success(AskResponse("Yes, it is tucked in.", "Yes, it is tucked in.", 0.9f))
+        val vm = vm()
+        openCommandWindow(vm)
+        voice.emit(VoiceEvent.Final("Special request, is my shirt tucked in"))
+        advanceUntilIdle()
+        assertEquals(listOf("is my shirt tucked in"), repo.questions)
+        assertEquals("Yes, it is tucked in.", vm.state.value.displayText)
+    }
+
+    @Test fun specialRequestAloneOpensTheMicForTheQuestion() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        val vm = vm()
+        openCommandWindow(vm)
+        voice.emit(VoiceEvent.Final("special request"))
+        advanceUntilIdle()
+        assertEquals(AskPhase.Listening, vm.state.value.ask)
+        assertEquals(2, voice.starts)
+        assertTrue(repo.questions.isEmpty())
+    }
+
+    @Test fun speechWithoutTheKeyPhraseIsNeverSentAnywhere() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        val vm = vm()
+        openCommandWindow(vm)
+        voice.emit(VoiceEvent.SpeechStarted)
+        voice.emit(VoiceEvent.Final("is my shirt tucked in"))
+        advanceUntilIdle()
+        assertTrue(repo.questions.isEmpty())
+        assertEquals(AskPhase.Idle, vm.state.value.ask)
+    }
+
+    @Test fun droppedConnectionWhileAskingIsRetriedBeforeGivingUp() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        repo.askResults += Result.failure(AppError.NetworkTimeout("slow"))
+        repo.askResults += Result.failure(AppError.Offline())
+        repo.askResults += Result.success(AskResponse("It is neat.", "It is neat.", 0.9f))
+        val vm = vm()
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+        vm.startAsking()
+        voice.emit(VoiceEvent.Final("is it neat"))
+        advanceUntilIdle()
+        assertEquals(3, repo.questions.size)
+        assertEquals("It is neat.", vm.state.value.displayText)
     }
 }

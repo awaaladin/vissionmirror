@@ -63,7 +63,7 @@ class MirrorRepositoryImpl @Inject constructor(
         throw e
     } catch (e: SocketTimeoutException) {
         // Connected but slow (the AI can take 10-15 s): not the same as being offline.
-        Result.failure(AppError.Server("That is taking longer than I expected. Please try again."))
+        Result.failure(AppError.NetworkTimeout("That is taking longer than I expected. Please try again."))
     } catch (e: IOException) {
         Result.failure(AppError.Offline(e))
     } catch (e: Exception) {

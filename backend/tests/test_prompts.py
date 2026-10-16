@@ -66,6 +66,12 @@ def test_describe_prompt_forces_a_flaw_inspection_before_reassuring():
     assert text.index("INSPECTION") < text.index("FIELDS")
 
 
+def test_spoken_description_always_names_visible_clothing():
+    text = prompts.describe_system_prompt("standard", "en")
+    assert "name the visible clothing items in spoken_text" in text
+    assert 'Never use "your outfit" as a substitute' in text
+
+
 def test_refusal_sentence_matches_spec_exactly():
     assert (
         prompts.REFUSAL_LINE
@@ -109,3 +115,10 @@ def test_ask_prompt_carries_earlier_description(analysis):
 def test_prompt_never_tells_model_to_judge_looks(analysis):
     for text in all_prompts(analysis).values():
         assert not re.search(r"(rate|score|judge) (her|their|the) (looks|attractiveness)", text, re.I)
+
+
+def test_nigerian_english_voice_only_for_en_ng():
+    ng = prompts.describe_system_prompt("standard", "en-NG")
+    assert "Nigerian" in ng and "agbada" in ng
+    assert "language with code" not in ng
+    assert "Nigerian English" not in prompts.describe_system_prompt("standard", "en")

@@ -8,7 +8,7 @@ from redis.exceptions import RedisError
 from starlette.formparsers import MultiPartParser
 
 from app.ai.provider import VisionProvider, build_provider
-from app.api.v1 import account, ask, auth, describe, health, session
+from app.api.v1 import account, ask, auth, describe, health, session, speech
 from app.core.config import Settings, get_settings
 from app.core.errors import APIError, api_error_handler
 from app.core.logging import setup_logging
@@ -16,6 +16,8 @@ from app.core.middleware import BodyLimitMiddleware, RequestContextMiddleware, S
 from app.core.rate_limit import DailyCap, LoginThrottle, RateLimiter
 from app.services.describe_service import DescribeService
 from app.services.session_store import SessionStore
+from app.services.speech_service import AzureSpeech, NoSpeech, SpeechSynthesizer
+from app.services.translation_service import NoTranslator, Translator, VoiceVerseTranslator
 from app.services.user_store import AccountsUnavailable, NoUserStore, PostgresUserStore, UserStore
 
 log = logging.getLogger("visionmirror")
@@ -52,6 +54,8 @@ def create_app(
     redis: Redis | None = None,
     provider: VisionProvider | None = None,
     users: UserStore | None = None,
+    translator: Translator | None = None,
+    speech_service: SpeechSynthesizer | None = None,
 ) -> FastAPI:
     """Dependencies are injectable so tests can use fakeredis and MockProvider."""
     settings = settings or get_settings()
@@ -60,6 +64,14 @@ def create_app(
     redis = redis or Redis.from_url(settings.redis_url)
     provider = provider or build_provider(settings)
     cors_origins = settings.cors_origin_list  # validates at startup
+    if translator is None:
+        translator = (
+            VoiceVerseTranslator(
+                settings.voiceverse_url, settings.voiceverse_api_key, settings.voiceverse_timeout_seconds
+            )
+            if settings.voiceverse_url
+            else NoTranslator()
+        )
 
     # Starlette spools uploads bigger than 1 MB to a temp file on disk. Photos must stay in memory only.
     MultiPartParser.spool_max_size = settings.max_image_bytes + 1024 * 1024
@@ -68,6 +80,10 @@ def create_app(
     async def lifespan(_: FastAPI):
         yield
         await app.state.users.close()
+        if hasattr(app.state.speech, "aclose"):
+            await app.state.speech.aclose()
+        if hasattr(translator, "aclose"):
+            await translator.aclose()
         if owns_redis:
             await redis.aclose()
 
@@ -81,12 +97,17 @@ def create_app(
     app.state.limiter = RateLimiter(redis, settings.secret_key)
     app.state.store = SessionStore(redis, settings.session_ttl_seconds)
     app.state.cap = DailyCap(redis, settings.daily_ai_call_limit)
-    app.state.service = DescribeService(provider, app.state.store, app.state.cap)
+    app.state.speech = speech_service or (
+        AzureSpeech(settings.azure_speech_key, settings.azure_speech_region, settings.azure_speech_voice)
+        if settings.azure_speech_key
+        else NoSpeech()
+    )
+    app.state.service = DescribeService(provider, app.state.store, app.state.cap, translator)
     app.add_exception_handler(APIError, api_error_handler)
     app.add_exception_handler(RedisError, redis_error_handler)
     app.add_exception_handler(AccountsUnavailable, accounts_unavailable_handler)
 
-    for module in (health, auth, account, describe, ask, session):
+    for module in (health, auth, account, describe, ask, session, speech):
         app.include_router(module.router, prefix="/v1")
 
     # Added last = outermost. Order outside-in: request context, CORS, security headers, body limit.

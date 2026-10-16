@@ -37,6 +37,8 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             store.settings.collect { s ->
                 speech.setRate(s.speechRate)
+                speech.setLanguage(s.language.speechLocales())
+                speech.setCloudVoice(s.cloudVoice)
                 speech.setVoice(s.voiceName)
                 haptics.enabled.value = s.haptics
             }

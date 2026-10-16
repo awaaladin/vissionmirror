@@ -21,6 +21,9 @@ sealed interface VoiceEvent {
     /** Microphone is open: play the "listening on" earcon now. */
     data object Ready : VoiceEvent
 
+    /** The user has begun to speak: the app should stop talking and give them its full attention. */
+    data object SpeechStarted : VoiceEvent
+
     /** 0..1, smoothed from the recogniser's RMS. Drives the Quartz ripples. */
     data class Level(val level: Float) : VoiceEvent
     data class Partial(val text: String) : VoiceEvent
@@ -66,6 +69,9 @@ class SystemVoiceInput @Inject constructor(
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                    // Use the phone's downloaded speech model when there is one: no network needed, and
+                    // it answers faster. Falls back to online recognition when no model is installed.
+                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
                     if (language != null) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
                 },
             )
@@ -91,7 +97,7 @@ class SystemVoiceInput @Inject constructor(
 
     private val listener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) { _events.tryEmit(VoiceEvent.Ready) }
-        override fun onBeginningOfSpeech() = Unit
+        override fun onBeginningOfSpeech() { _events.tryEmit(VoiceEvent.SpeechStarted) }
         override fun onRmsChanged(rmsdB: Float) {
             // Typical range is about -2..10 dB. Smooth so the ripples breathe instead of flicker.
             val raw = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)

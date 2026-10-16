@@ -135,6 +135,10 @@ class MirrorViewModel @Inject constructor(
         coach.reset()
         _state.value = MirrorUiState(facing = _state.value.facing)
         speaker.say("I'll guide you. Hold the phone at arm's length, facing you.", Priority.Interrupt)
+        // If the phone cannot speak at all, say so on screen instead of leaving a silent mirror.
+        (speaker as? ai.visionmirror.audio.SpeechManager)?.problem?.let { why ->
+            _state.update { it.copy(caption = "I can't speak on this phone. $why") }
+        }
         proximityJob?.cancel()
         proximityJob = viewModelScope.launch {
             while (true) {
