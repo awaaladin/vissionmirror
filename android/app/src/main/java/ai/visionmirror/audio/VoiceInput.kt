@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -58,6 +59,9 @@ class SystemVoiceInput @Inject constructor(
     private var lastPartial = ""
     private var busyRetries = 0
     private var lastLanguage: String? = null
+
+    /** Learned: this phone cannot do offline or Nigerian-English recognition, so use its normal recogniser from now on. */
+    private var relaxed = false
     private val _busy = MutableStateFlow(false)
     override val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
@@ -90,12 +94,12 @@ class SystemVoiceInput @Inject constructor(
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                     // Use the phone's downloaded speech model when there is one: no network needed, and
                     // it answers faster. Falls back to online recognition when no model is installed.
-                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                    if (!relaxed) putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
                     // Wait for a real pause before deciding she has finished (the default is under a second).
                     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
                     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
                     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200L)
-                    if (language != null) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
+                    if (language != null && !relaxed) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
                 },
             )
         }
@@ -145,8 +149,19 @@ class SystemVoiceInput @Inject constructor(
         }
 
         override fun onError(error: Int) {
+            Log.w("VisionMirror", "speech recogniser error $error (relaxed=$relaxed)")
+            // "Not with these settings" (no offline model, language not supported or unavailable, network or server
+            // trouble): try once more with the phone's normal recogniser and language, and remember that for next time.
+            if (error in RELAX_CODES && !relaxed) {
+                relaxed = true
+                val language = lastLanguage
+                recognizer?.apply { setRecognitionListener(null); cancel(); destroy() }
+                recognizer = null
+                main.post { startNow(language) }
+                return
+            }
             // The recogniser is sometimes still releasing from the last use. Ask again shortly instead of giving up.
-            if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY && busyRetries < 3) {
+            if ((error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) && busyRetries < 3) {
                 busyRetries++
                 val language = lastLanguage
                 recognizer?.apply { setRecognitionListener(null); cancel(); destroy() }
@@ -177,6 +192,12 @@ class SystemVoiceInput @Inject constructor(
             recognizer = null
             _busy.value = false
         }
+    }
+
+    private companion object {
+        // network timeout (1), network (2), server (4), too many requests (10), server disconnected (11),
+        // language not supported (12), language unavailable (13)
+        val RELAX_CODES = setOf(1, 2, 4, 10, 11, 12, 13)
     }
 
     private fun Bundle?.firstResult(): String? =

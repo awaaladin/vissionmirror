@@ -147,6 +147,8 @@ class SessionViewModel @Inject constructor(
 
     /** From "Adanna" until her request has been handled: the wake listener stays off the microphone. */
     private var assistantTurn = false
+    private var assistantAttempts = 0
+    private var assistantStartedAt = 0L
 
     init {
         viewModelScope.launch {
@@ -402,6 +404,15 @@ class SessionViewModel @Inject constructor(
         val mode = if (listenMode == ListenMode.None && assistantTurn) ListenMode.Assistant else listenMode
         listenMode = ListenMode.None
         _micLevel.value = 0f
+        // She said nothing yet (or the recogniser lost it). Quietly listen again instead of giving up straight away.
+        if (mode == ListenMode.Assistant && reason == VoiceFailure.NoSpeech && assistantAttempts < ASSISTANT_RETRIES &&
+            System.currentTimeMillis() - assistantStartedAt < ASSISTANT_PATIENCE_MS
+        ) {
+            assistantAttempts++
+            listenMode = ListenMode.Assistant
+            voice.start(language.recognitionTag())
+            return
+        }
         if (mode == ListenMode.Question) {
             _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
             earcons.play(Earcon.ListeningOff)
@@ -451,6 +462,8 @@ class SessionViewModel @Inject constructor(
         }
         speaker.stop()
         assistantTurn = true
+        assistantAttempts = 0
+        assistantStartedAt = System.currentTimeMillis()
         wake.hold(true) // nothing else may use the microphone until her request is in
         listenMode = ListenMode.Assistant
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
@@ -468,7 +481,14 @@ class SessionViewModel @Inject constructor(
     private fun openAssistantMic() {
         pendingMic = null
         if (listenMode != ListenMode.Assistant) { endAssistantTurn(); return }
-        voice.start(language.recognitionTag())
+        // A beat of quiet after "Listening." so the end of my own voice is not what the microphone hears first.
+        viewModelScope.launch {
+            delay(MIC_SETTLE_MS)
+            if (listenMode == ListenMode.Assistant) {
+                assistantStartedAt = System.currentTimeMillis()
+                voice.start(language.recognitionTag())
+            }
+        }
     }
 
     /** What she asked for: a control word, a place to go, or (when there is a photo) a question about it. */
@@ -621,6 +641,10 @@ class SessionViewModel @Inject constructor(
     private companion object {
         const val MAX_RATE_RETRIES = 2
         const val MIC_FALLBACK_MS = 2_500L
+        const val MIC_SETTLE_MS = 300L
+        /** Keep listening this long, in up to this many quiet restarts, before saying she was not heard. */
+        const val ASSISTANT_PATIENCE_MS = 7_000L
+        const val ASSISTANT_RETRIES = 2
         const val MAX_NETWORK_RETRIES = 4
     }
 }

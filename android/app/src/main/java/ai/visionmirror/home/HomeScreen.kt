@@ -167,6 +167,8 @@ fun HomeScreen(
                 when {
                     ui.ask == AskPhase.Listening ->
                         StatusCaption(ui.partialQuestion.ifBlank { "I'm listening..." }, announce = false, modifier = Modifier.fillMaxWidth())
+                    ui.banner != null ->
+                        StatusCaption(ui.banner.orEmpty(), announce = false, modifier = Modifier.fillMaxWidth())
                     hear.text.isNotBlank() ->
                         StatusCaption("“${hear.text}”", announce = false, modifier = Modifier.fillMaxWidth())
                     spoken.text.isNotBlank() ->

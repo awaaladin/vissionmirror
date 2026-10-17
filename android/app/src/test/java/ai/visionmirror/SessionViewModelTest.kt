@@ -427,7 +427,7 @@ class SessionViewModelTest {
         // The microphone waits for "Listening." to finish, so it never hears her.
         assertEquals(0, voice.starts)
         speaker.finishLast()
-        runCurrent()
+        advanceUntilIdle()
         assertEquals(1, voice.starts)
     }
 
@@ -486,5 +486,25 @@ class SessionViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("what is the capital of Nigeria"), repo.assistQueries)
         assertEquals("Abuja.", speaker.spoken.last())
+    }
+
+    @Test fun adannaAsksAgainQuietlyBeforeSayingSheCouldNotHear() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake()
+        advanceUntilIdle()
+        val spokenBefore = speaker.spoken.size
+        assertEquals(1, voice.starts)
+        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
+        runCurrent()
+        assertEquals(2, voice.starts) // listened again, said nothing
+        assertEquals(spokenBefore, speaker.spoken.size)
+        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
+        runCurrent()
+        assertEquals(3, voice.starts)
+        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
+        runCurrent()
+        // Only now does she say she did not catch it.
+        assertTrue(speaker.spoken.last().contains("didn't catch"))
     }
 }
