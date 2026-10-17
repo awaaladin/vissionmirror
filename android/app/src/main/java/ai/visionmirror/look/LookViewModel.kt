@@ -1,5 +1,7 @@
 package ai.visionmirror.look
 
+import ai.visionmirror.assistant.ScreenCommand
+import ai.visionmirror.assistant.ScreenCommands
 import ai.visionmirror.audio.Earcon
 import ai.visionmirror.audio.Earcons
 import ai.visionmirror.audio.SpeechManager.Priority
@@ -57,6 +59,7 @@ class LookViewModel @Inject constructor(
     private val speaker: Speaker,
     private val earcons: Earcons,
     private val haptics: Haptics,
+    private val screenCommands: ScreenCommands,
 ) : ViewModel() {
 
     val captureController = CaptureController()
@@ -68,14 +71,23 @@ class LookViewModel @Inject constructor(
     val events = _events.receiveAsFlow()
 
     private var cycle: Job? = null
+    private var active = false
+
+    init {
+        viewModelScope.launch {
+            screenCommands.flow.collect { c -> if (active && c == ScreenCommand.LookAgain) onTap() }
+        }
+    }
 
     /** Screen is visible and the camera is live. */
     fun onEnter(mode: LookMode) {
+        active = true
         _state.value = LookUiState(mode = mode, caption = mode.intro)
         startCycle(intro = true)
     }
 
     fun onExit() {
+        active = false
         cycle?.cancel()
         cycle = null
         speaker.stop()

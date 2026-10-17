@@ -15,6 +15,10 @@ import ai.visionmirror.audio.WakeSource
 import ai.visionmirror.audio.WakeWord
 import ai.visionmirror.assistant.AssistantAction
 import ai.visionmirror.assistant.AssistantIntents
+import ai.visionmirror.assistant.ClockAnswer
+import ai.visionmirror.assistant.HandsFree
+import ai.visionmirror.assistant.ScreenCommand
+import ai.visionmirror.assistant.ScreenCommands
 import ai.visionmirror.assistant.DeviceControls
 import ai.visionmirror.assistant.SettingChange
 import ai.visionmirror.assistant.VoiceSettings
@@ -112,6 +116,7 @@ class SessionViewModel @Inject constructor(
     private val permissions: PermissionChecker,
     private val wake: WakeSource,
     private val device: DeviceControls,
+    private val screenCommands: ScreenCommands,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -148,6 +153,9 @@ class SessionViewModel @Inject constructor(
     /** From "Adanna" until her request has been handled: the wake listener stays off the microphone. */
     private var assistantTurn = false
     private var assistantAttempts = 0
+    private var handsFree = false
+    private var screen: String? = null
+    private var silentCycles = 0
     private var assistantStartedAt = 0L
 
     init {
@@ -155,6 +163,7 @@ class SessionViewModel @Inject constructor(
             settings.settings.collectLatest { s ->
                 voiceCommandsEnabled = s.voiceCommands
                 language = s.language
+                handsFree = s.handsFree
                 if (_state.value.phase == Phase.Idle) _state.update { it.copy(detail = s.detailLevel) }
             }
         }
@@ -163,10 +172,16 @@ class SessionViewModel @Inject constructor(
         // The microphone opens the moment "Listening." has been said.
         viewModelScope.launch {
             speaker.events.collect { e ->
-                val id = pendingMic ?: return@collect
-                if ((e is SpeechManager.Event.Done && e.id == id) || (e is SpeechManager.Event.Failed && e.id == id)) openAssistantMic()
+                val id = pendingMic
+                if (id != null && e.eventId() == id && (e is SpeechManager.Event.Done || e is SpeechManager.Event.Failed)) {
+                    openAssistantMic()
+                } else if (e is SpeechManager.Event.Done) {
+                    maybeHandsFree()
+                }
             }
         }
+        // "Stop" or her name while she is talking.
+        viewModelScope.launch { wake.stops.collect { speaker.stop() } }
         // Offline queue: the moment we are online again, describe the waiting photo.
         viewModelScope.launch {
             connectivity.online.distinctUntilChanged().collect { online ->
@@ -392,6 +407,7 @@ class SessionViewModel @Inject constructor(
             }
             ListenMode.Assistant -> {
                 endAssistantTurn()
+                silentCycles = 0
                 earcons.play(Earcon.ListeningOff)
                 _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
                 handleRequest(text)
@@ -428,6 +444,19 @@ class SessionViewModel @Inject constructor(
         }
         if (mode == ListenMode.Assistant) {
             endAssistantTurn()
+            if (handsFree && reason == VoiceFailure.NoSpeech) {
+                // Hands-free listens again on its own: no scolding when she simply has nothing to say yet.
+                _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
+                earcons.play(Earcon.ListeningOff)
+                silentCycles++
+                if (silentCycles < HANDS_FREE_QUIET_CYCLES) {
+                    viewModelScope.launch { delay(600); maybeHandsFree() }
+                } else {
+                    silentCycles = 0
+                    speaker.say("I'm here when you need me. Say Adanna.", Priority.Interrupt, local = true)
+                }
+                return
+            }
             val line = if (reason == VoiceFailure.NoSpeech) "I didn't catch that. Say my name and try again." else "I couldn't hear you just now. Say my name and try again."
             _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "", banner = if (code != 0) "$line (speech error $code)" else line) }
             earcons.play(Earcon.ListeningOff)
@@ -497,6 +526,8 @@ class SessionViewModel @Inject constructor(
         val hasPhoto = sessionId != null
         // Settings first: "stop listening for my name" is a setting, not the command "stop".
         VoiceSettings.parse(text)?.let { applySetting(it); return }
+        HandsFree.parse(text)?.let { applyHandsFree(it); return }
+        ClockAnswer.answer(text, java.time.ZonedDateTime.now())?.let { speaker.say(it, Priority.Interrupt); return }
         VoiceCommands.parse(text)?.let { command ->
             when (command) {
                 VoiceCommand.Stop -> { speaker.stop(); return }
@@ -509,7 +540,7 @@ class SessionViewModel @Inject constructor(
             }
             Unit
         }
-        AssistantIntents.parse(text, hasPhoto)?.let { _actions.tryEmit(it); return }
+        AssistantIntents.parse(text, hasPhoto, screen)?.let { routeAction(it); return }
         if (hasPhoto && !AssistantIntents.isKnowledgeQuestion(text)) submitQuestion(text) else askAssistant(text)
     }
 
@@ -536,14 +567,75 @@ class SessionViewModel @Inject constructor(
     private fun applySetting(change: SettingChange) {
         when (change) {
             is SettingChange.Set -> viewModelScope.launch {
+                val before = settings.settings.first().detailLevel
                 settings.update(change.change)
+                val after = settings.settings.first().detailLevel
                 earcons.play(Earcon.Ready)
                 speaker.say(change.say, Priority.Interrupt)
+                // "Make it more detailed" while a result is open: describe the same photo again at that level.
+                if (after != before && (_state.value.phase == Phase.Result || _state.value.phase == Phase.Unusable)) changeDetail(after)
             }
             is SettingChange.Volume -> speaker.say(device.volume(change.steps), Priority.Interrupt)
             SettingChange.VolumeMax -> speaker.say(device.volumeMax(), Priority.Interrupt)
             SettingChange.NextVoice -> speaker.say(device.nextVoice(), Priority.Interrupt)
             SettingChange.Help -> speaker.say(VoiceSettings.HELP, Priority.Interrupt)
+        }
+    }
+
+    // ---- hands-free ("access granted") and screen commands ----------------------------------------
+
+    /** Which screen is open ("home", "mirror", "look/read", "result"...). */
+    fun onScreen(route: String?) {
+        screen = route
+    }
+
+    private fun applyHandsFree(change: HandsFree.Change) {
+        val on = change == HandsFree.Change.On
+        silentCycles = 0
+        viewModelScope.launch {
+            settings.update { it.copy(handsFree = on) }
+            earcons.play(Earcon.Ready)
+            speaker.say(if (on) HandsFree.ON_SAY else HandsFree.OFF_SAY, Priority.Interrupt)
+        }
+    }
+
+    private fun routeAction(action: AssistantAction) {
+        when (action) {
+            AssistantAction.TakePhoto -> screenCommands.send(ScreenCommand.TakePhoto)
+            AssistantAction.FlipCamera -> screenCommands.send(ScreenCommand.FlipCamera)
+            AssistantAction.LookAgain -> screenCommands.send(ScreenCommand.LookAgain)
+            else -> _actions.tryEmit(action)
+        }
+    }
+
+    private fun SpeechManager.Event.eventId(): String = when (this) {
+        is SpeechManager.Event.Started -> id
+        is SpeechManager.Event.Done -> id
+        is SpeechManager.Event.Failed -> id
+    }
+
+    /**
+     * Hands-free: once she has finished speaking, open the microphone for the next request with no need to say her
+     * name. Only on screens where she is just talking (not while the camera is scanning), and never while a request
+     * is still being worked on.
+     */
+    private fun maybeHandsFree() {
+        if (!handsFree) return
+        viewModelScope.launch {
+            delay(450) // let a following sentence start before deciding she is finished
+            val quiet = speaker.state.value.utteranceId == null
+            val roomToListen = screen in HANDS_FREE_SCREENS
+            val idle = !assistantTurn && listenMode == ListenMode.None && _state.value.ask == AskPhase.Idle &&
+                _state.value.phase != Phase.Analysing
+            if (!handsFree || !quiet || !roomToListen || !idle || !permissions.hasMic()) return@launch
+            assistantTurn = true
+            assistantAttempts = 0
+            assistantStartedAt = System.currentTimeMillis()
+            wake.hold(true)
+            listenMode = ListenMode.Assistant
+            _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
+            earcons.play(Earcon.ListeningOn)
+            voice.start(language.recognitionTag())
         }
     }
 
@@ -642,6 +734,8 @@ class SessionViewModel @Inject constructor(
         const val MAX_RATE_RETRIES = 2
         const val MIC_FALLBACK_MS = 2_500L
         const val MIC_SETTLE_MS = 300L
+        const val HANDS_FREE_QUIET_CYCLES = 3
+        val HANDS_FREE_SCREENS = setOf("home", "result", "settings")
         /** Keep listening this long, in up to this many quiet restarts, before saying she was not heard. */
         const val ASSISTANT_PATIENCE_MS = 7_000L
         const val ASSISTANT_RETRIES = 2

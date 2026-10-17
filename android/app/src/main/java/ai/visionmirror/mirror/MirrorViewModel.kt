@@ -1,6 +1,8 @@
 package ai.visionmirror.mirror
 
 import ai.visionmirror.app.HardwareKeys
+import ai.visionmirror.assistant.ScreenCommand
+import ai.visionmirror.assistant.ScreenCommands
 import ai.visionmirror.audio.Earcon
 import ai.visionmirror.audio.Earcons
 import ai.visionmirror.audio.SpeechManager.Priority
@@ -61,6 +63,7 @@ class MirrorViewModel @Inject constructor(
     private val earcons: Earcons,
     private val keys: HardwareKeys,
     private val settingsStore: SettingsStore,
+    private val screenCommands: ScreenCommands,
 ) : ViewModel() {
 
     val captureController = CaptureController()
@@ -84,6 +87,17 @@ class MirrorViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { keys.volume.collect { if (active) onTap() } }
+        // "Adanna, take the photo" / "flip the camera": the same as the buttons, by voice.
+        viewModelScope.launch {
+            screenCommands.flow.collect { c ->
+                if (!active) return@collect
+                when (c) {
+                    ScreenCommand.TakePhoto -> capture()
+                    ScreenCommand.FlipCamera -> flipCamera()
+                    else -> Unit
+                }
+            }
+        }
         // The chosen camera is a saved setting, so it is still there next time she opens the app.
         viewModelScope.launch {
             settingsStore.settings.collect { s -> _state.update { it.copy(facing = s.cameraFacing) } }

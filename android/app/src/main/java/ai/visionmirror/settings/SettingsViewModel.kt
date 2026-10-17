@@ -121,6 +121,12 @@ class SettingsViewModel @Inject constructor(
         speech.say("${language.label}.", Priority.Interrupt)
     }
 
+    fun setBargeIn(on: Boolean) = update { it.copy(bargeIn = on) }
+    fun setHandsFree(on: Boolean) {
+        update { it.copy(handsFree = on) }
+        speech.say(if (on) "Hands free is on. I'll keep listening." else "Hands free is off.", Priority.Interrupt)
+    }
+
     fun setBrightness(value: Float) {
         update { it.copy(brightness = value) }
     }

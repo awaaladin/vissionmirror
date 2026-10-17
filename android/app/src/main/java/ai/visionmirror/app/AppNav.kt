@@ -29,6 +29,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -71,6 +72,13 @@ fun AppNav(
     haptics: HapticsManager,
     earcons: EarconPlayer,
 ) {
+    // The session needs to know which screen is open, so "take the photo" and "look again" mean the right thing.
+    DisposableEffect(nav) {
+        val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ -> session.onScreen(destination.route) }
+        nav.addOnDestinationChangedListener(listener)
+        onDispose { nav.removeOnDestinationChangedListener(listener) }
+    }
+
     var greeted by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     // Her voice can take her anywhere once she is past onboarding and sign-in.
     LaunchedEffect(Unit) {
@@ -83,6 +91,9 @@ fun AppNav(
                 AssistantAction.OpenLook -> Routes.look(LookMode.Around)
                 AssistantAction.OpenSettings -> Routes.SETTINGS
                 AssistantAction.OpenHome -> Routes.HOME
+                AssistantAction.GoBack -> { nav.popBackStack(); return@collect }
+                // These are buttons on the open screen; the view model already pressed them.
+                AssistantAction.TakePhoto, AssistantAction.FlipCamera, AssistantAction.LookAgain -> return@collect
             }
             nav.navigate(route) {
                 popUpTo(Routes.HOME)

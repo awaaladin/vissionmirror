@@ -41,13 +41,14 @@ class SessionViewModelTest {
     private val permissions = FakePermissions()
     private val wake = FakeWake()
     private val device = FakeDevice()
+    private val screenCommands = ai.visionmirror.assistant.ScreenCommands()
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun vm() = SessionViewModel(
-        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake, device,
+        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake, device, screenCommands,
         CoroutineScope(dispatcher),
     )
 
@@ -506,5 +507,62 @@ class SessionViewModelTest {
         runCurrent()
         // Only now does she say she did not catch it.
         assertTrue(speaker.spoken.last().contains("didn't catch"))
+    }
+
+    @Test fun sayingStopWhileSheTalksSilencesHer() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        val before = speaker.stops
+        wake.said()
+        runCurrent()
+        assertEquals(before + 1, speaker.stops)
+    }
+
+    @Test fun accessGrantedTurnsOnHandsFreeAndSheKeepsListening() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        vm.onScreen("home")
+        wake.wake("access granted")
+        advanceUntilIdle()
+        assertTrue(settings.flow.value.handsFree)
+        assertTrue(speaker.spoken.last().startsWith("Access granted"))
+        // When she finishes saying it, the microphone opens by itself (no need to say her name again).
+        speaker.finishLast()
+        advanceUntilIdle()
+        assertEquals(1, voice.starts)
+        voice.emit(VoiceEvent.Final("what time is it"))
+        advanceUntilIdle()
+        assertTrue(speaker.spoken.last().startsWith("It is"))
+        speaker.finishLast()
+        advanceUntilIdle()
+        assertEquals(2, voice.starts) // and again after the answer
+
+        // While she is listening hands-free the wake listener is off, so "that's all" arrives as her request.
+        voice.emit(VoiceEvent.Final("that's all"))
+        advanceUntilIdle()
+        assertEquals(false, settings.flow.value.handsFree)
+    }
+
+    @Test fun handsFreeDoesNotListenWhileTheCameraIsScanning() = runTest(dispatcher) {
+        settings.flow.value = settings.flow.value.copy(handsFree = true)
+        val vm = vm()
+        runCurrent()
+        vm.onScreen("look/read")
+        wake.wake("what time is it")
+        advanceUntilIdle()
+        speaker.finishLast()
+        advanceUntilIdle()
+        assertEquals(0, voice.starts)
+    }
+
+    @Test fun screenCommandsReachTheOpenScreen() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        vm.onScreen("mirror")
+        screenCommands.flow.test {
+            wake.wake("take the photo")
+            advanceUntilIdle()
+            assertEquals(ai.visionmirror.assistant.ScreenCommand.TakePhoto, awaitItem())
+        }
     }
 }

@@ -34,6 +34,10 @@ data class Settings(
     val wakeWord: Boolean = true,
     /** Screen brightness while the app is open, 0.05..1. Negative = follow the phone. */
     val brightness: Float = -1f,
+    /** Say "stop" (or her name) while she is talking and she stops. */
+    val bargeIn: Boolean = true,
+    /** "Access granted": she keeps listening after every answer, so nothing needs touching. */
+    val handsFree: Boolean = false,
     /** Which language she is spoken to in (and, where the phone can, listened to in). */
     val language: ResponseLanguage = ResponseLanguage.NigerianEnglish,
     val detailLevel: DetailLevel = DetailLevel.Standard,
@@ -69,6 +73,8 @@ class DataStoreSettings @Inject constructor(
         val cloudVoice = booleanPreferencesKey("cloud_voice")
         val wakeWord = booleanPreferencesKey("wake_word")
         val brightness = floatPreferencesKey("brightness")
+        val bargeIn = booleanPreferencesKey("barge_in")
+        val handsFree = booleanPreferencesKey("hands_free")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
         val theme = stringPreferencesKey("theme_mode")
@@ -90,6 +96,8 @@ class DataStoreSettings @Inject constructor(
             cloudVoice = this[Keys.cloudVoice] ?: d.cloudVoice,
             wakeWord = this[Keys.wakeWord] ?: d.wakeWord,
             brightness = this[Keys.brightness] ?: d.brightness,
+            bargeIn = this[Keys.bargeIn] ?: d.bargeIn,
+            handsFree = this[Keys.handsFree] ?: d.handsFree,
             language = ResponseLanguage.fromApiTag(this[Keys.language]),
             detailLevel = DetailLevel.entries.firstOrNull { it.wire == this[Keys.detail] } ?: d.detailLevel,
             haptics = this[Keys.haptics] ?: d.haptics,
@@ -116,6 +124,8 @@ class DataStoreSettings @Inject constructor(
             p[Keys.cloudVoice] = s.cloudVoice
             p[Keys.wakeWord] = s.wakeWord
             p[Keys.brightness] = s.brightness
+            p[Keys.bargeIn] = s.bargeIn
+            p[Keys.handsFree] = s.handsFree
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire
             p[Keys.haptics] = s.haptics

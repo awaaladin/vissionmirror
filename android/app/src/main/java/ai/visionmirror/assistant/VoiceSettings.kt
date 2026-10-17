@@ -38,7 +38,7 @@ sealed interface SettingChange {
  */
 object VoiceSettings {
     fun parse(utterance: String): SettingChange? {
-        val text = utterance.lowercase().replace(Regex("[^a-z0-9 ]"), " ").trim().replace(Regex("\\s+"), " ")
+        val text = utterance.lowercase().replace("'", "").replace("’", "").replace(Regex("[^a-z0-9 ]"), " ").trim().replace(Regex("\\s+"), " ")
         if (text.isEmpty() || text.split(' ').size > 10) return null
         fun has(vararg phrases: String) = phrases.any { " $it " in " $text " }
         val off = has("off", "disable", "stop", "no more", "without")

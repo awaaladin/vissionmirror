@@ -133,6 +133,9 @@ class FakeWake : ai.visionmirror.audio.WakeSource {
     private val _wakes = MutableSharedFlow<String>(extraBufferCapacity = 4)
     override val wakes: SharedFlow<String> = _wakes
     override val hearing = MutableStateFlow(ai.visionmirror.audio.Hearing())
+    private val _stops = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
+    override val stops: SharedFlow<Unit> = _stops
+    fun said(stop: Boolean = true) { if (stop) _stops.tryEmit(Unit) }
     val holds = mutableListOf<Boolean>()
     override fun hold(held: Boolean) { holds += held }
     fun wake(request: String = "") { _wakes.tryEmit(request) }

@@ -142,6 +142,18 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SettingToggleRow(
+                    "Hands free",
+                    s.handsFree,
+                    viewModel::setHandsFree,
+                    description = "I keep listening after every answer, so you can do everything by voice. Say “access granted” to turn it on and “that's all” to turn it off.",
+                )
+                SettingToggleRow(
+                    "Say stop to interrupt me",
+                    s.bargeIn,
+                    viewModel::setBargeIn,
+                    description = "While I'm talking, say “stop” or my name and I'll stop and listen.",
+                )
+                SettingToggleRow(
                     "Say my name to wake me",
                     s.wakeWord,
                     viewModel::setWakeWord,
