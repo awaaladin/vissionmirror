@@ -24,10 +24,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** The three things the back camera can do for her besides the mirror. */
-enum class LookMode(val route: String, val title: String, val intro: String) {
-    Read("read", "Read", "Point the back camera at the writing. Hold it steady."),
-    Colour("colour", "Colour", "Point the back camera at the thing. Hold it steady."),
-    Around("around", "Look around", "Point the back camera ahead of you. Hold it steady."),
+enum class LookMode(val route: String, val title: String, val intro: String, val quick: String = "Hold steady.") {
+    Read("read", "Read", "Point the camera at the writing. Hold it steady."),
+    Colour("colour", "Colour", "Point the camera at the thing. Hold it steady."),
+    Around("around", "Look around", "Point the camera ahead of you. Hold it steady."),
     ;
 
     companion object {
@@ -38,7 +38,8 @@ enum class LookMode(val route: String, val title: String, val intro: String) {
 data class LookUiState(
     val mode: LookMode = LookMode.Read,
     val caption: String = "",
-    val countdown: Int? = null,
+    /** The scan line is sweeping: it is looking right now. */
+    val scanning: Boolean = false,
     val busy: Boolean = false,
 )
 
@@ -91,17 +92,12 @@ class LookViewModel @Inject constructor(
         cycle?.cancel()
         cycle = viewModelScope.launch {
             val mode = _state.value.mode
-            if (intro) speaker.say(mode.intro + " I'll look in three seconds.", Priority.Interrupt)
-            else speaker.say("Hold it steady. Looking in three seconds.", Priority.Interrupt)
-            _state.update { it.copy(caption = mode.intro, busy = false) }
-            delay(if (intro) 3_500 else 2_500) // let the sentence finish before the countdown
-            for (n in 3 downTo 1) {
-                _state.update { it.copy(countdown = n) }
-                earcons.play(Earcon.CountdownTick)
-                haptics.tick()
-                delay(1_000)
-            }
-            _state.update { it.copy(countdown = null, busy = true, caption = "Looking...") }
+            // One short phrase in the phone's own voice (instant), then scan for about a second: it should feel immediate.
+            speaker.say(mode.quick, Priority.Interrupt, local = true)
+            _state.update { it.copy(caption = mode.intro, busy = false, scanning = true) }
+            haptics.tick()
+            delay(if (intro) 1_500 else 1_100)
+            _state.update { it.copy(scanning = false, busy = true, caption = "Looking...") }
             earcons.play(Earcon.Captured)
             haptics.click()
             speaker.stop()
@@ -131,13 +127,13 @@ class LookViewModel @Inject constructor(
     }
 
     private fun finish(line: String) {
-        _state.update { it.copy(busy = false, caption = line) }
+        _state.update { it.copy(busy = false, scanning = false, caption = line) }
         earcons.play(Earcon.Ready)
         speaker.say("$line Tap anywhere to look again.", Priority.Interrupt)
     }
 
     private fun fail(line: String) {
-        _state.update { it.copy(busy = false, caption = line) }
+        _state.update { it.copy(busy = false, scanning = false, caption = line) }
         earcons.play(Earcon.Error)
         haptics.error()
         speaker.say(line, Priority.Interrupt)

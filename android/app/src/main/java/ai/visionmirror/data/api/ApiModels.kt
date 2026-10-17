@@ -107,6 +107,12 @@ data class DescribeResponse(
 )
 
 @Serializable
+data class AssistRequest(val query: String, val language: String = "en")
+
+@Serializable
+data class AssistResponse(val kind: String = "answer", @SerialName("spoken_text") val spokenText: String)
+
+@Serializable
 data class SpeechRequest(val text: String, val rate: Float = 1f)
 
 @Serializable

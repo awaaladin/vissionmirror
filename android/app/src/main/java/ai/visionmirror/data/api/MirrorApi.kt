@@ -42,6 +42,10 @@ interface MirrorApi {
     @POST("v1/speech")
     suspend fun speech(@Body body: SpeechRequest): Response<ResponseBody>
 
+    /** Weather and general questions, for the voice assistant. */
+    @POST("v1/assist")
+    suspend fun assist(@Body body: AssistRequest): Response<AssistResponse>
+
     @DELETE("v1/session/{id}")
     suspend fun deleteSession(@Path("id") id: String): Response<Unit>
 

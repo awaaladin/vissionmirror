@@ -94,9 +94,11 @@ fun HomeScreen(
 
     val ui by session.state.collectAsStateWithLifecycle()
     val spoken by speech.state.collectAsStateWithLifecycle()
+    val hear by session.hearing.collectAsStateWithLifecycle()
 
     val haloState = when {
         ui.ask == AskPhase.Listening -> HaloState.Listening
+        hear.level > 0.12f -> HaloState.Listening // she is talking and the app is hearing it
         ui.ask == AskPhase.Thinking || ui.phase == Phase.Analysing -> HaloState.Analysing
         spoken.isSpeaking -> HaloState.Speaking
         else -> HaloState.Idle
@@ -156,7 +158,7 @@ fun HomeScreen(
                 ) {
                     Halo(
                         state = haloState,
-                        level = { if (haloState == HaloState.Speaking) 0.6f else session.micLevel.value },
+                        level = { if (haloState == HaloState.Speaking) 0.6f else maxOf(session.micLevel.value, hear.level) },
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -168,13 +170,24 @@ fun HomeScreen(
                 when {
                     ui.ask == AskPhase.Listening ->
                         StatusCaption(ui.partialQuestion.ifBlank { "I'm listening..." }, announce = false, modifier = Modifier.fillMaxWidth())
+                    hear.text.isNotBlank() ->
+                        StatusCaption("“${hear.text}”", announce = false, modifier = Modifier.fillMaxWidth())
                     spoken.text.isNotBlank() ->
                         StatusCaption(spoken.text, highlight = spoken.wordRange, announce = false, modifier = Modifier.fillMaxWidth())
-                    else -> BasicText(
-                        Hints[hint],
-                        style = Vm.type.bodyLarge.copy(color = Vm.colors.boneMuted, textAlign = TextAlign.Center),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    else -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        BasicText(
+                            Hints[hint],
+                            style = Vm.type.bodyLarge.copy(color = Vm.colors.boneMuted, textAlign = TextAlign.Center),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        if (hear.status.isNotBlank()) {
+                            BasicText(
+                                hear.status,
+                                style = Vm.type.body.copy(color = Vm.colors.champagne, textAlign = TextAlign.Center),
+                                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs),
+                            )
+                        }
+                    }
                 }
             }
 

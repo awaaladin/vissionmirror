@@ -200,3 +200,10 @@ def _scene() -> DescribeAnalysis:
         spoken_text=text,
         confidence=0.7,
     )
+
+
+async def _mock_answer(self, *, question, context, language) -> str:
+    return "Lagos is the largest city in Nigeria." if "lagos" in question.lower() else "I am not sure about that."
+
+
+MockProvider.answer = _mock_answer

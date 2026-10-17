@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -415,5 +416,48 @@ class SessionViewModelTest {
         wake.wake("is the text on my shirt readable")
         advanceUntilIdle()
         assertEquals(listOf("is the text on my shirt readable"), repo.questions)
+    }
+
+    @Test fun adannaSaysListeningThenOpensTheMicWhenShesDone() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake()
+        runCurrent()
+        assertEquals("Listening.", speaker.spoken.last())
+        // The microphone waits for "Listening." to finish, so it never hears her.
+        assertEquals(0, voice.starts)
+        speaker.finishLast()
+        runCurrent()
+        assertEquals(1, voice.starts)
+    }
+
+    @Test fun theMicOpensEvenIfSpeechNeverFinishes() = runTest(dispatcher) {
+        val vm = vm()
+        advanceUntilIdle()
+        wake.wake()
+        advanceUntilIdle()
+        assertEquals(1, voice.starts) // the fallback timer
+    }
+
+    @Test fun weatherAndFactsGoToTheAssistant() = runTest(dispatcher) {
+        repo.assistResults += Result.success(ai.visionmirror.data.api.AssistResponse("weather", "It is 30 degrees in Abuja."))
+        val vm = vm()
+        advanceUntilIdle()
+        wake.wake("what is the weather in Abuja")
+        advanceUntilIdle()
+        assertEquals(listOf("what is the weather in Abuja"), repo.assistQueries)
+        assertEquals("It is 30 degrees in Abuja.", speaker.spoken.last())
+    }
+
+    @Test fun questionsAboutThePhotoStayWithThePhoto() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        repo.askResults += Result.success(AskResponse("Yes.", "Yes.", 0.9f))
+        val vm = vm()
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+        wake.wake("what is that stain on my shirt")
+        advanceUntilIdle()
+        assertEquals(listOf("what is that stain on my shirt"), repo.questions)
+        assertTrue(repo.assistQueries.isEmpty())
     }
 }

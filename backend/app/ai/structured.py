@@ -33,6 +33,10 @@ def image_b64(image: bytes) -> str:
     return base64.standard_b64encode(image).decode()
 
 
+class SpokenAnswer(BaseModel):
+    spoken_text: str
+
+
 class StructuredProvider(VisionProvider):
     """Builds the conversation and validates the JSON; subclasses only do the HTTP call.
 
@@ -81,6 +85,14 @@ class StructuredProvider(VisionProvider):
             messages=messages,
             model_cls=AskResponse,
         )
+
+    async def answer(self, *, question: str, context: str, language: str) -> str:
+        result = await self._structured(
+            system=prompts.answer_system_prompt(language),
+            messages=[{"role": "user", "parts": [{"type": "text", "text": prompts.answer_user_text(question, context)}]}],
+            model_cls=SpokenAnswer,
+        )
+        return result.spoken_text.strip()
 
     async def _structured(self, *, system: str, messages: list[dict], model_cls: type[T]) -> T:
         messages = list(messages)

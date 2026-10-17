@@ -31,7 +31,7 @@ class FakeSpeaker : Speaker {
     private val _events = MutableSharedFlow<SpeechManager.Event>(extraBufferCapacity = 16)
     override val events: SharedFlow<SpeechManager.Event> = _events
 
-    override fun speak(text: String, priority: SpeechManager.Priority, id: String): String {
+    override fun speak(text: String, priority: SpeechManager.Priority, id: String, local: Boolean): String {
         spoken += text
         ids += id
         return id
@@ -101,6 +101,14 @@ class FakeRepo : MirrorRepository {
         return askResults.removeFirstOrNull() ?: Result.failure(AppError.Unexpected())
     }
 
+    val assistResults = ArrayDeque<Result<ai.visionmirror.data.api.AssistResponse>>()
+    val assistQueries = mutableListOf<String>()
+
+    override suspend fun assist(query: String, language: String): Result<ai.visionmirror.data.api.AssistResponse> {
+        assistQueries += query
+        return assistResults.removeFirstOrNull() ?: Result.failure(AppError.Unexpected())
+    }
+
     override suspend fun deleteSession(sessionId: String) { deleted += sessionId }
 }
 
@@ -124,5 +132,6 @@ class FakeDevice : ai.visionmirror.assistant.DeviceControls {
 class FakeWake : ai.visionmirror.audio.WakeSource {
     private val _wakes = MutableSharedFlow<String>(extraBufferCapacity = 4)
     override val wakes: SharedFlow<String> = _wakes
+    override val hearing = MutableStateFlow(ai.visionmirror.audio.Hearing())
     fun wake(request: String = "") { _wakes.tryEmit(request) }
 }

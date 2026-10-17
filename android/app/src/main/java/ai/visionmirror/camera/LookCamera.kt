@@ -39,7 +39,7 @@ fun LookCamera(controller: CaptureController, modifier: Modifier = Modifier) {
             .also { it.surfaceProvider = previewView.surfaceProvider }
         val capture = ImageCapture.Builder()
             .setResolutionSelector(ratio)
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY) // small print needs the detail
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY) // speed matters more; the resolution is the same
             .build()
         controller.imageCapture = capture
         provider.unbindAll()

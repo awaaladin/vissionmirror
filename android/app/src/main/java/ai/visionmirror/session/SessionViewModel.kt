@@ -118,6 +118,9 @@ class SessionViewModel @Inject constructor(
     private val _state = MutableStateFlow(SessionUiState())
     val state: StateFlow<SessionUiState> = _state
 
+    /** Live proof that she is being heard while the app waits for her name (words, loudness, status). */
+    val hearing: StateFlow<ai.visionmirror.audio.Hearing> = wake.hearing
+
     /** Mic level 0..1 for the Quartz ripples. A separate flow so ~30 updates/s never recompose the screen. */
     private val _micLevel = MutableStateFlow(0f)
     val micLevel: StateFlow<Float> = _micLevel
@@ -140,6 +143,7 @@ class SessionViewModel @Inject constructor(
     private var voiceCommandsEnabled = true
     private var language = ResponseLanguage.NigerianEnglish
     private var sceneMode = false
+    private var pendingMic: String? = null
 
     init {
         viewModelScope.launch {
@@ -151,6 +155,13 @@ class SessionViewModel @Inject constructor(
         }
         viewModelScope.launch { voice.events.collect(::onVoiceEvent) }
         viewModelScope.launch { wake.wakes.collect(::onWake) }
+        // The microphone opens the moment "Listening." has been said.
+        viewModelScope.launch {
+            speaker.events.collect { e ->
+                val id = pendingMic ?: return@collect
+                if ((e is SpeechManager.Event.Done && e.id == id) || (e is SpeechManager.Event.Failed && e.id == id)) openAssistantMic()
+            }
+        }
         // Offline queue: the moment we are online again, describe the waiting photo.
         viewModelScope.launch {
             connectivity.online.distinctUntilChanged().collect { online ->
@@ -323,6 +334,7 @@ class SessionViewModel @Inject constructor(
     }
 
     fun cancelAsking() {
+        pendingMic = null
         voice.cancel()
         listenMode = ListenMode.None
         _micLevel.value = 0f
@@ -423,11 +435,27 @@ class SessionViewModel @Inject constructor(
             handleRequest(request)
             return
         }
-        if (!permissions.hasMic()) return
+        if (!permissions.hasMic()) {
+            speaker.say("I need the microphone to hear you. You can allow it in your phone's settings.", Priority.Interrupt, local = true)
+            return
+        }
         speaker.stop()
         listenMode = ListenMode.Assistant
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
         earcons.play(Earcon.ListeningOn)
+        // "Listening." in the phone's own voice (instant), then the microphone opens when she has finished saying it,
+        // so the recogniser never hears me. If speech is broken, the timer opens the microphone anyway.
+        val id = speaker.say("Listening.", Priority.Interrupt, local = true)
+        pendingMic = id
+        viewModelScope.launch {
+            delay(MIC_FALLBACK_MS)
+            if (pendingMic == id) openAssistantMic()
+        }
+    }
+
+    private fun openAssistantMic() {
+        pendingMic = null
+        if (listenMode != ListenMode.Assistant) return
         voice.start(language.recognitionTag())
     }
 
@@ -450,13 +478,26 @@ class SessionViewModel @Inject constructor(
             Unit
         }
         AssistantIntents.parse(text, hasPhoto)?.let { _actions.tryEmit(it); return }
-        if (hasPhoto) {
-            submitQuestion(text)
-        } else {
-            speaker.say(
-                "I'm ${WakeWord.NAME}. Say mirror, read, colour, or look around. Or take a photo and ask me about it.",
-                Priority.Interrupt,
-            )
+        if (hasPhoto && !AssistantIntents.isKnowledgeQuestion(text)) submitQuestion(text) else askAssistant(text)
+    }
+
+    /** The weather and questions about the world. Works with or without a photo. */
+    private fun askAssistant(query: String) {
+        speaker.say("One moment.", Priority.Interrupt, local = true)
+        _state.update { it.copy(ask = AskPhase.Thinking, partialQuestion = query) }
+        viewModelScope.launch {
+            repo.assist(query, language.apiTag)
+                .onSuccess { r ->
+                    _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "", banner = null) }
+                    earcons.play(Earcon.Ready)
+                    speaker.say(r.spokenText, Priority.Interrupt)
+                }
+                .onFailure { t ->
+                    val error = t as? AppError ?: AppError.Unexpected(t)
+                    _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "", banner = error.spokenText) }
+                    earcons.play(Earcon.Error)
+                    speaker.say(error.spokenText, Priority.Interrupt)
+                }
         }
     }
 
@@ -567,6 +608,7 @@ class SessionViewModel @Inject constructor(
 
     private companion object {
         const val MAX_RATE_RETRIES = 2
+        const val MIC_FALLBACK_MS = 2_500L
         const val MAX_NETWORK_RETRIES = 4
     }
 }

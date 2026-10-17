@@ -151,6 +151,7 @@ class RepositoryTest {
                 mode: okhttp3.RequestBody,
             ): retrofit2.Response<ai.visionmirror.data.api.DescribeResponse> = throw java.net.SocketTimeoutException("read timed out")
             override suspend fun speech(body: ai.visionmirror.data.api.SpeechRequest) = throw java.net.SocketTimeoutException()
+            override suspend fun assist(body: ai.visionmirror.data.api.AssistRequest) = throw java.net.SocketTimeoutException()
             override suspend fun ask(body: ai.visionmirror.data.api.AskRequest) = throw java.net.SocketTimeoutException()
             override suspend fun deleteSession(id: String) = throw java.net.SocketTimeoutException()
             override suspend fun health() = throw java.net.SocketTimeoutException()

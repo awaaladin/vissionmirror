@@ -81,6 +81,10 @@ class SystemVoiceInput @Inject constructor(
                     // Use the phone's downloaded speech model when there is one: no network needed, and
                     // it answers faster. Falls back to online recognition when no model is installed.
                     putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                    // Wait for a real pause before deciding she has finished (the default is under a second).
+                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
+                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200L)
                     if (language != null) putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
                 },
             )

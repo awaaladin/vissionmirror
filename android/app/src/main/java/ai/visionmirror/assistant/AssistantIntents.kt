@@ -9,6 +9,24 @@ enum class AssistantAction { OpenMirror, OpenRead, OpenColour, OpenLook, OpenSet
  * ("what colour is my shirt" must be answered, not open the colour tool).
  */
 object AssistantIntents {
+    private val knowledge = listOf(
+        "weather", "temperature", "forecast", "rain", "umbrella", "news", "who is", "who was", "who are", "what is the", "what are the",
+        "what was", "tell me about", "search", "look up", "research", "how many", "how much", "when did", "when was", "where is",
+        "capital of", "define", "meaning of", "explain", "how do i", "how does", "why is", "why do", "what time", "what day", "what date",
+    )
+    // Words that mean she is pointing at the photo or herself, so "what is that" stays a question about the picture.
+    private val aboutThePhoto = Regex("\\b(this|that|these|those|it|my|me|i am|im|wearing|photo|picture|in front|on me|here)\\b")
+
+    /** A question about the world (weather, facts) rather than about the photo. */
+    fun isKnowledgeQuestion(utterance: String): Boolean {
+        val text = utterance.lowercase().replace(Regex("[^a-z ]"), " ").trim().replace(Regex("\\s+"), " ")
+        if (text.isEmpty()) return false
+        val padded = " $text "
+        if (listOf("weather", "temperature", "forecast", "umbrella", "news").any { " $it " in padded }) return true
+        if (aboutThePhoto.containsMatchIn(text)) return false
+        return knowledge.any { " $it " in padded }
+    }
+
     private val explicit = Regex("^(open|go to|go|start|switch to|show|use|take me to)\\b")
 
     fun parse(utterance: String, hasSession: Boolean): AssistantAction? {

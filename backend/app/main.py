@@ -8,12 +8,13 @@ from redis.exceptions import RedisError
 from starlette.formparsers import MultiPartParser
 
 from app.ai.provider import VisionProvider, build_provider
-from app.api.v1 import account, ask, auth, describe, health, session, speech
+from app.api.v1 import account, ask, assist, auth, describe, health, session, speech
 from app.core.config import Settings, get_settings
 from app.core.errors import APIError, api_error_handler
 from app.core.logging import setup_logging
 from app.core.middleware import BodyLimitMiddleware, RequestContextMiddleware, SecurityHeadersMiddleware
 from app.core.rate_limit import DailyCap, LoginThrottle, RateLimiter
+from app.services.assist_service import AssistService
 from app.services.describe_service import DescribeService
 from app.services.session_store import SessionStore
 from app.services.speech_service import AzureSpeech, NoSpeech, SpeechSynthesizer
@@ -56,6 +57,7 @@ def create_app(
     users: UserStore | None = None,
     translator: Translator | None = None,
     speech_service: SpeechSynthesizer | None = None,
+    assist_service: AssistService | None = None,
 ) -> FastAPI:
     """Dependencies are injectable so tests can use fakeredis and MockProvider."""
     settings = settings or get_settings()
@@ -103,11 +105,12 @@ def create_app(
         else NoSpeech()
     )
     app.state.service = DescribeService(provider, app.state.store, app.state.cap, translator)
+    app.state.assist = assist_service or AssistService(provider, app.state.cap, translator)
     app.add_exception_handler(APIError, api_error_handler)
     app.add_exception_handler(RedisError, redis_error_handler)
     app.add_exception_handler(AccountsUnavailable, accounts_unavailable_handler)
 
-    for module in (health, auth, account, describe, ask, session, speech):
+    for module in (health, auth, account, describe, ask, assist, session, speech):
         app.include_router(module.router, prefix="/v1")
 
     # Added last = outermost. Order outside-in: request context, CORS, security headers, body limit.

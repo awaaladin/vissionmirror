@@ -35,7 +35,8 @@ import javax.inject.Singleton
 interface Speaker {
     val state: StateFlow<SpeechManager.State>
     val events: SharedFlow<SpeechManager.Event>
-    fun speak(text: String, priority: SpeechManager.Priority, id: String): String
+    /** [local] = always the phone's own voice (instant), for short acknowledgements like "Listening." */
+    fun speak(text: String, priority: SpeechManager.Priority, id: String, local: Boolean = false): String
     fun stop()
     fun pause()
     fun resume()
@@ -46,7 +47,8 @@ fun Speaker.say(
     text: String,
     priority: SpeechManager.Priority = SpeechManager.Priority.Queue,
     id: String = UUID.randomUUID().toString(),
-): String = speak(text, priority, id)
+    local: Boolean = false,
+): String = speak(text, priority, id, local)
 
 /**
  * The one and only voice. Everything the app says goes through here so audio never overlaps.
@@ -86,6 +88,7 @@ class SpeechManager @Inject constructor(
 
     private class Item(val id: String, val text: String) {
         var base = 0
+        var local = false
         var mode = Mode.Waiting
         var fetch: Job? = null
         var player: MediaPlayer? = null
@@ -165,7 +168,7 @@ class SpeechManager @Inject constructor(
     // ---- public API ------------------------------------------------------------------------
 
     /** Returns the utterance id so callers can match [Event]s. */
-    override fun speak(text: String, priority: Priority, id: String): String {
+    override fun speak(text: String, priority: Priority, id: String, local: Boolean): String {
         if (text.isBlank()) return id
         synchronized(lock) {
             if (priority == Priority.Interrupt) {
@@ -174,7 +177,7 @@ class SpeechManager @Inject constructor(
                 paused = false
                 if (ready) tts?.stop()
             }
-            val item = Item(id, text)
+            val item = Item(id, text).also { it.local = local }
             queue.addLast(item)
             if (queue.size == 1) _state.value = State(text = text, utteranceId = id, isPaused = paused)
             pump()
@@ -290,7 +293,7 @@ class SpeechManager @Inject constructor(
         val head = queue.firstOrNull() ?: return
         if (head.mode != Mode.Waiting) return
         requestFocus()
-        if (cloudEnabled) startCloud(head) else startLocal(head)
+        if (cloudEnabled && !head.local) startCloud(head) else startLocal(head)
     }
 
     private fun startLocal(item: Item) {

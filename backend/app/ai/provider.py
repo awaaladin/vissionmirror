@@ -25,6 +25,10 @@ class VisionProvider(ABC):
         self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror"
     ) -> DescribeAnalysis: ...
 
+    async def answer(self, *, question: str, context: str, language: str) -> str:
+        """A short spoken answer to a general question (no photo). [context] is optional source text."""
+        return "I can't look that up right now."
+
     @abstractmethod
     async def ask(
         self,
