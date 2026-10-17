@@ -120,6 +120,7 @@ class SpeechManager @Inject constructor(
     private var paused = false
     private var rate = 1.0f
     private var pitch = 1.0f
+    private var persona = Persona.Adanna
     private var voiceName: String? = null
     private var cloudEnabled = true
     private var locales: List<Locale> = listOf(Locale("en", "NG"), Locale.getDefault(), Locale.US)
@@ -155,7 +156,7 @@ class SpeechManager @Inject constructor(
                     setAudioAttributes(speechAttributes)
                     pickLanguage()
                     setSpeechRate(rate)
-                    setPitch(pitch)
+                    setPitch(effectivePitch())
                     setOnUtteranceProgressListener(listener)
                 }
                 ready = true
@@ -240,7 +241,19 @@ class SpeechManager @Inject constructor(
     /** The natural Nigerian voice from the internet. Off = always the phone's own voice. */
     fun setCloudVoice(enabled: Boolean) = synchronized(lock) { cloudEnabled = enabled; Unit }
 
-    fun setPitch(value: Float) = synchronized(lock) { pitch = value; tts?.setPitch(value); Unit }
+    fun setPitch(value: Float) = synchronized(lock) { pitch = value; tts?.setPitch(effectivePitch()); Unit }
+
+    /** Adanna or Bola: the cloud voice follows it, and the phone's own voice gets a deeper pitch for Bola. */
+    fun setPersona(value: Persona) = synchronized(lock) {
+        persona = value
+        tts?.setPitch(effectivePitch())
+        tts?.applyVoice()
+        Unit
+    }
+
+    // The phone's voices do not say whether they are a man's or a woman's, so Bola is a lower-pitched voice (and a different
+    // installed voice when there is one), not a guaranteed man's voice. The cloud voice is a real man's voice.
+    private fun effectivePitch(): Float = if (persona.male) pitch * 0.78f else pitch
 
     /** Voices matching the current language, for the Settings picker. */
     fun availableVoices(): List<Voice> = synchronized(lock) {
@@ -281,9 +294,11 @@ class SpeechManager @Inject constructor(
         val all = runCatching { voices.orEmpty() }.getOrDefault(emptySet())
         val current = language ?: return
         val chosen = voiceName?.let { name -> all.firstOrNull { it.name == name && it.locale.language == current.language } }
-        val best = chosen ?: all
+        val candidates = all
             .filter { it.locale.language == current.language && it.locale.country == current.country && !it.isNetworkConnectionRequired }
-            .maxWithOrNull(compareBy<Voice> { it.quality }.thenBy { -it.latency })
+            .sortedWith(compareByDescending<Voice> { it.quality }.thenBy { it.latency }.thenBy { it.name })
+        // Bola takes a different installed voice from Adanna when the phone has more than one.
+        val best = chosen ?: (if (persona.male) candidates.getOrNull(1) ?: candidates.firstOrNull() else candidates.firstOrNull())
         best?.let { voice = it }
     }
 
@@ -307,7 +322,7 @@ class SpeechManager @Inject constructor(
         val spoken = item.text.substring(item.base.coerceIn(0, item.text.length))
         val speed = rate
         item.fetch = scope.launch {
-            val bytes = cloud.synthesize(spoken, speed)
+            val bytes = cloud.synthesize(spoken, speed, persona.male)
             val file = bytes?.let { runCatching { File.createTempFile("voice", ".mp3", context.cacheDir).apply { writeBytes(it) } }.getOrNull() }
             main.post { synchronized(lock) { onFetched(item, file) } }
         }

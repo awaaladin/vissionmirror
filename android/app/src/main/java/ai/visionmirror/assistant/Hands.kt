@@ -85,7 +85,7 @@ object ClockAnswer {
     }
 }
 
-enum class ScreenCommand { TakePhoto, FlipCamera, LookAgain, Pause, Resume }
+enum class ScreenCommand { TakePhoto, FlipCamera, LookAgain, Pause, Resume, Hold }
 
 /** Voice commands for the screen that is open (take the photo now, flip the camera). The open screen acts on them. */
 @Singleton

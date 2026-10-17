@@ -1,5 +1,6 @@
 package ai.visionmirror.assistant
 
+import ai.visionmirror.audio.Persona
 import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.data.api.DetailLevel
 import ai.visionmirror.data.settings.CameraFacing
@@ -124,6 +125,12 @@ object VoiceSettings {
                 set("Using the front camera.") { it.copy(cameraFacing = CameraFacing.Front) }
 
             // ---- voice and language
+            has("switch to bola", "change to bola", "use bola", "bola voice", "male voice", "speak as bola", "be bola", "give me bola",
+                "i want bola", "talk to bola", "put bola on", "let me talk to bola", "switch to the man", "man voice") ->
+                set("Hello, I'm Bola.") { it.copy(persona = Persona.Bola, voiceName = null) }
+            has("switch to adanna", "change to adanna", "use adanna", "adanna voice", "female voice", "be adanna", "go back to adanna",
+                "i want adanna", "talk to adanna", "put adanna on", "let me talk to adanna", "woman voice", "switch to the woman") ->
+                set("Hello, I'm Adanna.") { it.copy(persona = Persona.Adanna, voiceName = null) }
             has("change voice", "different voice", "next voice", "another voice", "change your voice") -> SettingChange.NextVoice
             has("natural voice", "nigerian voice", "online voice", "cloud voice") ->
                 if (off) set("I'll use your phone's voice.") { it.copy(cloudVoice = false) }
@@ -159,5 +166,5 @@ object VoiceSettings {
 
     const val HELP =
         "You can say my name and ask me to read, look around, or use the mirror. " +
-            "You can also change anything: louder, slower, bigger text, brighter, dark mode, speak Hausa, or change voice."
+            "You can also change anything: louder, slower, bigger text, brighter, dark mode, speak Hausa, or change voice. Say switch to Bola for a man's voice, or switch to Adanna for a woman's."
 }

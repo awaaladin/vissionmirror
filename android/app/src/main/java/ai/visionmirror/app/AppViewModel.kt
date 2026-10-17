@@ -39,6 +39,7 @@ class AppViewModel @Inject constructor(
                 speech.setRate(s.speechRate)
                 speech.setLanguage(s.language.speechLocales())
                 speech.setCloudVoice(s.cloudVoice)
+                speech.setPersona(s.persona)
                 speech.setVoice(s.voiceName)
                 haptics.enabled.value = s.haptics
             }

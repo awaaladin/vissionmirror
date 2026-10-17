@@ -116,7 +116,7 @@ fun LookScreen(
         return
     }
 
-    Box(Modifier.fillMaxSize().background(Vm.colors.ink).tapAnywhere(viewModel::onTap)) {
+    Box(Modifier.fillMaxSize().background(Vm.colors.ink).tapAnywhere(session::talkFromCamera)) {
         LookCamera(viewModel.captureController)
         ScanSweep(active = state.scanning || state.busy)
 

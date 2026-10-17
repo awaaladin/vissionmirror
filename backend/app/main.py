@@ -100,7 +100,10 @@ def create_app(
     app.state.store = SessionStore(redis, settings.session_ttl_seconds)
     app.state.cap = DailyCap(redis, settings.daily_ai_call_limit)
     app.state.speech = speech_service or (
-        AzureSpeech(settings.azure_speech_key, settings.azure_speech_region, settings.azure_speech_voice)
+        AzureSpeech(
+            settings.azure_speech_key, settings.azure_speech_region, settings.azure_speech_voice,
+            settings.azure_speech_voice_male,
+        )
         if settings.azure_speech_key
         else NoSpeech()
     )

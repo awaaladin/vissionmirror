@@ -1,5 +1,6 @@
 package ai.visionmirror.data.settings
 
+import ai.visionmirror.audio.Persona
 import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.data.api.DetailLevel
 import ai.visionmirror.design.tokens.FontChoice
@@ -36,6 +37,8 @@ data class Settings(
     val brightness: Float = -1f,
     /** Say "stop" (or her name) while she is talking and she stops. */
     val bargeIn: Boolean = true,
+    /** Adanna (woman's voice) or Bola (man's voice). */
+    val persona: Persona = Persona.Adanna,
     /** "Access granted": she keeps listening after every answer, so nothing needs touching. */
     val handsFree: Boolean = false,
     /** Which language she is spoken to in (and, where the phone can, listened to in). */
@@ -74,6 +77,7 @@ class DataStoreSettings @Inject constructor(
         val wakeWord = booleanPreferencesKey("wake_word")
         val brightness = floatPreferencesKey("brightness")
         val bargeIn = booleanPreferencesKey("barge_in")
+        val persona = stringPreferencesKey("persona")
         val handsFree = booleanPreferencesKey("hands_free")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
@@ -97,6 +101,7 @@ class DataStoreSettings @Inject constructor(
             wakeWord = this[Keys.wakeWord] ?: d.wakeWord,
             brightness = this[Keys.brightness] ?: d.brightness,
             bargeIn = this[Keys.bargeIn] ?: d.bargeIn,
+            persona = Persona.from(this[Keys.persona]),
             handsFree = this[Keys.handsFree] ?: d.handsFree,
             language = ResponseLanguage.fromApiTag(this[Keys.language]),
             detailLevel = DetailLevel.entries.firstOrNull { it.wire == this[Keys.detail] } ?: d.detailLevel,
@@ -125,6 +130,7 @@ class DataStoreSettings @Inject constructor(
             p[Keys.wakeWord] = s.wakeWord
             p[Keys.brightness] = s.brightness
             p[Keys.bargeIn] = s.bargeIn
+            p[Keys.persona] = s.persona.name
             p[Keys.handsFree] = s.handsFree
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire

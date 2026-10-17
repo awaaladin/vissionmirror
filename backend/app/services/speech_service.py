@@ -20,11 +20,11 @@ class SpeechUnavailable(Exception):
 
 
 class SpeechSynthesizer(Protocol):
-    async def synthesize(self, text: str, rate: float = 1.0) -> bytes: ...
+    async def synthesize(self, text: str, rate: float = 1.0, voice: str = "female") -> bytes: ...
 
 
 class NoSpeech:
-    async def synthesize(self, text: str, rate: float = 1.0) -> bytes:
+    async def synthesize(self, text: str, rate: float = 1.0, voice: str = "female") -> bytes:
         raise SpeechUnavailable("not configured")
 
 
@@ -37,8 +37,8 @@ def build_ssml(text: str, voice: str, rate: float) -> str:
 
 
 class AzureSpeech:
-    def __init__(self, key: str, region: str, voice: str = "en-NG-EzinneNeural", timeout: float = 15.0,
-                 client: httpx.AsyncClient | None = None):
+    def __init__(self, key: str, region: str, voice: str = "en-NG-EzinneNeural", male_voice: str = "en-NG-AbeoNeural",
+                 timeout: float = 15.0, client: httpx.AsyncClient | None = None):
         self._url = f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1"
         self._headers = {
             "Ocp-Apim-Subscription-Key": key,
@@ -46,11 +46,11 @@ class AzureSpeech:
             "X-Microsoft-OutputFormat": AUDIO_FORMAT,
             "User-Agent": "visionmirror",
         }
-        self._voice = voice
+        self._voices = {"female": voice, "male": male_voice}
         self._client = client or httpx.AsyncClient(timeout=timeout)
 
-    async def synthesize(self, text: str, rate: float = 1.0) -> bytes:
-        body = build_ssml(text, self._voice, rate).encode("utf-8")
+    async def synthesize(self, text: str, rate: float = 1.0, voice: str = "female") -> bytes:
+        body = build_ssml(text, self._voices.get(voice, self._voices["female"]), rate).encode("utf-8")
         for attempt in range(2):
             try:
                 r = await self._client.post(self._url, content=body, headers=self._headers)

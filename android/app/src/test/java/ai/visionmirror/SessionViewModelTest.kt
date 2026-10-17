@@ -592,4 +592,27 @@ class SessionViewModelTest {
             expectNoEvents()
         }
     }
+
+    @Test fun tappingTheCameraHoldsThePictureThenListens() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        vm.onScreen("mirror")
+        screenCommands.flow.test {
+            vm.talkFromCamera()
+            assertEquals(ai.visionmirror.assistant.ScreenCommand.Hold, awaitItem())
+        }
+        advanceUntilIdle()
+        assertEquals(AskPhase.Listening, vm.state.value.ask)
+        assertEquals(1, voice.starts)
+    }
+
+    @Test fun switchingToBolaChangesTheSavedVoiceAndHeSaysHello() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake("switch to Bola")
+        advanceUntilIdle()
+        assertEquals(ai.visionmirror.audio.Persona.Bola, settings.flow.value.persona)
+        assertEquals(ai.visionmirror.audio.Persona.Bola, vm.persona.value)
+        assertEquals("Hello, I'm Bola.", speaker.spoken.last())
+    }
 }

@@ -43,7 +43,8 @@ class Settings(BaseSettings):
     # Azure neural voice (en-NG) for natural Nigerian speech. Empty = the app uses the phone's own voice.
     azure_speech_key: str | None = None
     azure_speech_region: str = "westeurope"
-    azure_speech_voice: str = "en-NG-EzinneNeural"  # or en-NG-AbeoNeural (male)
+    azure_speech_voice: str = "en-NG-EzinneNeural"  # Adanna
+    azure_speech_voice_male: str = "en-NG-AbeoNeural"  # Bola
     rate_speech_device_per_min: int = 40
     rate_speech_ip_per_min: int = 120
 

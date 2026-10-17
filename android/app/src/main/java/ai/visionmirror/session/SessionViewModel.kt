@@ -123,6 +123,10 @@ class SessionViewModel @Inject constructor(
     private val _state = MutableStateFlow(SessionUiState())
     val state: StateFlow<SessionUiState> = _state
 
+    /** Who is talking (Adanna or Bola): the Home screen and greetings use the name. */
+    private val _persona = MutableStateFlow(ai.visionmirror.audio.Persona.Adanna)
+    val persona: StateFlow<ai.visionmirror.audio.Persona> = _persona
+
     /** Live proof that she is being heard while the app waits for her name (words, loudness, status). */
     val hearing: StateFlow<ai.visionmirror.audio.Hearing> = wake.hearing
 
@@ -169,6 +173,7 @@ class SessionViewModel @Inject constructor(
                 voiceCommandsEnabled = s.voiceCommands
                 language = s.language
                 handsFree = s.handsFree
+                _persona.value = s.persona
                 if (_state.value.phase == Phase.Idle) _state.update { it.copy(detail = s.detailLevel) }
             }
         }
@@ -592,9 +597,13 @@ class SessionViewModel @Inject constructor(
     private fun applySetting(change: SettingChange) {
         when (change) {
             is SettingChange.Set -> viewModelScope.launch {
-                val before = settings.settings.first().detailLevel
+                val beforeSettings = settings.settings.first()
+                val before = beforeSettings.detailLevel
                 settings.update(change.change)
-                val after = settings.settings.first().detailLevel
+                val afterSettings = settings.settings.first()
+                val after = afterSettings.detailLevel
+                // The new voice is applied a moment after the setting saves; wait for it so she says hello as herself.
+                if (afterSettings.persona != beforeSettings.persona) delay(250)
                 earcons.play(Earcon.Ready)
                 speaker.say(change.say, Priority.Interrupt)
                 // "Make it more detailed" while a result is open: describe the same photo again at that level.
@@ -662,6 +671,12 @@ class SessionViewModel @Inject constructor(
             earcons.play(Earcon.ListeningOn)
             voice.start(language.recognitionTag())
         }
+    }
+
+    /** Tap anywhere on a camera screen: hold the scan or countdown, then listen, so she has time to speak. */
+    fun talkFromCamera() {
+        screenCommands.send(ScreenCommand.Hold)
+        toggleListening()
     }
 
     /** The orb on Home: tap to talk to Adanna, tap again to stop. */

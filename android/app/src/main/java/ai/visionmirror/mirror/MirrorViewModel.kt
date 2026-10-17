@@ -97,6 +97,7 @@ class MirrorViewModel @Inject constructor(
                     // A gap to think and give commands: pause stops the guidance and the auto-capture countdown.
                     ScreenCommand.Pause -> if (!_state.value.paused) togglePause()
                     ScreenCommand.Resume -> if (_state.value.paused) togglePause()
+                    ScreenCommand.Hold -> if (!_state.value.paused) togglePause(announce = false) // silent: she is about to talk
                     else -> Unit
                 }
             }
@@ -108,7 +109,7 @@ class MirrorViewModel @Inject constructor(
     }
 
     /** Pause or resume the spoken guidance and auto-capture. The preview stays on and she can still take the photo. */
-    fun togglePause() {
+    fun togglePause(announce: Boolean = true) {
         val nowPaused = synchronized(lock) {
             if (!active || capturing) return
             val p = !_state.value.paused
@@ -122,8 +123,10 @@ class MirrorViewModel @Inject constructor(
             }
             p
         }
-        earcons.play(if (nowPaused) Earcon.ListeningOff else Earcon.Ready)
-        speaker.say(if (nowPaused) "Paused." else "Guiding again.", Priority.Interrupt)
+        if (announce) {
+            earcons.play(if (nowPaused) Earcon.ListeningOff else Earcon.Ready)
+            speaker.say(if (nowPaused) "Paused." else "Guiding again.", Priority.Interrupt)
+        }
     }
 
     /** Switch between the front and back camera. The choice is saved. */
@@ -151,7 +154,7 @@ class MirrorViewModel @Inject constructor(
         autoSuppressed = false
         coach.reset()
         _state.value = MirrorUiState(facing = _state.value.facing)
-        speaker.say("I'll guide you. Hold the phone at arm's length, facing you.", Priority.Interrupt)
+        speaker.say("I'll guide you. Hold the phone at arm's length, facing you. Tap anywhere to talk to me.", Priority.Interrupt)
         // If the phone cannot speak at all, say so on screen instead of leaving a silent mirror.
         (speaker as? ai.visionmirror.audio.SpeechManager)?.problem?.let { why ->
             _state.update { it.copy(caption = "I can't speak on this phone. $why") }

@@ -135,7 +135,8 @@ fun MirrorScreen(
         }
 
         Column(
-            Modifier.fillMaxSize().tapAnywhere(viewModel::onTap),
+            // Tapping anywhere (or double-tapping with TalkBack) pauses the guidance and listens: she gets time to speak.
+            Modifier.fillMaxSize().tapAnywhere(session::talkFromCamera),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
@@ -184,7 +185,7 @@ fun MirrorScreen(
                 icon = if (countdown != null) VmIcons.Close else VmIcons.Capture,
             )
             BasicText(
-                "Or tap anywhere, or press a volume key.",
+                "Tap anywhere to talk, or press a volume key to take the photo.",
                 style = Vm.type.body.copy(color = Vm.colors.boneMuted),
             )
         }

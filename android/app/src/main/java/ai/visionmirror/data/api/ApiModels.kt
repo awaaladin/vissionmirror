@@ -113,7 +113,7 @@ data class AssistRequest(val query: String, val language: String = "en")
 data class AssistResponse(val kind: String = "answer", @SerialName("spoken_text") val spokenText: String)
 
 @Serializable
-data class SpeechRequest(val text: String, val rate: Float = 1f)
+data class SpeechRequest(val text: String, val rate: Float = 1f, val voice: String = "female")
 
 @Serializable
 data class AskRequest(

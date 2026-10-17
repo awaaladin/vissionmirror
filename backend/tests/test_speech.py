@@ -8,8 +8,8 @@ from tests.conftest import get_token
 
 
 class FakeSpeech:
-    async def synthesize(self, text, rate=1.0):
-        return b"ID3-audio:" + text.encode()
+    async def synthesize(self, text, rate=1.0, voice="female"):
+        return f"ID3-{voice}:".encode() + text.encode()
 
 
 def make(settings, redis, speech=None):
@@ -28,7 +28,10 @@ async def test_speech_endpoint_returns_audio(settings, redis):
         h = await get_token(c)
         r = await c.post("/v1/speech", headers=h, json={"text": "Well done"})
         assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg"
-        assert r.content == b"ID3-audio:Well done"
+        assert r.content == b"ID3-female:Well done"
+        m = await c.post("/v1/speech", headers=h, json={"text": "Well done", "voice": "male"})
+        assert m.content == b"ID3-male:Well done"
+        assert (await c.post("/v1/speech", headers=h, json={"text": "x", "voice": "robot"})).status_code == 422
 
 
 @pytest.mark.asyncio
@@ -56,3 +59,17 @@ async def test_azure_client_sends_key_and_ssml():
     bad = AzureSpeech("k", "westeurope", client=httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(401))))
     with pytest.raises(SpeechUnavailable):
         await bad.synthesize("Hello")
+
+
+@pytest.mark.asyncio
+async def test_bola_uses_the_male_voice():
+    seen = []
+
+    def handler(request):
+        seen.append(request.content.decode())
+        return httpx.Response(200, content=b"mp3")
+
+    a = AzureSpeech("k", "westeurope", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    await a.synthesize("Hello", voice="female")
+    await a.synthesize("Hello", voice="male")
+    assert "en-NG-EzinneNeural" in seen[0] and "en-NG-AbeoNeural" in seen[1]

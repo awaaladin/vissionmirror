@@ -1,6 +1,7 @@
 package ai.visionmirror.settings
 
 import ai.visionmirror.BuildConfig
+import ai.visionmirror.audio.Persona
 import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.audio.SpeechManager.Priority
 import ai.visionmirror.audio.Speaker
@@ -134,6 +135,13 @@ fun SettingsScreen(
             }
 
             SettingGroup("Voice") {
+                BasicText("Who talks to you", style = Vm.type.label.copy(color = Vm.colors.bone))
+                SegmentedControl(
+                    options = Persona.entries.map { "${it.displayName} (${if (it.male) "man" else "woman"})" },
+                    selectedIndex = s.persona.ordinal,
+                    onSelect = { viewModel.setPersona(Persona.entries[it]) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 BasicText("Speech speed", style = Vm.type.label.copy(color = Vm.colors.bone))
                 SegmentedControl(
                     options = SpeechRate.entries.map { it.label },

@@ -142,7 +142,7 @@ fun AppNav(
                         onGreet = {
                             if (!greeted) {
                                 greeted = true
-                                speech.say("I'm Adanna. Say my name, then what you need.", SpeechManager.Priority.Queue)
+                                speech.say("I'm ${session.persona.value.displayName}. Say my name, then what you need.", SpeechManager.Priority.Queue)
                             }
                         },
                     )

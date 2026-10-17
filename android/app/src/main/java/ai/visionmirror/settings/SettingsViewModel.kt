@@ -1,6 +1,7 @@
 package ai.visionmirror.settings
 
 import ai.visionmirror.app.Spoken
+import ai.visionmirror.audio.Persona
 import ai.visionmirror.audio.ResponseLanguage
 import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.SpeechManager.Priority
@@ -119,6 +120,12 @@ class SettingsViewModel @Inject constructor(
         update { it.copy(language = language, voiceName = null) }
         speech.setLanguage(language.speechLocales())
         speech.say("${language.label}.", Priority.Interrupt)
+    }
+
+    fun setPersona(persona: Persona) {
+        update { it.copy(persona = persona, voiceName = null) }
+        speech.setPersona(persona)
+        speech.say("Hello, I'm ${persona.displayName}.", Priority.Interrupt)
     }
 
     fun setBargeIn(on: Boolean) = update { it.copy(bargeIn = on) }

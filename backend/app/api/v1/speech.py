@@ -12,7 +12,7 @@ router = APIRouter(tags=["speech"])
 async def speech(body: SpeechRequest, request: Request, _: None = Depends(limited("speech"))) -> Response:
     """Nigerian English audio (MP3) for a piece of text. 503 means "use the phone's own voice"."""
     try:
-        audio = await request.app.state.speech.synthesize(body.text, body.rate)
+        audio = await request.app.state.speech.synthesize(body.text, body.rate, body.voice)
     except SpeechUnavailable:
         raise APIError(
             501,  # not 503: the app retries 503s, and 'not configured' will not fix itself

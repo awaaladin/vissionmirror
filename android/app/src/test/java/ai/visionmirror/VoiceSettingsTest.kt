@@ -37,6 +37,13 @@ class VoiceSettingsTest {
         assertEquals(SettingChange.NextVoice, VoiceSettings.parse("change voice"))
     }
 
+    @Test fun switchingBetweenAdannaAndBola() {
+        assertEquals(ai.visionmirror.audio.Persona.Bola, applied("switch to Bola").persona)
+        assertEquals(ai.visionmirror.audio.Persona.Bola, applied("male voice").persona)
+        assertEquals(ai.visionmirror.audio.Persona.Adanna, applied("switch to Adanna", Settings(persona = ai.visionmirror.audio.Persona.Bola)).persona)
+        assertEquals(ai.visionmirror.audio.Persona.Adanna, applied("female voice", Settings(persona = ai.visionmirror.audio.Persona.Bola)).persona)
+    }
+
     @Test fun anythingElseIsLeftAlone() {
         for (said in listOf("is my shirt bright", "what does the text on my tag say", "i like the dark blue colour", "read this", "")) {
             assertNull(said, VoiceSettings.parse(said))

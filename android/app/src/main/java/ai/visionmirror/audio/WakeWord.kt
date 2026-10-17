@@ -57,11 +57,18 @@ object WakeWord {
         val words = clean.split(' ')
         for (i in words.indices) {
             // "a donna" is heard as two words as often as "adonna" as one.
-            if (isName(words[i])) return Match(words.drop(i + 1).joinToString(" "))
-            if (i + 1 < words.size && isName(words[i] + words[i + 1])) return Match(words.drop(i + 2).joinToString(" "))
+            if (isName(words[i])) return Match(requestAfter(words, i, 1))
+            if (i + 1 < words.size && isName(words[i] + words[i + 1])) return Match(requestAfter(words, i, 2))
         }
         return null
     }
+
+    /**
+     * What she asked after the name. If the name comes at the start ("Adanna, read this", "hey Adanna, ...") that is
+     * everything after it; if it comes later ("switch to Bola") the name is part of the request, so keep it all.
+     */
+    private fun requestAfter(words: List<String>, nameAt: Int, nameWords: Int): String =
+        if (nameAt <= 1) words.drop(nameAt + nameWords).joinToString(" ") else words.joinToString(" ")
 
     /** [utterance] without the wake phrase, for when the phrase was said in the middle of a request. */
     fun strip(utterance: String): String = matches(utterance)?.request ?: utterance.trim()
@@ -73,7 +80,11 @@ object WakeWord {
         return (body.size == 1 && isName(body[0])) || (body.size == 2 && isName(body[0] + body[1]))
     }
 
-    private fun isName(word: String): Boolean = word.length in 4..8 && editDistance(word, TARGET) <= 1
+    // "Bola" is short, so only the ways recognisers actually write it count; a loose match would fire on "bowl" or "cola".
+    private val bolaForms = setOf("bola", "bolla", "bowla", "bolah", "boller", "bolar")
+
+    private fun isName(word: String): Boolean =
+        word in bolaForms || (word.length in 4..8 && editDistance(word, TARGET) <= 1)
 
     internal fun editDistance(a: String, b: String): Int {
         var prev = IntArray(b.length + 1) { it }

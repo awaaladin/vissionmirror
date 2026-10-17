@@ -15,6 +15,17 @@ class AssistantTest {
         }
     }
 
+    @Test fun bolaWakesItToo() {
+        for (said in listOf("Bola", "hey bola", "bolla what time is it")) assertNotNull(said, WakeWord.matches(said))
+        for (said in listOf("bowl", "cola", "ebola", "gola")) assertNull(said, WakeWord.matches(said))
+    }
+
+    @Test fun aNameInTheMiddleOfARequestKeepsTheWholeRequest() {
+        assertEquals("switch to bola", WakeWord.matches("switch to Bola")?.request)
+        assertEquals("what time is it", WakeWord.matches("Bola what time is it")?.request)
+        assertEquals("is my shirt neat", WakeWord.matches("hey Adanna is my shirt neat")?.request)
+    }
+
     @Test fun otherWordsDoNotWakeIt() {
         for (said in listOf("banana", "madonna", "hello there", "what is that", "")) {
             assertNull(said, WakeWord.matches(said))

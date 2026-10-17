@@ -93,6 +93,7 @@ fun HomeScreen(
     val ui by session.state.collectAsStateWithLifecycle()
     val spoken by speech.state.collectAsStateWithLifecycle()
     val hear by session.hearing.collectAsStateWithLifecycle()
+    val persona by session.persona.collectAsStateWithLifecycle()
 
     val haloState = when {
         ui.ask == AskPhase.Listening -> HaloState.Listening
@@ -140,9 +141,9 @@ fun HomeScreen(
                         .aspectRatio(1f)
                         .semantics(mergeDescendants = true) {
                             contentDescription = if (ui.ask == AskPhase.Listening) {
-                                "${WakeWord.NAME} is listening. Double tap to stop."
+                                "${persona.displayName} is listening. Double tap to stop."
                             } else {
-                                "Talk to ${WakeWord.NAME}. Double tap, then speak."
+                                "Talk to ${persona.displayName}. Double tap, then speak."
                             }
                         }
                         .clickable(
@@ -175,7 +176,7 @@ fun HomeScreen(
                         StatusCaption(spoken.text, highlight = spoken.wordRange, announce = false, modifier = Modifier.fillMaxWidth())
                     else -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         BasicText(
-                            Hints[hint],
+                            Hints[hint].replace("Adanna", persona.displayName),
                             style = Vm.type.bodyLarge.copy(color = Vm.colors.boneMuted, textAlign = TextAlign.Center),
                             modifier = Modifier.fillMaxWidth(),
                         )
