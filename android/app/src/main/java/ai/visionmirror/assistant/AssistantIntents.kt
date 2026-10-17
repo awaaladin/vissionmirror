@@ -1,12 +1,12 @@
 package ai.visionmirror.assistant
 
 /** Somewhere Adanna can take her, by voice. */
-enum class AssistantAction { OpenMirror, OpenRead, OpenColour, OpenLook, OpenSettings, OpenHome }
+enum class AssistantAction { OpenMirror, OpenRead, OpenLook, OpenSettings, OpenHome }
 
 /**
- * Turns what she said after "Adanna" into a place to go. Short requests ("read", "what colour is this") open a tool;
+ * Turns what she said after "Adanna" into a place to go. Short requests ("read", "look around") open a tool;
  * long ones are questions, and when there is a photo to ask about they are always questions
- * ("what colour is my shirt" must be answered, not open the colour tool).
+ * ("what is on my shirt" must be answered, not open a tool).
  */
 object AssistantIntents {
     private val knowledge = listOf(
@@ -40,10 +40,9 @@ object AssistantIntents {
         return when {
             has("settings", "setting", "preferences") -> AssistantAction.OpenSettings
             has("home", "menu", "main menu") -> AssistantAction.OpenHome
-            has("look around", "around me", "in front of me", "surroundings", "whats here", "what is here", "describe", "what am i holding") ->
+            has("look around", "around me", "in front of me", "surroundings", "whats here", "what is here", "describe", "what am i holding", "what colour is this", "what color is this", "what colour is that", "what color is that") ->
                 AssistantAction.OpenLook
             has("read", "reading", "what does it say", "what does this say", "text", "label") -> AssistantAction.OpenRead
-            has("colour", "color", "colours", "colors") -> AssistantAction.OpenColour
             has("mirror", "photo", "selfie", "outfit", "how do i look", "picture") -> AssistantAction.OpenMirror
             else -> null
         }

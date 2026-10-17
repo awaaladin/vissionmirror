@@ -158,6 +158,6 @@ object VoiceSettings {
     }
 
     const val HELP =
-        "You can say my name and ask me to read, tell you a colour, look around, or use the mirror. " +
+        "You can say my name and ask me to read, look around, or use the mirror. " +
             "You can also change anything: louder, slower, bigger text, brighter, dark mode, speak Hausa, or change voice."
 }

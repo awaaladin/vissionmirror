@@ -3,7 +3,6 @@ package ai.visionmirror
 import ai.visionmirror.assistant.AssistantAction
 import ai.visionmirror.assistant.AssistantIntents
 import ai.visionmirror.audio.WakeWord
-import ai.visionmirror.look.ColourNamer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -31,20 +30,12 @@ class AssistantTest {
 
     @Test fun shortRequestsOpenToolsAndLongOnesAreQuestions() {
         assertEquals(AssistantAction.OpenRead, AssistantIntents.parse("read this", hasSession = false))
-        assertEquals(AssistantAction.OpenColour, AssistantIntents.parse("what colour is this", hasSession = false))
+        // Colours are described by Look around, which names them along with everything else it sees.
+        assertEquals(AssistantAction.OpenLook, AssistantIntents.parse("what colour is this", hasSession = false))
         assertEquals(AssistantAction.OpenLook, AssistantIntents.parse("look around", hasSession = false))
         assertEquals(AssistantAction.OpenMirror, AssistantIntents.parse("take a photo", hasSession = false))
         // With a photo to ask about, "what colour is my shirt" is a question, not the colour tool.
         assertNull(AssistantIntents.parse("what colour is my shirt", hasSession = true))
-        assertEquals(AssistantAction.OpenColour, AssistantIntents.parse("open colour", hasSession = true))
         assertNull(AssistantIntents.parse("is my collar folded over on the left side today", hasSession = false))
-    }
-
-    @Test fun coloursHaveEverydayNames() {
-        assertEquals("navy blue", ColourNamer.name(20, 33, 63))
-        assertEquals("white", ColourNamer.name(250, 250, 248))
-        assertEquals("black", ColourNamer.name(8, 8, 10))
-        assertEquals("red", ColourNamer.name(200, 40, 40))
-        assertEquals("green", ColourNamer.name(46, 139, 61))
     }
 }

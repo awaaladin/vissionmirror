@@ -26,7 +26,6 @@ import javax.inject.Inject
 /** The three things the back camera can do for her besides the mirror. */
 enum class LookMode(val route: String, val title: String, val intro: String, val quick: String = "Hold steady.") {
     Read("read", "Read", "Point the camera at the writing. Hold it steady."),
-    Colour("colour", "Colour", "Point the camera at the thing. Hold it steady."),
     Around("around", "Look around", "Point the camera ahead of you. Hold it steady."),
     ;
 
@@ -49,7 +48,7 @@ sealed interface LookEvent {
 }
 
 /**
- * Point, wait three seconds, hear the answer. Reading and colours are worked out on the phone (no internet, and the
+ * Point, hold steady for a moment, hear the answer. Reading is worked out on the phone (no internet, and the
  * picture never leaves it); "look around" goes to the AI because it needs real understanding of a scene.
  */
 @HiltViewModel
@@ -108,7 +107,6 @@ class LookViewModel @Inject constructor(
             }
             when (mode) {
                 LookMode.Read -> finish(readAloud(photo))
-                LookMode.Colour -> finish("This looks " + ColourNamer.nameOfCentre(photo.bitmap) + ".")
                 LookMode.Around -> {
                     _state.update { it.copy(busy = false) }
                     _events.send(LookEvent.Describe(photo))

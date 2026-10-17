@@ -80,7 +80,6 @@ fun AppNav(
             val route = when (action) {
                 AssistantAction.OpenMirror -> Routes.MIRROR
                 AssistantAction.OpenRead -> Routes.look(LookMode.Read)
-                AssistantAction.OpenColour -> Routes.look(LookMode.Colour)
                 AssistantAction.OpenLook -> Routes.look(LookMode.Around)
                 AssistantAction.OpenSettings -> Routes.SETTINGS
                 AssistantAction.OpenHome -> Routes.HOME
@@ -127,7 +126,6 @@ fun AppNav(
                         speech = speech,
                         onMirror = { nav.navigate(Routes.MIRROR) },
                         onRead = { nav.navigate(Routes.look(LookMode.Read)) },
-                        onColour = { nav.navigate(Routes.look(LookMode.Colour)) },
                         onLook = { nav.navigate(Routes.look(LookMode.Around)) },
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onGreet = {

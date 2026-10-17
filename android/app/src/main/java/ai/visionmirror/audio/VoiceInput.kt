@@ -31,7 +31,7 @@ sealed interface VoiceEvent {
     data class Level(val level: Float) : VoiceEvent
     data class Partial(val text: String) : VoiceEvent
     data class Final(val text: String) : VoiceEvent
-    data class Failed(val reason: VoiceFailure) : VoiceEvent
+    data class Failed(val reason: VoiceFailure, val code: Int = 0) : VoiceEvent
 }
 
 /** One-shot speech recognition. All calls are made from the main thread. */
@@ -55,6 +55,9 @@ class SystemVoiceInput @Inject constructor(
     private val main = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
     private var smoothed = 0f
+    private var lastPartial = ""
+    private var busyRetries = 0
+    private var lastLanguage: String? = null
     private val _busy = MutableStateFlow(false)
     override val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
@@ -64,10 +67,17 @@ class SystemVoiceInput @Inject constructor(
     override val isAvailable: Boolean get() = SpeechRecognizer.isRecognitionAvailable(context)
 
     override fun start(language: String?) = onMain {
+        busyRetries = 0
+        startNow(language)
+    }
+
+    private fun startNow(language: String?) {
+        lastLanguage = language
+        lastPartial = ""
         cancelNow()
         if (!isAvailable) {
             _events.tryEmit(VoiceEvent.Failed(VoiceFailure.Unavailable))
-            return@onMain
+            return
         }
         smoothed = 0f
         _busy.value = true
@@ -123,7 +133,7 @@ class SystemVoiceInput @Inject constructor(
         override fun onEvent(eventType: Int, params: Bundle?) = Unit
 
         override fun onPartialResults(partialResults: Bundle?) {
-            partialResults.firstResult()?.let { _events.tryEmit(VoiceEvent.Partial(it)) }
+            partialResults.firstResult()?.let { lastPartial = it; _events.tryEmit(VoiceEvent.Partial(it)) }
         }
 
         override fun onResults(results: Bundle?) {
@@ -135,6 +145,24 @@ class SystemVoiceInput @Inject constructor(
         }
 
         override fun onError(error: Int) {
+            // The recogniser is sometimes still releasing from the last use. Ask again shortly instead of giving up.
+            if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY && busyRetries < 3) {
+                busyRetries++
+                val language = lastLanguage
+                recognizer?.apply { setRecognitionListener(null); cancel(); destroy() }
+                recognizer = null
+                main.postDelayed({ startNow(language) }, 350L * busyRetries)
+                return
+            }
+            // She spoke, but the recogniser gave up before it finished (a common end to a good sentence). Use what it heard.
+            val saved = lastPartial
+            if (saved.isNotBlank() && (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT)) {
+                _events.tryEmit(VoiceEvent.Final(saved))
+                recognizer?.destroy()
+                recognizer = null
+                _busy.value = false
+                return
+            }
             val reason = when (error) {
                 SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> VoiceFailure.NoSpeech
                 SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> VoiceFailure.Busy
@@ -144,7 +172,7 @@ class SystemVoiceInput @Inject constructor(
                 -> VoiceFailure.Network
                 else -> VoiceFailure.Other
             }
-            _events.tryEmit(VoiceEvent.Failed(reason))
+            _events.tryEmit(VoiceEvent.Failed(reason, error))
             recognizer?.destroy()
             recognizer = null
             _busy.value = false

@@ -460,4 +460,31 @@ class SessionViewModelTest {
         assertEquals(listOf("what is that stain on my shirt"), repo.questions)
         assertTrue(repo.assistQueries.isEmpty())
     }
+
+    @Test fun theWakeListenerKeepsOffTheMicForTheWholeTurn() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake()
+        runCurrent()
+        assertEquals(listOf(true), wake.holds)
+        speaker.finishLast()
+        runCurrent()
+        voice.emit(VoiceEvent.Final("read this"))
+        runCurrent()
+        assertEquals(listOf(true, false), wake.holds)
+    }
+
+    @Test fun aRequestIsStillHeardEvenIfAStrayFailureClearedTheMode() = runTest(dispatcher) {
+        repo.assistResults += Result.success(ai.visionmirror.data.api.AssistResponse("answer", "Abuja."))
+        val vm = vm()
+        runCurrent()
+        wake.wake()
+        runCurrent()
+        speaker.finishLast()
+        runCurrent()
+        voice.emit(VoiceEvent.Final("what is the capital of Nigeria"))
+        advanceUntilIdle()
+        assertEquals(listOf("what is the capital of Nigeria"), repo.assistQueries)
+        assertEquals("Abuja.", speaker.spoken.last())
+    }
 }

@@ -145,6 +145,9 @@ class SessionViewModel @Inject constructor(
     private var sceneMode = false
     private var pendingMic: String? = null
 
+    /** From "Adanna" until her request has been handled: the wake listener stays off the microphone. */
+    private var assistantTurn = false
+
     init {
         viewModelScope.launch {
             settings.settings.collectLatest { s ->
@@ -335,6 +338,7 @@ class SessionViewModel @Inject constructor(
 
     fun cancelAsking() {
         pendingMic = null
+        endAssistantTurn()
         voice.cancel()
         listenMode = ListenMode.None
         _micLevel.value = 0f
@@ -356,12 +360,13 @@ class SessionViewModel @Inject constructor(
             is VoiceEvent.Level -> _micLevel.value = e.level
             is VoiceEvent.Partial -> if (listenMode == ListenMode.Question || listenMode == ListenMode.Assistant) _state.update { it.copy(partialQuestion = e.text) }
             is VoiceEvent.Final -> onHeard(e.text)
-            is VoiceEvent.Failed -> onVoiceFailed(e.reason)
+            is VoiceEvent.Failed -> onVoiceFailed(e.reason, e.code)
         }
     }
 
     private fun onHeard(text: String) {
-        val mode = listenMode
+        // If the mode was lost to a stray event but she is mid-turn with the assistant, what she said is still her request.
+        val mode = if (listenMode == ListenMode.None && assistantTurn) ListenMode.Assistant else listenMode
         listenMode = ListenMode.None
         _micLevel.value = 0f
         when (mode) {
@@ -384,6 +389,7 @@ class SessionViewModel @Inject constructor(
                 }
             }
             ListenMode.Assistant -> {
+                endAssistantTurn()
                 earcons.play(Earcon.ListeningOff)
                 _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
                 handleRequest(text)
@@ -392,8 +398,8 @@ class SessionViewModel @Inject constructor(
         }
     }
 
-    private fun onVoiceFailed(reason: VoiceFailure) {
-        val mode = listenMode
+    private fun onVoiceFailed(reason: VoiceFailure, code: Int = 0) {
+        val mode = if (listenMode == ListenMode.None && assistantTurn) ListenMode.Assistant else listenMode
         listenMode = ListenMode.None
         _micLevel.value = 0f
         if (mode == ListenMode.Question) {
@@ -410,12 +416,11 @@ class SessionViewModel @Inject constructor(
             speaker.say(line, Priority.Interrupt)
         }
         if (mode == ListenMode.Assistant) {
-            _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
+            endAssistantTurn()
+            val line = if (reason == VoiceFailure.NoSpeech) "I didn't catch that. Say my name and try again." else "I couldn't hear you just now. Say my name and try again."
+            _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "", banner = if (code != 0) "$line (speech error $code)" else line) }
             earcons.play(Earcon.ListeningOff)
-            speaker.say(
-                if (reason == VoiceFailure.NoSpeech) "I didn't catch that. Say my name and try again." else "I couldn't hear you just now. Say my name and try again.",
-                Priority.Interrupt,
-            )
+            speaker.say(line, Priority.Interrupt, local = true)
         }
         // A failed command window is silent on purpose: she did not ask for anything.
     }
@@ -429,6 +434,11 @@ class SessionViewModel @Inject constructor(
         handleWake(request)
     }
 
+    private fun endAssistantTurn() {
+        assistantTurn = false
+        wake.hold(false)
+    }
+
     private fun handleWake(request: String) {
         if (request.isNotBlank()) {
             speaker.stop()
@@ -440,6 +450,8 @@ class SessionViewModel @Inject constructor(
             return
         }
         speaker.stop()
+        assistantTurn = true
+        wake.hold(true) // nothing else may use the microphone until her request is in
         listenMode = ListenMode.Assistant
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
         earcons.play(Earcon.ListeningOn)
@@ -455,7 +467,7 @@ class SessionViewModel @Inject constructor(
 
     private fun openAssistantMic() {
         pendingMic = null
-        if (listenMode != ListenMode.Assistant) return
+        if (listenMode != ListenMode.Assistant) { endAssistantTurn(); return }
         voice.start(language.recognitionTag())
     }
 

@@ -54,7 +54,6 @@ private class Shortcut(val label: String, val icon: ImageVector, val onClick: ()
 /** Things to try, shown one at a time under the orb so she learns what she can ask without a manual. */
 private val Hints = listOf(
     "“Adanna, read this”",
-    "“Adanna, what colour is this?”",
     "“Adanna, look around”",
     "“Adanna, how do I look?”",
     "“Adanna, make the text bigger”",
@@ -74,7 +73,6 @@ fun HomeScreen(
     speech: SpeechManager,
     onMirror: () -> Unit,
     onRead: () -> Unit,
-    onColour: () -> Unit,
     onLook: () -> Unit,
     onSettings: () -> Unit,
     onGreet: () -> Unit,
@@ -115,7 +113,6 @@ fun HomeScreen(
     val shortcuts = listOf(
         Shortcut("Mirror", VmIcons.Mirror, onMirror),
         Shortcut("Read", VmIcons.Detail, onRead),
-        Shortcut("Colour", VmIcons.Palette, onColour),
         Shortcut("Around", VmIcons.Eye, onLook),
     )
 

@@ -96,6 +96,12 @@ data class Hearing(
 interface WakeSource {
     val wakes: SharedFlow<String>
     val hearing: StateFlow<Hearing>
+
+    /**
+     * While true the wake listener keeps off the microphone. The assistant holds it for its whole turn ("Listening.", then
+     * her request), because two recognisers on one microphone make both fail, which sounded like "I can't hear you".
+     */
+    fun hold(held: Boolean)
 }
 
 /**
@@ -124,6 +130,7 @@ class WakeWordListener @Inject constructor(
     override val hearing: StateFlow<Hearing> = _hearing.asStateFlow()
 
     private val foreground = MutableStateFlow(false)
+    private val held = MutableStateFlow(false)
     private val main = Handler(Looper.getMainLooper())
 
     // Starts strict (offline, Nigerian English) and relaxes if the phone cannot do that.
@@ -137,7 +144,8 @@ class WakeWordListener @Inject constructor(
                 foreground,
                 speaker.state.map { it.utteranceId == null },
                 voice.busy,
-            ) { enabled, front, quiet, busy -> enabled && front && quiet && !busy }
+                held,
+            ) { enabled, front, quiet, busy, hold -> enabled && front && quiet && !busy && !hold }
                 .distinctUntilChanged()
                 .collectLatest { shouldListen ->
                     if (shouldListen) {
@@ -148,6 +156,8 @@ class WakeWordListener @Inject constructor(
                 }
         }
     }
+
+    override fun hold(held: Boolean) { this.held.value = held }
 
     /** Call from the activity's onStart / onStop. */
     fun setForeground(value: Boolean) { foreground.value = value }
@@ -173,7 +183,7 @@ class WakeWordListener @Inject constructor(
                     _wakes.tryEmit(outcome.request)
                     delay(1_500) // let the view model take the microphone before we would listen again
                 }
-                Outcome.Silence -> { failures = 0; delay(150) }
+                Outcome.Silence -> { failures = 0; delay(300) }
                 Outcome.Busy -> delay(800)
                 is Outcome.Failed -> {
                     failures++
