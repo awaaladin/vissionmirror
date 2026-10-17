@@ -489,24 +489,26 @@ class SessionViewModelTest {
         assertEquals("Abuja.", speaker.spoken.last())
     }
 
-    @Test fun adannaAsksAgainQuietlyBeforeSayingSheCouldNotHear() = runTest(dispatcher) {
+    @Test fun adannaKeepsListeningForEightSecondsBeforeSayingSheCouldNotHear() = runTest(dispatcher) {
         val vm = vm()
+        vm.clock = { testScheduler.currentTime }
         runCurrent()
         wake.wake()
         advanceUntilIdle()
-        val spokenBefore = speaker.spoken.size
+        val opened = testScheduler.currentTime
         assertEquals(1, voice.starts)
-        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
-        runCurrent()
-        assertEquals(2, voice.starts) // listened again, said nothing
-        assertEquals(spokenBefore, speaker.spoken.size)
-        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
-        runCurrent()
-        assertEquals(3, voice.starts)
-        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
-        runCurrent()
-        // Only now does she say she did not catch it.
-        assertTrue(speaker.spoken.last().contains("didn't catch"))
+        // The recogniser keeps giving up within a second. She must not say anything until the window has passed.
+        var said = false
+        repeat(40) {
+            if (!said) {
+                voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
+                advanceTimeBy(500)
+                said = speaker.spoken.last().contains("didn't catch")
+            }
+        }
+        assertTrue(said)
+        assertTrue("waited long enough", testScheduler.currentTime - opened >= 7_500)
+        assertTrue(voice.starts > 5)
     }
 
     @Test fun sayingStopWhileSheTalksSilencesHer() = runTest(dispatcher) {
@@ -563,6 +565,31 @@ class SessionViewModelTest {
             wake.wake("take the photo")
             advanceUntilIdle()
             assertEquals(ai.visionmirror.assistant.ScreenCommand.TakePhoto, awaitItem())
+        }
+    }
+
+    @Test fun pauseOnTheCameraHoldsTheScanAndGoOnContinuesIt() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        vm.onScreen("look/read")
+        screenCommands.flow.test {
+            wake.said() // "stop" or "pause" heard
+            runCurrent()
+            assertEquals(ai.visionmirror.assistant.ScreenCommand.Pause, awaitItem())
+            wake.saidResume() // "go on"
+            runCurrent()
+            assertEquals(ai.visionmirror.assistant.ScreenCommand.Resume, awaitItem())
+        }
+    }
+
+    @Test fun pauseAwayFromTheCameraOnlyStopsSpeaking() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        vm.onScreen("home")
+        screenCommands.flow.test {
+            wake.said()
+            runCurrent()
+            expectNoEvents()
         }
     }
 }

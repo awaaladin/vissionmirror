@@ -34,8 +34,8 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.7.0"
+        versionCode = 10
+        versionName = "0.7.1"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 

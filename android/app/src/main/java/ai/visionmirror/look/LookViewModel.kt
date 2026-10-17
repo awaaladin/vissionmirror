@@ -75,7 +75,14 @@ class LookViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            screenCommands.flow.collect { c -> if (active && c == ScreenCommand.LookAgain) onTap() }
+            screenCommands.flow.collect { c ->
+                if (!active) return@collect
+                when (c) {
+                    ScreenCommand.LookAgain, ScreenCommand.Resume -> onTap()
+                    ScreenCommand.Pause -> pause()
+                    else -> Unit
+                }
+            }
         }
     }
 
@@ -91,6 +98,15 @@ class LookViewModel @Inject constructor(
         cycle?.cancel()
         cycle = null
         speaker.stop()
+    }
+
+    /** "Pause": stop scanning or reading and wait, so she can give commands in between. "Go on" or "look again" continues. */
+    private fun pause() {
+        cycle?.cancel()
+        cycle = null
+        speaker.stop()
+        _state.update { it.copy(scanning = false, busy = false, caption = "Paused. Say go on, or look again, when you're ready.") }
+        speaker.say("Paused.", Priority.Interrupt, local = true)
     }
 
     /** Tap anywhere: try again now (or cancel nothing; the cycle simply restarts). */

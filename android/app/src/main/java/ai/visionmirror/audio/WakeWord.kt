@@ -1,5 +1,6 @@
 package ai.visionmirror.audio
 
+import ai.visionmirror.assistant.ResumeWords
 import ai.visionmirror.assistant.StopWords
 import ai.visionmirror.data.net.PermissionChecker
 import ai.visionmirror.data.settings.SettingsStore
@@ -65,6 +66,13 @@ object WakeWord {
     /** [utterance] without the wake phrase, for when the phrase was said in the middle of a request. */
     fun strip(utterance: String): String = matches(utterance)?.request ?: utterance.trim()
 
+    /** Just her name and nothing else ("Adanna", "hey Adanna"): safe to act on even while she is talking. */
+    fun isBareName(utterance: String): Boolean {
+        val words = utterance.lowercase().replace("'", "").replace(Regex("[^a-z ]"), " ").trim().replace(Regex("\\s+"), " ").split(' ')
+        val body = if (words.firstOrNull() in setOf("hey", "hi", "ok", "okay")) words.drop(1) else words
+        return (body.size == 1 && isName(body[0])) || (body.size == 2 && isName(body[0] + body[1]))
+    }
+
     private fun isName(word: String): Boolean = word.length in 4..8 && editDistance(word, TARGET) <= 1
 
     internal fun editDistance(a: String, b: String): Int {
@@ -98,8 +106,11 @@ interface WakeSource {
     val wakes: SharedFlow<String>
     val hearing: StateFlow<Hearing>
 
-    /** She said "stop" (or her name) while the assistant was talking. */
+    /** She said "stop" or "pause" (short phrases only). Works while the assistant talks and while the camera scans. */
     val stops: SharedFlow<Unit>
+
+    /** She said "go on" or "continue" while the assistant was quiet. */
+    val resumes: SharedFlow<Unit>
 
     /**
      * While true the wake listener keeps off the microphone. The assistant holds it for its whole turn ("Listening.", then
@@ -109,13 +120,14 @@ interface WakeSource {
 }
 
 /**
- * Listens for the wake phrase while the app is open and in front, like a voice assistant.
+ * Keeps one speech recogniser running while the app is open and in front, on EVERY screen, like a voice assistant.
+ * What counts as a command depends on whether the assistant is talking at that moment:
+ * - quiet: her name ("Adanna"), "special request", "stop"/"pause", "go on"/"continue";
+ * - talking: only "stop"/"pause" and her name on its own, because the microphone also hears the assistant's own voice.
  *
- * It uses the phone's own speech recogniser in short cycles, so (a) it is only on while the app is on screen, never in
- * the background, (b) it stops whenever the assistant is speaking or another part of the app is using the microphone,
- * and (c) it prefers the phone's offline speech model. If the phone has no offline model for Nigerian English, or the
- * recogniser refuses the language, it falls back to the phone's normal online recogniser instead of failing silently.
- * Some phones play a small sound each time the recogniser restarts; that is the phone's, not ours.
+ * It stays off whenever another part of the app has the microphone, and uses the phone's offline model when it can,
+ * falling back to the normal recogniser if the phone refuses those settings. Some phones play a small sound each
+ * time the recogniser restarts; that is the phone's, not ours.
  */
 @Singleton
 class WakeWordListener @Inject constructor(
@@ -133,12 +145,18 @@ class WakeWordListener @Inject constructor(
     private val _stops = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
     override val stops: SharedFlow<Unit> = _stops.asSharedFlow()
 
+    private val _resumes = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
+    override val resumes: SharedFlow<Unit> = _resumes.asSharedFlow()
+
     private val _hearing = MutableStateFlow(Hearing())
     override val hearing: StateFlow<Hearing> = _hearing.asStateFlow()
 
     private val foreground = MutableStateFlow(false)
     private val held = MutableStateFlow(false)
     private val main = Handler(Looper.getMainLooper())
+
+    @Volatile private var wakeOn = true
+    @Volatile private var bargeOn = true
 
     // Starts strict (offline, Nigerian English) and relaxes if the phone cannot do that.
     private var preferOffline = true
@@ -149,64 +167,55 @@ class WakeWordListener @Inject constructor(
             combine(
                 settings.settings.map { Pair(it.wakeWord, it.bargeIn) },
                 foreground,
-                speaker.state.map { it.utteranceId != null },
                 voice.busy,
                 held,
-            ) { (wakeOn, bargeOn), front, speaking, busy, hold ->
-                when {
-                    !front || busy || hold -> null
-                    // While she talks, the only things worth hearing are "stop" and her name.
-                    speaking -> if (bargeOn) Mode.BargeIn else null
-                    else -> if (wakeOn) Mode.Wake else null
-                }
+            ) { (wake, barge), front, busy, hold ->
+                wakeOn = wake
+                bargeOn = barge
+                (wake || barge) && front && !busy && !hold
             }
                 .distinctUntilChanged()
-                .collectLatest { mode ->
-                    if (mode != null) {
-                        try { listenLoop(mode) } finally { _hearing.value = Hearing() }
+                .collectLatest { shouldListen ->
+                    if (shouldListen) {
+                        try { listenLoop() } finally { _hearing.value = Hearing() }
                     } else {
-                        setHearing(Hearing())
+                        _hearing.value = Hearing()
                     }
                 }
         }
     }
-
-    private enum class Mode { Wake, BargeIn }
-
-    private var bargeInActive = false
-
-    private fun setHearing(h: Hearing) { if (!bargeInActive) _hearing.value = h }
-    private fun updateHearing(block: (Hearing) -> Hearing) { if (!bargeInActive) _hearing.update(block) }
 
     override fun hold(held: Boolean) { this.held.value = held }
 
     /** Call from the activity's onStart / onStop. */
     fun setForeground(value: Boolean) { foreground.value = value }
 
-    private suspend fun listenLoop(mode: Mode) {
-        bargeInActive = mode == Mode.BargeIn
+    private fun talking() = speaker.state.value.utteranceId != null
+
+    private suspend fun listenLoop() {
         var failures = 0
         while (true) {
             if (!permissions.hasMic()) {
-                setHearing(Hearing(status = "I need the microphone to hear my name. Allow it in settings."))
+                _hearing.value = Hearing(status = "I need the microphone to hear my name. Allow it in settings.")
                 delay(3_000)
                 continue
             }
             if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-                setHearing(Hearing(status = "This phone has no speech recogniser. Install Speech Services by Google."))
+                _hearing.value = Hearing(status = "This phone has no speech recogniser. Install Speech Services by Google.")
                 delay(5_000)
                 continue
             }
-            setHearing(Hearing(active = true, status = "Listening for “${WakeWord.NAME}”"))
+            _hearing.value = Hearing(active = true, status = "Listening for “${WakeWord.NAME}”")
             when (val outcome = withContext(Dispatchers.Main) { listenOnce() }) {
                 is Outcome.Heard -> {
                     failures = 0
-                    setHearing(Hearing(active = true, status = "Heard you"))
+                    _hearing.value = Hearing(active = true, status = "Heard you")
                     _wakes.tryEmit(outcome.request)
                     delay(1_500) // let the view model take the microphone before we would listen again
                 }
-                Outcome.Silence -> { failures = 0; delay(300) }
-                Outcome.Stop -> { _stops.tryEmit(Unit); delay(700) }
+                Outcome.Stop -> { failures = 0; _stops.tryEmit(Unit); delay(700) }
+                Outcome.Resume -> { failures = 0; _resumes.tryEmit(Unit); delay(700) }
+                Outcome.Silence -> { failures = 0; delay(250) }
                 Outcome.Busy -> delay(800)
                 is Outcome.Failed -> {
                     failures++
@@ -216,7 +225,7 @@ class WakeWordListener @Inject constructor(
                         language = null
                         delay(200)
                     } else {
-                        setHearing(Hearing(status = "The speech service had a problem (code ${outcome.code}). Trying again."))
+                        _hearing.value = Hearing(status = "The speech service had a problem (code ${outcome.code}). Trying again.")
                         delay((800L * failures).coerceAtMost(6_000))
                     }
                 }
@@ -228,8 +237,9 @@ class WakeWordListener @Inject constructor(
         data class Heard(val request: String) : Outcome
         data object Silence : Outcome
         data object Busy : Outcome
-        data class Failed(val code: Int) : Outcome
         data object Stop : Outcome
+        data object Resume : Outcome
+        data class Failed(val code: Int) : Outcome
     }
 
     /** One listening cycle. Cancelling the coroutine tears the recogniser down. */
@@ -246,31 +256,34 @@ class WakeWordListener @Inject constructor(
         }
         fun check(bundle: Bundle?, final: Boolean) {
             val heard = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-            if (bargeInActive) {
-                if (heard.any { StopWords.matches(it) }) { finish(Outcome.Stop); return }
-                heard.firstNotNullOfOrNull { WakeWord.matches(it) }?.let { finish(Outcome.Heard(it.request)); return }
-                if (final) finish(Outcome.Silence)
-                return
+            val talking = talking()
+            if (bargeOn && heard.any { StopWords.matches(it) }) { finish(Outcome.Stop); return }
+            if (bargeOn && !talking && heard.any { ResumeWords.matches(it) }) { finish(Outcome.Resume); return }
+            val name = heard.firstNotNullOfOrNull { WakeWord.matches(it) }
+            if (name != null) {
+                // While she talks her own words may contain her name ("I'm Adanna"), so only the bare name counts then.
+                val counts = if (talking) bargeOn && heard.any { WakeWord.isBareName(it) } else wakeOn
+                if (counts) { finish(Outcome.Heard(if (talking) "" else name.request)); return }
             }
-            heard.firstOrNull()?.let { said -> updateHearing { it.copy(text = said) } }
-            heard.firstNotNullOfOrNull { WakeWord.matches(it) }?.let { finish(Outcome.Heard(it.request)); return }
+            if (!talking) heard.firstOrNull()?.let { said -> _hearing.update { it.copy(text = said) } }
             if (final) finish(Outcome.Silence)
         }
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) = Unit
             override fun onBeginningOfSpeech() = Unit
             override fun onRmsChanged(rmsdB: Float) {
+                if (talking()) return
                 val raw = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
                 smoothed += (raw - smoothed) * 0.4f
-                updateHearing { it.copy(level = smoothed) }
+                _hearing.update { it.copy(level = smoothed) }
             }
             override fun onBufferReceived(buffer: ByteArray?) = Unit
-            override fun onEndOfSpeech() { updateHearing { it.copy(level = 0f) } }
+            override fun onEndOfSpeech() { _hearing.update { it.copy(level = 0f) } }
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
             override fun onPartialResults(partialResults: Bundle?) = check(partialResults, final = false)
             override fun onResults(results: Bundle?) = check(results, final = true)
             override fun onError(error: Int) {
-                updateHearing { it.copy(text = "", level = 0f) }
+                _hearing.update { it.copy(text = "", level = 0f) }
                 finish(
                     when (error) {
                         SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> Outcome.Silence

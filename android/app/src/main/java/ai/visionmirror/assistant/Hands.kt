@@ -17,13 +17,23 @@ private fun normalise(utterance: String): String =
  * speaking the microphone also hears her own voice, and a long transcript is her, not the user.
  */
 object StopWords {
-    private val words = setOf("stop", "quiet", "enough", "silence", "hush", "cancel")
+    private val words = setOf("stop", "quiet", "enough", "silence", "hush", "cancel", "pause", "wait")
 
     fun matches(utterance: String): Boolean {
         val text = normalise(utterance)
         val parts = text.split(' ')
         if (text.isEmpty() || parts.size > 3) return false
-        return text == "shut up" || parts.any { it in words }
+        return text == "shut up" || text == "hold on" || text == "hang on" || parts.any { it in words }
+    }
+}
+
+/** "Go on", "continue", "I'm ready": picks things up again after a pause. Short phrases only, and never while she is talking. */
+object ResumeWords {
+    private val phrases = setOf("resume", "continue", "go on", "carry on", "keep going", "ready", "im ready", "i am ready", "okay go", "ok go")
+
+    fun matches(utterance: String): Boolean {
+        val text = normalise(utterance)
+        return text.isNotEmpty() && text.split(' ').size <= 3 && text in phrases
     }
 }
 
@@ -75,7 +85,7 @@ object ClockAnswer {
     }
 }
 
-enum class ScreenCommand { TakePhoto, FlipCamera, LookAgain }
+enum class ScreenCommand { TakePhoto, FlipCamera, LookAgain, Pause, Resume }
 
 /** Voice commands for the screen that is open (take the photo now, flip the camera). The open screen acts on them. */
 @Singleton

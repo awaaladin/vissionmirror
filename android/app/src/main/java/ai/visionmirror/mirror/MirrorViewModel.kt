@@ -94,6 +94,9 @@ class MirrorViewModel @Inject constructor(
                 when (c) {
                     ScreenCommand.TakePhoto -> capture()
                     ScreenCommand.FlipCamera -> flipCamera()
+                    // A gap to think and give commands: pause stops the guidance and the auto-capture countdown.
+                    ScreenCommand.Pause -> if (!_state.value.paused) togglePause()
+                    ScreenCommand.Resume -> if (_state.value.paused) togglePause()
                     else -> Unit
                 }
             }

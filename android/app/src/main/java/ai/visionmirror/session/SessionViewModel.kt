@@ -156,6 +156,11 @@ class SessionViewModel @Inject constructor(
     private var handsFree = false
     private var screen: String? = null
     private var silentCycles = 0
+
+    /** Replaceable in tests so the patience window runs on test time. */
+    internal var clock: () -> Long = { System.currentTimeMillis() }
+
+    private fun onCameraScreen() = screen == "mirror" || screen?.startsWith("look") == true
     private var assistantStartedAt = 0L
 
     init {
@@ -181,7 +186,14 @@ class SessionViewModel @Inject constructor(
             }
         }
         // "Stop" or her name while she is talking.
-        viewModelScope.launch { wake.stops.collect { speaker.stop() } }
+        viewModelScope.launch {
+            wake.stops.collect {
+                speaker.stop()
+                // On the camera screens "stop" or "pause" also holds the scan or the countdown, to give her a gap.
+                if (onCameraScreen()) screenCommands.send(ScreenCommand.Pause)
+            }
+        }
+        viewModelScope.launch { wake.resumes.collect { if (onCameraScreen()) screenCommands.send(ScreenCommand.Resume) } }
         // Offline queue: the moment we are online again, describe the waiting photo.
         viewModelScope.launch {
             connectivity.online.distinctUntilChanged().collect { online ->
@@ -422,11 +434,16 @@ class SessionViewModel @Inject constructor(
         _micLevel.value = 0f
         // She said nothing yet (or the recogniser lost it). Quietly listen again instead of giving up straight away.
         if (mode == ListenMode.Assistant && reason == VoiceFailure.NoSpeech && assistantAttempts < ASSISTANT_RETRIES &&
-            System.currentTimeMillis() - assistantStartedAt < ASSISTANT_PATIENCE_MS
+            clock() - assistantStartedAt < ASSISTANT_PATIENCE_MS
         ) {
             assistantAttempts++
             listenMode = ListenMode.Assistant
-            voice.start(language.recognitionTag())
+            // The recogniser often gives up within a second. Keep the microphone open for the whole window, with a
+            // short breath between tries, so she always has time to start speaking.
+            viewModelScope.launch {
+                delay(ASSISTANT_RETRY_GAP_MS)
+                if (listenMode == ListenMode.Assistant) voice.start(language.recognitionTag())
+            }
             return
         }
         if (mode == ListenMode.Question) {
@@ -492,7 +509,7 @@ class SessionViewModel @Inject constructor(
         speaker.stop()
         assistantTurn = true
         assistantAttempts = 0
-        assistantStartedAt = System.currentTimeMillis()
+        assistantStartedAt = clock()
         wake.hold(true) // nothing else may use the microphone until her request is in
         listenMode = ListenMode.Assistant
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
@@ -514,7 +531,7 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             delay(MIC_SETTLE_MS)
             if (listenMode == ListenMode.Assistant) {
-                assistantStartedAt = System.currentTimeMillis()
+                assistantStartedAt = clock()
                 voice.start(language.recognitionTag())
             }
         }
@@ -525,6 +542,14 @@ class SessionViewModel @Inject constructor(
         val text = WakeWord.strip(raw)
         val hasPhoto = sessionId != null
         // Settings first: "stop listening for my name" is a setting, not the command "stop".
+        // On the camera screens, "pause"/"stop" holds the scan or countdown and "go on" continues it.
+        if (onCameraScreen()) {
+            when (VoiceCommands.parse(text)) {
+                VoiceCommand.Stop, VoiceCommand.Pause -> { speaker.stop(); screenCommands.send(ScreenCommand.Pause); return }
+                VoiceCommand.Resume, VoiceCommand.Continue -> { screenCommands.send(ScreenCommand.Resume); return }
+                else -> Unit
+            }
+        }
         VoiceSettings.parse(text)?.let { applySetting(it); return }
         HandsFree.parse(text)?.let { applyHandsFree(it); return }
         ClockAnswer.answer(text, java.time.ZonedDateTime.now())?.let { speaker.say(it, Priority.Interrupt); return }
@@ -630,7 +655,7 @@ class SessionViewModel @Inject constructor(
             if (!handsFree || !quiet || !roomToListen || !idle || !permissions.hasMic()) return@launch
             assistantTurn = true
             assistantAttempts = 0
-            assistantStartedAt = System.currentTimeMillis()
+            assistantStartedAt = clock()
             wake.hold(true)
             listenMode = ListenMode.Assistant
             _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
@@ -737,8 +762,9 @@ class SessionViewModel @Inject constructor(
         const val HANDS_FREE_QUIET_CYCLES = 3
         val HANDS_FREE_SCREENS = setOf("home", "result", "settings")
         /** Keep listening this long, in up to this many quiet restarts, before saying she was not heard. */
-        const val ASSISTANT_PATIENCE_MS = 7_000L
-        const val ASSISTANT_RETRIES = 2
+        const val ASSISTANT_PATIENCE_MS = 8_000L
+        const val ASSISTANT_RETRIES = 40
+        const val ASSISTANT_RETRY_GAP_MS = 350L
         const val MAX_NETWORK_RETRIES = 4
     }
 }
