@@ -34,9 +34,11 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.8.1"
+        versionCode = 13
+        versionName = "0.9.0"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        // Real phones only. The x86 libraries are for emulators and added 64 MB, past the download host's 100 MB file limit.
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     signingConfigs {
@@ -67,6 +69,8 @@ android {
         compose = true
         buildConfig = true
     }
+    // The object model is memory-mapped, so it must not be compressed inside the APK.
+    androidResources { noCompress += listOf("tflite") }
     testOptions { unitTests.isReturnDefaultValues = true }
 }
 
@@ -103,6 +107,7 @@ dependencies {
     implementation(libs.camera.view)
     implementation(libs.mlkit.face)
     implementation(libs.mlkit.text)
+    implementation(libs.mediapipe.vision)
     implementation(libs.datastore)
     implementation(libs.splashscreen)
     implementation(libs.profileinstaller)

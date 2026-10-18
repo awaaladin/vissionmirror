@@ -108,11 +108,13 @@ object VmIcons {
 
     val Eye = icon("Eye", "M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z")
 
+    val Guide = icon("Guide", "M12 20V6", "M7 11l5-5 5 5")
+
     /** Everything, for the Design Lab. */
     val all: List<ImageVector> by lazy {
         listOf(
             Mirror, Play, Pause, Repeat, Retake, Capture, Mic, Ask, Settings, Check, Close, Back,
-            Warning, Detail, Outfit, Speaker, Lock, Offline, Info, Palette, Flip, TextSize, Person, Tool, Eye,
+            Warning, Detail, Outfit, Speaker, Lock, Offline, Info, Palette, Flip, TextSize, Person, Tool, Eye, Guide,
         )
     }
 }

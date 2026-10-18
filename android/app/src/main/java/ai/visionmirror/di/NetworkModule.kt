@@ -20,6 +20,16 @@ import ai.visionmirror.data.settings.DataStoreSettings
 import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.data.repo.MirrorRepositoryImpl
 import ai.visionmirror.assistant.AndroidDeviceControls
+import ai.visionmirror.emergency.AddressLookup
+import ai.visionmirror.emergency.AndroidAddressLookup
+import ai.visionmirror.emergency.AndroidContactBook
+import ai.visionmirror.emergency.AndroidLocationSource
+import ai.visionmirror.emergency.AndroidPhoneActions
+import ai.visionmirror.emergency.AndroidSmsSender
+import ai.visionmirror.emergency.ContactBook
+import ai.visionmirror.emergency.LocationSource
+import ai.visionmirror.emergency.PhoneActions
+import ai.visionmirror.emergency.SmsSender
 import ai.visionmirror.assistant.DeviceControls
 import ai.visionmirror.audio.BackendCloudVoice
 import ai.visionmirror.audio.CloudVoice
@@ -117,4 +127,9 @@ abstract class BindingsModule {
     @Binds abstract fun voiceInput(impl: SystemVoiceInput): VoiceInput
     @Binds abstract fun wakeSource(impl: WakeWordListener): WakeSource
     @Binds abstract fun deviceControls(impl: AndroidDeviceControls): DeviceControls
+    @Binds abstract fun locationSource(impl: AndroidLocationSource): LocationSource
+    @Binds abstract fun addressLookup(impl: AndroidAddressLookup): AddressLookup
+    @Binds abstract fun smsSender(impl: AndroidSmsSender): SmsSender
+    @Binds abstract fun contactBook(impl: AndroidContactBook): ContactBook
+    @Binds abstract fun phoneActions(impl: AndroidPhoneActions): PhoneActions
 }

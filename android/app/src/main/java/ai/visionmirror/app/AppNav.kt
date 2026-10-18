@@ -6,6 +6,7 @@ import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.say
 import ai.visionmirror.assistant.AssistantAction
 import ai.visionmirror.design.tokens.Motion
+import ai.visionmirror.guide.GuideScreen
 import ai.visionmirror.home.HomeScreen
 import ai.visionmirror.look.LookMode
 import ai.visionmirror.look.LookScreen
@@ -40,6 +41,7 @@ import androidx.navigation.compose.composable
 object Routes {
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
+    const val GUIDE = "guide"
     const val MIRROR = "mirror"
     const val LOOK = "look/{mode}"
     fun look(mode: LookMode) = "look/${mode.route}"
@@ -89,6 +91,7 @@ fun AppNav(
                 AssistantAction.OpenMirror -> Routes.MIRROR
                 AssistantAction.OpenRead -> Routes.look(LookMode.Read)
                 AssistantAction.OpenLook -> Routes.look(LookMode.Around)
+                AssistantAction.OpenGuide -> Routes.GUIDE
                 AssistantAction.OpenSettings -> Routes.SETTINGS
                 AssistantAction.OpenHome -> Routes.HOME
                 AssistantAction.GoBack -> { nav.popBackStack(); return@collect }
@@ -138,6 +141,7 @@ fun AppNav(
                         onMirror = { nav.navigate(Routes.MIRROR) },
                         onRead = { nav.navigate(Routes.look(LookMode.Read)) },
                         onLook = { nav.navigate(Routes.look(LookMode.Around)) },
+                        onGuide = { nav.navigate(Routes.GUIDE) },
                         onSettings = { nav.navigate(Routes.SETTINGS) },
                         onGreet = {
                             if (!greeted) {
@@ -156,6 +160,9 @@ fun AppNav(
                             onBack = { nav.popBackStack(Routes.HOME, inclusive = false) },
                         )
                     }
+                }
+                screen(Routes.GUIDE) {
+                    GuideScreen(session = session, onBack = { nav.popBackStack(Routes.HOME, inclusive = false) })
                 }
                 screen(Routes.MIRROR) {
                     MirrorScreen(

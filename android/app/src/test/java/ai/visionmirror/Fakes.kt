@@ -76,9 +76,15 @@ class FakeSettings(initial: Settings = Settings()) : SettingsStore {
     override suspend fun update(transform: (Settings) -> Settings) { flow.value = transform(flow.value) }
 }
 
-class FakePermissions(var camera: Boolean = true, var mic: Boolean = true) : PermissionChecker {
+class FakePermissions(
+    var camera: Boolean = true, var mic: Boolean = true,
+    var location: Boolean = true, var sms: Boolean = true, var contacts: Boolean = true,
+) : PermissionChecker {
     override fun hasCamera() = camera
     override fun hasMic() = mic
+    override fun hasLocation() = location
+    override fun hasSms() = sms
+    override fun hasContacts() = contacts
 }
 
 class FakeRepo : MirrorRepository {
@@ -121,6 +127,28 @@ fun described(session: String? = "s1", text: String = "You look good.", usable: 
     confidence = 0.8f,
 )
 
+
+class FakeLocation(var point: ai.visionmirror.emergency.GeoPoint? = ai.visionmirror.emergency.GeoPoint(9.0765, 7.3986)) : ai.visionmirror.emergency.LocationSource {
+    override suspend fun current() = point
+}
+
+class FakeAddress(var text: String? = "Garki, Abuja") : ai.visionmirror.emergency.AddressLookup {
+    override suspend fun describe(point: ai.visionmirror.emergency.GeoPoint) = text
+}
+
+class FakeSms(var works: Boolean = true) : ai.visionmirror.emergency.SmsSender {
+    val sent = mutableListOf<Pair<String, String>>()
+    override fun send(number: String, text: String): Boolean { if (works) sent += number to text; return works }
+}
+
+class FakeContacts(var people: List<ai.visionmirror.data.settings.EmergencyContact> = emptyList()) : ai.visionmirror.emergency.ContactBook {
+    override suspend fun find(name: String) = people.filter { it.name.contains(name, ignoreCase = true) }
+}
+
+class FakePhone : ai.visionmirror.emergency.PhoneActions {
+    val dialled = mutableListOf<String>()
+    override fun dial(number: String) { dialled += number }
+}
 
 class FakeDevice : ai.visionmirror.assistant.DeviceControls {
     val calls = mutableListOf<String>()

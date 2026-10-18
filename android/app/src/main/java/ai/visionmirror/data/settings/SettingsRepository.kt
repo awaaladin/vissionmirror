@@ -21,6 +21,10 @@ import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
+/** Someone to text her location to. Stored on the phone only. */
+@kotlinx.serialization.Serializable
+data class EmergencyContact(val name: String, val number: String)
+
 /** Which camera the Mirror uses. The front camera is the default: she can see the preview. */
 enum class CameraFacing(val label: String) { Front("Front"), Back("Back") }
 
@@ -39,6 +43,7 @@ data class Settings(
     val bargeIn: Boolean = true,
     /** Adanna (woman's voice) or Bola (man's voice). */
     val persona: Persona = Persona.Adanna,
+    val emergencyContacts: List<EmergencyContact> = emptyList(),
     /** "Access granted": she keeps listening after every answer, so nothing needs touching. */
     val handsFree: Boolean = false,
     /** Which language she is spoken to in (and, where the phone can, listened to in). */
@@ -78,6 +83,7 @@ class DataStoreSettings @Inject constructor(
         val brightness = floatPreferencesKey("brightness")
         val bargeIn = booleanPreferencesKey("barge_in")
         val persona = stringPreferencesKey("persona")
+        val emergencyContacts = stringPreferencesKey("emergency_contacts")
         val handsFree = booleanPreferencesKey("hands_free")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
@@ -102,6 +108,9 @@ class DataStoreSettings @Inject constructor(
             brightness = this[Keys.brightness] ?: d.brightness,
             bargeIn = this[Keys.bargeIn] ?: d.bargeIn,
             persona = Persona.from(this[Keys.persona]),
+            emergencyContacts = this[Keys.emergencyContacts]?.let {
+                runCatching { kotlinx.serialization.json.Json.decodeFromString<List<EmergencyContact>>(it) }.getOrNull()
+            }.orEmpty(),
             handsFree = this[Keys.handsFree] ?: d.handsFree,
             language = ResponseLanguage.fromApiTag(this[Keys.language]),
             detailLevel = DetailLevel.entries.firstOrNull { it.wire == this[Keys.detail] } ?: d.detailLevel,
@@ -131,6 +140,7 @@ class DataStoreSettings @Inject constructor(
             p[Keys.brightness] = s.brightness
             p[Keys.bargeIn] = s.bargeIn
             p[Keys.persona] = s.persona.name
+            p[Keys.emergencyContacts] = kotlinx.serialization.json.Json.encodeToString(s.emergencyContacts)
             p[Keys.handsFree] = s.handsFree
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire

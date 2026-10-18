@@ -19,6 +19,13 @@ import ai.visionmirror.assistant.AssistantIntents
 import ai.visionmirror.assistant.ClockAnswer
 import ai.visionmirror.assistant.HandsFree
 import ai.visionmirror.assistant.OwnSpeech
+import ai.visionmirror.assistant.PermissionRequests
+import ai.visionmirror.assistant.StopWords
+import ai.visionmirror.emergency.ContactBook
+import ai.visionmirror.emergency.Emergency
+import ai.visionmirror.emergency.EmergencyIntent
+import ai.visionmirror.emergency.EmergencyIntents
+import ai.visionmirror.emergency.PhoneActions
 import ai.visionmirror.assistant.ScreenCommand
 import ai.visionmirror.assistant.ScreenCommands
 import ai.visionmirror.assistant.DeviceControls
@@ -120,6 +127,10 @@ class SessionViewModel @Inject constructor(
     private val device: DeviceControls,
     private val screenCommands: ScreenCommands,
     private val own: OwnSpeech,
+    private val emergency: Emergency,
+    private val contactBook: ContactBook,
+    private val phone: PhoneActions,
+    private val permissionRequests: PermissionRequests,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -160,6 +171,8 @@ class SessionViewModel @Inject constructor(
     /** From "Adanna" until her request has been handled: the wake listener stays off the microphone. */
     private var assistantTurn = false
     private var assistantAttempts = 0
+    private var pendingReply: ((String) -> Unit)? = null
+    private var sosJob: Job? = null
     private var handsFree = false
     private var screen: String? = null
     private var silentCycles = 0
@@ -167,7 +180,7 @@ class SessionViewModel @Inject constructor(
     /** Replaceable in tests so the patience window runs on test time. */
     internal var clock: () -> Long = { System.currentTimeMillis() }
 
-    private fun onCameraScreen() = screen == "mirror" || screen?.startsWith("look") == true
+    private fun onCameraScreen() = screen == "mirror" || screen == "guide" || screen?.startsWith("look") == true
     private var assistantStartedAt = 0L
 
     init {
@@ -197,6 +210,7 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             wake.stops.collect {
                 speaker.stop()
+                if (sosJob?.isActive == true) cancelSos()
                 // On the camera screens "stop" or "pause" also holds the scan or the countdown, to give her a gap.
                 if (onCameraScreen()) screenCommands.send(ScreenCommand.Pause)
             }
@@ -474,6 +488,7 @@ class SessionViewModel @Inject constructor(
         }
         if (mode == ListenMode.Assistant) {
             endAssistantTurn()
+            pendingReply = null // she did not answer in time; the question is dropped
             if (handsFree && reason == VoiceFailure.NoSpeech) {
                 // Hands-free listens again on its own: no scolding when she simply has nothing to say yet.
                 _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
@@ -521,6 +536,15 @@ class SessionViewModel @Inject constructor(
             speaker.say("I need the microphone to hear you. You can allow it in your phone's settings.", Priority.Interrupt, local = true)
             return
         }
+        val name = _persona.value.displayName
+        openTurnWith(if (wrongName) "I am $name. Listening." else "Listening.")
+    }
+
+    /**
+     * Say [ack], then listen for what she says next. The microphone opens when she has finished saying it, so the
+     * recogniser never hears the assistant; if speech is broken, a timer opens it anyway.
+     */
+    private fun openTurnWith(ack: String) {
         speaker.stop()
         assistantTurn = true
         assistantAttempts = 0
@@ -529,10 +553,7 @@ class SessionViewModel @Inject constructor(
         listenMode = ListenMode.Assistant
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
         earcons.play(Earcon.ListeningOn)
-        // "Listening." in the phone's own voice (instant), then the microphone opens when she has finished saying it,
-        // so the recogniser never hears me. If speech is broken, the timer opens the microphone anyway.
-        val name = _persona.value.displayName
-        val id = speaker.say(if (wrongName) "I am $name. Listening." else "Listening.", Priority.Interrupt, local = true)
+        val id = speaker.say(ack, Priority.Interrupt, local = ack.length < 40)
         pendingMic = id
         viewModelScope.launch {
             delay(MIC_FALLBACK_MS)
@@ -557,6 +578,11 @@ class SessionViewModel @Inject constructor(
     private fun handleRequest(raw: String) {
         val text = WakeWord.strip(raw)
         val hasPhoto = sessionId != null
+        // An answer to a question I just asked ("Say yes to save"): it belongs to that question, nothing else.
+        pendingReply?.let { reply -> pendingReply = null; reply(text); return }
+        // "Cancel" during the emergency countdown stops it, however it was heard.
+        if (sosJob?.isActive == true && StopWords.matches(text)) { speaker.stop(); cancelSos(); return }
+        EmergencyIntents.parse(text)?.let { handleEmergency(it); return }
         // Settings first: "stop listening for my name" is a setting, not the command "stop".
         // On the camera screens, "pause"/"stop" holds the scan or countdown and "go on" continues it.
         if (onCameraScreen()) {
@@ -602,6 +628,137 @@ class SessionViewModel @Inject constructor(
                     earcons.play(Earcon.Error)
                     speaker.say(error.spokenText, Priority.Interrupt)
                 }
+        }
+    }
+
+    // ---- where am I, and tell someone -----------------------------------------------------------
+
+    private fun handleEmergency(intent: EmergencyIntent) {
+        when (intent) {
+            EmergencyIntent.WhereAmI -> if (ensure(location = true)) viewModelScope.launch {
+                speaker.say("One moment.", Priority.Interrupt, local = true)
+                speaker.say(emergency.whereAmI(), Priority.Interrupt)
+            }
+            EmergencyIntent.Sos -> sos()
+            is EmergencyIntent.Share -> share(intent.name)
+            is EmergencyIntent.SetContact -> setContact(intent.name)
+            EmergencyIntent.ListContacts -> viewModelScope.launch {
+                val contacts = settings.settings.first().emergencyContacts
+                speaker.say(
+                    if (contacts.isEmpty()) "You have no emergency contact yet." else "Your emergency contacts: " + contacts.joinToString(", ") { it.name } + ".",
+                    Priority.Interrupt,
+                )
+            }
+            EmergencyIntent.ClearContacts -> askConfirm("Remove all your emergency contacts? Say yes to confirm.") {
+                viewModelScope.launch {
+                    settings.update { it.copy(emergencyContacts = emptyList()) }
+                    speaker.say("Done. Your emergency contacts are removed.", Priority.Interrupt)
+                }
+            }
+            EmergencyIntent.CallEmergency -> {
+                phone.dial("112")
+                speaker.say("Opening the phone with 112. Tap the green button to call.", Priority.Interrupt)
+            }
+        }
+    }
+
+    /** True when every permission needed is granted; otherwise says why it is needed, shows Android's box, and returns false. */
+    private fun ensure(location: Boolean = false, sms: Boolean = false, contacts: Boolean = false): Boolean {
+        val missing = mutableListOf<String>()
+        val words = mutableListOf<String>()
+        if (location && !permissions.hasLocation()) {
+            missing += listOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+            words += "your location"
+        }
+        if (sms && !permissions.hasSms()) { missing += android.Manifest.permission.SEND_SMS; words += "send text messages" }
+        if (contacts && !permissions.hasContacts()) { missing += android.Manifest.permission.READ_CONTACTS; words += "your contacts" }
+        if (missing.isEmpty()) return true
+        speaker.say(
+            "I need permission to use ${words.joinToString(" and ")}. A box will appear on the screen. Please allow it, then ask me again.",
+            Priority.Interrupt,
+        )
+        permissionRequests.request(missing)
+        return false
+    }
+
+    /** Ask a yes/no question out loud and listen for the answer. Anything but a clear yes means no. */
+    private fun askConfirm(prompt: String, onYes: () -> Unit) {
+        pendingReply = { reply ->
+            if (EmergencyIntents.isYes(reply)) onYes() else speaker.say("Okay, I won't.", Priority.Interrupt)
+        }
+        openTurnWith(prompt)
+    }
+
+    private fun sos() {
+        if (!ensure(location = true, sms = true)) return
+        viewModelScope.launch {
+            val contacts = settings.settings.first().emergencyContacts
+            if (contacts.isEmpty()) {
+                speaker.say(Emergency.say(ai.visionmirror.emergency.ShareResult.NoContacts), Priority.Interrupt)
+                return@launch
+            }
+            sosJob?.cancel()
+            sosJob = launch {
+                // A spoken countdown she can cancel. Nothing is ever sent the instant she says it.
+                val names = contacts.joinToString(" and ") { it.name }
+                speaker.say("I will send your location to $names in five seconds. Say cancel to stop.", Priority.Interrupt)
+                delay(SOS_COUNTDOWN_MS)
+                val result = emergency.share(contacts, "I need help.")
+                val sent = result is ai.visionmirror.emergency.ShareResult.Sent && result.names.isNotEmpty()
+                speaker.say(Emergency.say(result) + if (sent) " Say call one one two if you want the phone to dial for help." else "", Priority.Interrupt)
+            }
+        }
+    }
+
+    private fun cancelSos() {
+        sosJob?.cancel()
+        sosJob = null
+        speaker.say("Cancelled. I did not send anything.", Priority.Interrupt)
+    }
+
+    private fun share(name: String?) {
+        if (!ensure(location = true, sms = true)) return
+        viewModelScope.launch {
+            val saved = settings.settings.first().emergencyContacts
+            val recipients = if (name == null) {
+                saved
+            } else {
+                saved.filter { it.name.contains(name, ignoreCase = true) }.ifEmpty {
+                    if (!ensure(contacts = true)) return@launch
+                    contactBook.find(name).take(1)
+                }
+            }
+            if (recipients.isEmpty()) {
+                speaker.say(
+                    if (name == null) Emergency.say(ai.visionmirror.emergency.ShareResult.NoContacts) else "I couldn't find $name in your contacts.",
+                    Priority.Interrupt,
+                )
+                return@launch
+            }
+            val who = recipients.joinToString(" and ") { it.name }
+            askConfirm("Send your location to $who? Say yes to send.") {
+                viewModelScope.launch {
+                    speaker.say("Sending.", Priority.Interrupt, local = true)
+                    speaker.say(Emergency.say(emergency.share(recipients, "This is my location.")), Priority.Interrupt)
+                }
+            }
+        }
+    }
+
+    private fun setContact(name: String) {
+        if (!ensure(contacts = true)) return
+        viewModelScope.launch {
+            val found = contactBook.find(name).firstOrNull()
+            if (found == null) {
+                speaker.say("I couldn't find $name in your contacts. Check the spelling, or say a different name.", Priority.Interrupt)
+                return@launch
+            }
+            askConfirm("I found ${found.name}, number ending ${Emergency.endingIn(found.number)}. Say yes to save as your emergency contact.") {
+                viewModelScope.launch {
+                    settings.update { s -> s.copy(emergencyContacts = (s.emergencyContacts + found).distinctBy { it.number }.takeLast(3)) }
+                    speaker.say("Saved. ${found.name} is now your emergency contact.", Priority.Interrupt)
+                }
+            }
         }
     }
 
@@ -785,6 +942,7 @@ class SessionViewModel @Inject constructor(
         const val MAX_RATE_RETRIES = 2
         const val MIC_FALLBACK_MS = 2_500L
         const val MIC_SETTLE_MS = 300L
+        const val SOS_COUNTDOWN_MS = 8_000L
         const val HANDS_FREE_QUIET_CYCLES = 3
         val HANDS_FREE_SCREENS = setOf("home", "result", "settings")
         /** Keep listening this long, in up to this many quiet restarts, before saying she was not heard. */

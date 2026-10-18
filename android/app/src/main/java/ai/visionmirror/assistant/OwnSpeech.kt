@@ -45,7 +45,7 @@ class OwnSpeech @Inject constructor() {
     private companion object {
         const val WINDOW_MS = 30_000L
         const val ECHO_SHARE = 0.7
-        val IGNORED = setOf("adanna", "bola", "stop", "pause", "wait", "quiet", "enough", "hold", "on", "special", "request")
+        val IGNORED = setOf("yes", "no", "cancel", "adanna", "bola", "stop", "pause", "wait", "quiet", "enough", "hold", "on", "special", "request")
     }
 }
 

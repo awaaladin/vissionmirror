@@ -113,7 +113,13 @@ data class AssistRequest(val query: String, val language: String = "en", val ass
 data class AssistResponse(val kind: String = "answer", @SerialName("spoken_text") val spokenText: String)
 
 @Serializable
-data class SpeechRequest(val text: String, val rate: Float = 1f, val voice: String = "female")
+data class SpeechRequest(
+    val text: String,
+    val rate: Float = 1f,
+    val voice: String = "female",
+    /** What the text is written in. The backend sends Hausa, Yoruba and Igbo to VoiceVerse to be pronounced. */
+    val language: String = "en",
+)
 
 @Serializable
 data class AskRequest(

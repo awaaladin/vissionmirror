@@ -4,6 +4,7 @@ import ai.visionmirror.app.AppViewModel
 import ai.visionmirror.app.HardwareKeys
 import ai.visionmirror.app.VisionMirrorRoot
 import ai.visionmirror.audio.EarconPlayer
+import ai.visionmirror.assistant.PermissionRequests
 import ai.visionmirror.audio.SpeechManager
 import ai.visionmirror.audio.WakeWordListener
 import ai.visionmirror.haptics.HapticsManager
@@ -28,6 +29,9 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var earcons: EarconPlayer
     @Inject lateinit var keys: HardwareKeys
     @Inject lateinit var wake: WakeWordListener
+    @Inject lateinit var permissionRequests: PermissionRequests
+
+    private val permissionLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { }
 
     private val appViewModel: AppViewModel by viewModels()
 
@@ -36,6 +40,12 @@ class MainActivity : ComponentActivity() {
         installSplashScreen().setKeepOnScreenCondition { appViewModel.settings.value == null || !appViewModel.account.value.loaded }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // The assistant said out loud why it needs a permission; now Android's box appears.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                permissionRequests.flow.collect { permissionLauncher.launch(it.toTypedArray()) }
+            }
+        }
         // "Adanna, brighter": the screen brightness is a setting, applied to this window only.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

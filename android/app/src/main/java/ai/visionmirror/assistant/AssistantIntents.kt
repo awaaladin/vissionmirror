@@ -2,7 +2,7 @@ package ai.visionmirror.assistant
 
 /** Somewhere Adanna can take her, or something she can do on the open screen, by voice. */
 enum class AssistantAction {
-    OpenMirror, OpenRead, OpenLook, OpenSettings, OpenHome,
+    OpenMirror, OpenRead, OpenLook, OpenGuide, OpenSettings, OpenHome,
 
     /** Act on the screen that is open. */
     TakePhoto, FlipCamera, LookAgain, GoBack,
@@ -65,6 +65,8 @@ object AssistantIntents {
         return when {
             has("settings", "setting", "preferences") -> AssistantAction.OpenSettings
             has("home", "menu", "main menu") -> AssistantAction.OpenHome
+            has("guide me", "start guide", "guide mode", "start guiding", "walk with me", "watch ahead", "watch for obstacles", "detect objects", "what is ahead of me") ->
+                AssistantAction.OpenGuide
             has("look around", "around me", "in front of me", "surroundings", "whats here", "what is here", "describe", "what am i holding",
                 "what colour is this", "what color is this", "what colour is that", "what color is that") -> AssistantAction.OpenLook
             has("read", "reading", "what does it say", "what does this say", "text", "label") -> AssistantAction.OpenRead

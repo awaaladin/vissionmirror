@@ -9,7 +9,7 @@ import javax.inject.Singleton
 
 /** A natural Nigerian voice from the backend (Azure en-NG). Returns MP3 bytes, or null: speak with the phone instead. */
 interface CloudVoice {
-    suspend fun synthesize(text: String, rate: Float, male: Boolean = false, timeoutMs: Long? = null): ByteArray?
+    suspend fun synthesize(text: String, rate: Float, male: Boolean = false, timeoutMs: Long? = null, language: String = "en"): ByteArray?
 }
 
 @Singleton
@@ -20,12 +20,12 @@ class BackendCloudVoice @Inject constructor(
     private var failures = 0
     private var pausedUntil = 0L
 
-    override suspend fun synthesize(text: String, rate: Float, male: Boolean, timeoutMs: Long?): ByteArray? {
+    override suspend fun synthesize(text: String, rate: Float, male: Boolean, timeoutMs: Long?, language: String): ByteArray? {
         if (System.currentTimeMillis() < pausedUntil) return null
         val bytes = try {
             // Past a few seconds the phone's own voice is the better answer.
             withTimeoutOrNull(timeoutMs ?: TIMEOUT_MS) {
-                val response = api.get().speech(SpeechRequest(text, rate, if (male) "male" else "female"))
+                val response = api.get().speech(SpeechRequest(text, rate, if (male) "male" else "female", language))
                 if (response.isSuccessful) response.body()?.bytes() else null
             }
         } catch (e: CancellationException) {

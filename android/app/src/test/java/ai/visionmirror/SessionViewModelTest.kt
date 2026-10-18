@@ -43,6 +43,13 @@ class SessionViewModelTest {
     private val device = FakeDevice()
     private val screenCommands = ai.visionmirror.assistant.ScreenCommands()
     private val ownSpeech = ai.visionmirror.assistant.OwnSpeech()
+    private val location = FakeLocation()
+    private val address = FakeAddress()
+    private val sms = FakeSms()
+    private val contacts = FakeContacts(listOf(ai.visionmirror.data.settings.EmergencyContact("Mum Ada", "+2348012344821")))
+    private val phone = FakePhone()
+    private val permissionRequests = ai.visionmirror.assistant.PermissionRequests()
+    private val emergencyService = ai.visionmirror.emergency.Emergency(location, address, sms)
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
@@ -50,6 +57,7 @@ class SessionViewModelTest {
 
     private fun vm() = SessionViewModel(
         repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake, device, screenCommands, ownSpeech,
+        emergencyService, contacts, phone, permissionRequests,
         CoroutineScope(dispatcher),
     )
 
@@ -645,5 +653,112 @@ class SessionViewModelTest {
         voice.emit(VoiceEvent.Final("the weather in Abuja is warm"))
         runCurrent()
         assertTrue(repo.assistQueries.isEmpty())
+    }
+
+    private val mum = ai.visionmirror.data.settings.EmergencyContact("Mum Ada", "+2348012344821")
+
+    @Test fun whereAmISpeaksTheAddress() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake("where am i")
+        advanceUntilIdle()
+        assertEquals("You are near Garki, Abuja.", speaker.spoken.last())
+    }
+
+    @Test fun missingPermissionIsExplainedAndRequested() = runTest(dispatcher) {
+        permissions.location = false
+        val vm = vm()
+        runCurrent()
+        permissionRequests.flow.test {
+            wake.wake("where am i")
+            advanceUntilIdle()
+            assertTrue(awaitItem().any { it.contains("LOCATION") })
+        }
+        assertTrue(speaker.spoken.last().contains("I need permission to use your location"))
+    }
+
+    @Test fun helpTextsTheEmergencyContactAfterACancellableCountdown() = runTest(dispatcher) {
+        settings.flow.value = settings.flow.value.copy(emergencyContacts = listOf(mum))
+        val vm = vm()
+        runCurrent()
+        wake.wake("i need help")
+        runCurrent()
+        assertTrue(speaker.spoken.last().contains("in five seconds"))
+        assertTrue(sms.sent.isEmpty()) // nothing is sent the instant she asks
+        advanceUntilIdle()
+        assertEquals(1, sms.sent.size)
+        assertEquals(mum.number, sms.sent[0].first)
+        assertTrue(sms.sent[0].second.contains("maps.google.com/?q=9.076500,7.398600"))
+        assertTrue(sms.sent[0].second.contains("Garki, Abuja"))
+    }
+
+    @Test fun sayingCancelDuringTheCountdownSendsNothing() = runTest(dispatcher) {
+        settings.flow.value = settings.flow.value.copy(emergencyContacts = listOf(mum))
+        val vm = vm()
+        runCurrent()
+        wake.wake("i need help")
+        runCurrent()
+        wake.said() // "cancel"
+        advanceUntilIdle()
+        assertTrue(sms.sent.isEmpty())
+        assertTrue(speaker.spoken.last().startsWith("Cancelled"))
+    }
+
+    @Test fun helpWithNoContactTellsHerHowToSetOne() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake("i need help")
+        advanceUntilIdle()
+        assertTrue(sms.sent.isEmpty())
+        assertTrue(speaker.spoken.last().contains("set my emergency contact"))
+    }
+
+    @Test fun settingAnEmergencyContactAsksBeforeSaving() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake("set my emergency contact to mum")
+        runCurrent()
+        assertTrue(speaker.spoken.last().contains("I found Mum Ada, number ending 4 8 2 1"))
+        assertTrue(settings.flow.value.emergencyContacts.isEmpty())
+        speaker.finishLast()
+        advanceUntilIdle()
+        voice.emit(VoiceEvent.Final("yes"))
+        advanceUntilIdle()
+        assertEquals(listOf(mum), settings.flow.value.emergencyContacts)
+    }
+
+    @Test fun anythingButYesDoesNotSave() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake("set my emergency contact to mum")
+        runCurrent()
+        speaker.finishLast()
+        advanceUntilIdle()
+        voice.emit(VoiceEvent.Final("no thanks"))
+        advanceUntilIdle()
+        assertTrue(settings.flow.value.emergencyContacts.isEmpty())
+    }
+
+    @Test fun sharingMyLocationConfirmsFirstThenSends() = runTest(dispatcher) {
+        settings.flow.value = settings.flow.value.copy(emergencyContacts = listOf(mum))
+        val vm = vm()
+        runCurrent()
+        wake.wake("send my location to mum")
+        runCurrent()
+        assertTrue(speaker.spoken.last().contains("Send your location to Mum Ada"))
+        assertTrue(sms.sent.isEmpty())
+        speaker.finishLast()
+        advanceUntilIdle()
+        voice.emit(VoiceEvent.Final("yes"))
+        advanceUntilIdle()
+        assertEquals(1, sms.sent.size)
+    }
+
+    @Test fun callingForHelpOpensTheDialerNeverDialsByItself() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake("call 112")
+        advanceUntilIdle()
+        assertEquals(listOf("112"), phone.dialled)
     }
 }

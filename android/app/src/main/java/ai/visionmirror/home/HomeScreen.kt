@@ -74,6 +74,7 @@ fun HomeScreen(
     onMirror: () -> Unit,
     onRead: () -> Unit,
     onLook: () -> Unit,
+    onGuide: () -> Unit,
     onSettings: () -> Unit,
     onGreet: () -> Unit,
 ) {
@@ -115,6 +116,7 @@ fun HomeScreen(
         Shortcut("Mirror", VmIcons.Mirror, onMirror),
         Shortcut("Read", VmIcons.Detail, onRead),
         Shortcut("Around", VmIcons.Eye, onLook),
+        Shortcut("Guide", VmIcons.Guide, onGuide),
     )
 
     ScreenScaffold {
@@ -207,7 +209,7 @@ private fun ShortcutView(shortcut: Shortcut) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
         PressableSurface(
             onClick = shortcut.onClick,
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(56.dp),
             shape = CircleShape,
             contentDescription = shortcut.label,
         ) {

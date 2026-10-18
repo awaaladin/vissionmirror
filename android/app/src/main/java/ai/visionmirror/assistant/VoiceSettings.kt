@@ -47,7 +47,7 @@ object VoiceSettings {
         fun set(say: String, change: (Settings) -> Settings): SettingChange = SettingChange.Set(say, change)
 
         return when {
-            has("what can you do", "what can i say", "what can i ask") || (text == "help" || text == "help me") -> SettingChange.Help
+            has("what can you do", "what can i say", "what can i ask") || (text == "help") -> SettingChange.Help
 
             // ---- wake word / commands
             has("wake word", "listen for my name", "listening for my name") ->
@@ -165,6 +165,6 @@ object VoiceSettings {
     }
 
     const val HELP =
-        "You can say my name and ask me to read, look around, or use the mirror. " +
+        "You can say my name and ask me to read, look around, guide you, or use the mirror. Ask where you are, or say I need help to text your location to your emergency contact. " +
             "You can also change anything: louder, slower, bigger text, brighter, dark mode, speak Hausa, or change voice. Say switch to Bola for a man's voice, or switch to Adanna for a woman's."
 }

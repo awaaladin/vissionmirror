@@ -139,7 +139,9 @@ class SpeechManager @Inject constructor(
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>?) = size > 60
     }
 
-    private fun cacheKey(text: String, speed: Float) = "${persona.name}|${(speed * 20).toInt()}|$text"
+    /** The language of what is being said ("ha", "yo", "ig", "en"). Lock held. */
+    private fun spokenLanguage() = locales.firstOrNull()?.language ?: "en"
+    private fun cacheKey(text: String, speed: Float) = "${persona.name}|${spokenLanguage()}|${(speed * 20).toInt()}|$text"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -259,11 +261,12 @@ class SpeechManager @Inject constructor(
     /** Fetch [phrases] in the active voice now, so they are instant later. Safe to call often; known phrases are skipped. */
     fun prefetch(phrases: List<String>) {
         val (male, speed) = synchronized(lock) { if (!cloudEnabled) return; persona.male to rate }
+        val language = synchronized(lock) { spokenLanguage() }
         scope.launch {
             for (p in phrases) {
                 val key = synchronized(lock) { cacheKey(p, speed) }
                 if (synchronized(lock) { phraseCache.containsKey(key) }) continue
-                val bytes = cloud.synthesize(p, speed, male, null) ?: return@launch // offline: stop, try again next time
+                val bytes = cloud.synthesize(p, speed, male, null, language) ?: return@launch // offline: stop, try again next time
                 synchronized(lock) { phraseCache[key] = bytes }
             }
         }
@@ -351,11 +354,12 @@ class SpeechManager @Inject constructor(
         item.mode = Mode.Fetching
         val spoken = item.text.substring(item.base.coerceIn(0, item.text.length))
         val speed = rate
+        val language = spokenLanguage()
         item.fetch = scope.launch {
             val key = cacheKey(spoken, speed)
             val cached = synchronized(lock) { phraseCache[key] }
             // Urgent phrases give the cloud only a moment; if it is slow the phone speaks instead of leaving her waiting.
-            val bytes = cached ?: cloud.synthesize(spoken, speed, persona.male, if (item.local) URGENT_TIMEOUT_MS else null)
+            val bytes = cached ?: cloud.synthesize(spoken, speed, persona.male, if (item.local) URGENT_TIMEOUT_MS else null, language)
                 ?.also { if (spoken.length <= CACHE_MAX_CHARS) synchronized(lock) { phraseCache[key] = it } }
             val file = bytes?.let { runCatching { File.createTempFile("voice", ".mp3", context.cacheDir).apply { writeBytes(it) } }.getOrNull() }
             main.post { synchronized(lock) { onFetched(item, file) } }
