@@ -42,13 +42,14 @@ class SessionViewModelTest {
     private val wake = FakeWake()
     private val device = FakeDevice()
     private val screenCommands = ai.visionmirror.assistant.ScreenCommands()
+    private val ownSpeech = ai.visionmirror.assistant.OwnSpeech()
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
 
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun vm() = SessionViewModel(
-        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake, device, screenCommands,
+        repo, speaker, earcons, ai.visionmirror.haptics.NoopHaptics, voice, connectivity, settings, permissions, wake, device, screenCommands, ownSpeech,
         CoroutineScope(dispatcher),
     )
 
@@ -614,5 +615,35 @@ class SessionViewModelTest {
         assertEquals(ai.visionmirror.audio.Persona.Bola, settings.flow.value.persona)
         assertEquals(ai.visionmirror.audio.Persona.Bola, vm.persona.value)
         assertEquals("Hello, I'm Bola.", speaker.spoken.last())
+    }
+
+    @Test fun callingTheOtherNameMakesHerSayWhoSheIs() = runTest(dispatcher) {
+        settings.flow.value = settings.flow.value.copy(persona = ai.visionmirror.audio.Persona.Bola)
+        val vm = vm()
+        runCurrent()
+        wake.wake(called = ai.visionmirror.audio.Persona.Adanna)
+        runCurrent()
+        assertEquals("I am Bola. Listening.", speaker.spoken.last())
+    }
+
+    @Test fun callingTheRightNameJustSaysListening() = runTest(dispatcher) {
+        settings.flow.value = settings.flow.value.copy(persona = ai.visionmirror.audio.Persona.Bola)
+        val vm = vm()
+        runCurrent()
+        wake.wake(called = ai.visionmirror.audio.Persona.Bola)
+        runCurrent()
+        assertEquals("Listening.", speaker.spoken.last())
+    }
+
+    @Test fun herOwnVoiceHeardByTheMicIsNotARequest() = runTest(dispatcher) {
+        val vm = vm()
+        runCurrent()
+        wake.wake()
+        advanceUntilIdle()
+        // The mic hears what she just said ("I am sorry I did not catch that...") and must not treat it as the user.
+        ownSpeech.remember("It is 3 pm and the weather in Abuja is warm")
+        voice.emit(VoiceEvent.Final("the weather in Abuja is warm"))
+        runCurrent()
+        assertTrue(repo.assistQueries.isEmpty())
     }
 }

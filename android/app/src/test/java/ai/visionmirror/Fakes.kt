@@ -130,8 +130,8 @@ class FakeDevice : ai.visionmirror.assistant.DeviceControls {
 }
 
 class FakeWake : ai.visionmirror.audio.WakeSource {
-    private val _wakes = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    override val wakes: SharedFlow<String> = _wakes
+    private val _wakes = MutableSharedFlow<ai.visionmirror.audio.WakeEvent>(extraBufferCapacity = 4)
+    override val wakes: SharedFlow<ai.visionmirror.audio.WakeEvent> = _wakes
     override val hearing = MutableStateFlow(ai.visionmirror.audio.Hearing())
     private val _stops = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
     override val stops: SharedFlow<Unit> = _stops
@@ -141,5 +141,5 @@ class FakeWake : ai.visionmirror.audio.WakeSource {
     fun saidResume() { _resumes.tryEmit(Unit) }
     val holds = mutableListOf<Boolean>()
     override fun hold(held: Boolean) { holds += held }
-    fun wake(request: String = "") { _wakes.tryEmit(request) }
+    fun wake(request: String = "", called: ai.visionmirror.audio.Persona? = null) { _wakes.tryEmit(ai.visionmirror.audio.WakeEvent(request, called)) }
 }

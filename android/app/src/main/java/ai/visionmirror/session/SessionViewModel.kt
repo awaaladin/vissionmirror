@@ -11,12 +11,14 @@ import ai.visionmirror.audio.VoiceCommands
 import ai.visionmirror.audio.VoiceEvent
 import ai.visionmirror.audio.VoiceFailure
 import ai.visionmirror.audio.VoiceInput
+import ai.visionmirror.audio.WakeEvent
 import ai.visionmirror.audio.WakeSource
 import ai.visionmirror.audio.WakeWord
 import ai.visionmirror.assistant.AssistantAction
 import ai.visionmirror.assistant.AssistantIntents
 import ai.visionmirror.assistant.ClockAnswer
 import ai.visionmirror.assistant.HandsFree
+import ai.visionmirror.assistant.OwnSpeech
 import ai.visionmirror.assistant.ScreenCommand
 import ai.visionmirror.assistant.ScreenCommands
 import ai.visionmirror.assistant.DeviceControls
@@ -117,6 +119,7 @@ class SessionViewModel @Inject constructor(
     private val wake: WakeSource,
     private val device: DeviceControls,
     private val screenCommands: ScreenCommands,
+    private val own: OwnSpeech,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -400,6 +403,11 @@ class SessionViewModel @Inject constructor(
 
     private fun onHeard(text: String) {
         // If the mode was lost to a stray event but she is mid-turn with the assistant, what she said is still her request.
+        // The microphone can pick up her own voice. That is never the user speaking: treat it as silence.
+        if (own.isEcho(text) && (listenMode != ListenMode.None || assistantTurn)) {
+            onVoiceFailed(VoiceFailure.NoSpeech)
+            return
+        }
         val mode = if (listenMode == ListenMode.None && assistantTurn) ListenMode.Assistant else listenMode
         listenMode = ListenMode.None
         _micLevel.value = 0f
@@ -411,7 +419,7 @@ class SessionViewModel @Inject constructor(
             ListenMode.Command -> {
                 earcons.play(Earcon.ListeningOff)
                 // The command window also answers to her name: "Adanna, is my shirt tucked in".
-                WakeWord.matches(text)?.let { handleWake(it.request); return }
+                WakeWord.matches(text)?.let { handleWake(it.request, it.called); return }
                 when (VoiceCommands.parse(text)) {
                     VoiceCommand.Ask -> startAsking()
                     VoiceCommand.Retake -> retake()
@@ -475,7 +483,7 @@ class SessionViewModel @Inject constructor(
                     viewModelScope.launch { delay(600); maybeHandsFree() }
                 } else {
                     silentCycles = 0
-                    speaker.say("I'm here when you need me. Say Adanna.", Priority.Interrupt, local = true)
+                    speaker.say("I'm here when you need me. Say ${_persona.value.displayName}.", Priority.Interrupt, local = true)
                 }
                 return
             }
@@ -490,10 +498,10 @@ class SessionViewModel @Inject constructor(
     // ---- assistant: "Adanna ..." -------------------------------------------------------------
 
     /** The wake word was heard anywhere in the app. [request] is what she said after it, if anything. */
-    private fun onWake(request: String) {
+    private fun onWake(event: WakeEvent) {
         if (listenMode == ListenMode.Question || listenMode == ListenMode.Assistant) return
         haptics.click()
-        handleWake(request)
+        handleWake(event.request, event.called)
     }
 
     private fun endAssistantTurn() {
@@ -501,8 +509,10 @@ class SessionViewModel @Inject constructor(
         wake.hold(false)
     }
 
-    private fun handleWake(request: String) {
-        if (request.isNotBlank()) {
+    private fun handleWake(request: String, called: ai.visionmirror.audio.Persona? = null) {
+        // If she called the OTHER name, she answers as herself: "I am Bola." She does not pretend to be who was called.
+        val wrongName = called != null && called != _persona.value
+        if (request.isNotBlank() && !wrongName) {
             speaker.stop()
             handleRequest(request)
             return
@@ -521,7 +531,8 @@ class SessionViewModel @Inject constructor(
         earcons.play(Earcon.ListeningOn)
         // "Listening." in the phone's own voice (instant), then the microphone opens when she has finished saying it,
         // so the recogniser never hears me. If speech is broken, the timer opens the microphone anyway.
-        val id = speaker.say("Listening.", Priority.Interrupt, local = true)
+        val name = _persona.value.displayName
+        val id = speaker.say(if (wrongName) "I am $name. Listening." else "Listening.", Priority.Interrupt, local = true)
         pendingMic = id
         viewModelScope.launch {
             delay(MIC_FALLBACK_MS)
@@ -656,7 +667,7 @@ class SessionViewModel @Inject constructor(
     private fun maybeHandsFree() {
         if (!handsFree) return
         viewModelScope.launch {
-            delay(450) // let a following sentence start before deciding she is finished
+            delay(900) // let a following sentence start, and the room go quiet, before deciding she is finished
             val quiet = speaker.state.value.utteranceId == null
             val roomToListen = screen in HANDS_FREE_SCREENS
             val idle = !assistantTurn && listenMode == ListenMode.None && _state.value.ask == AskPhase.Idle &&

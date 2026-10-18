@@ -1,5 +1,6 @@
 package ai.visionmirror.audio
 
+import ai.visionmirror.assistant.OwnSpeech
 import ai.visionmirror.assistant.ResumeWords
 import ai.visionmirror.assistant.StopWords
 import ai.visionmirror.data.net.PermissionChecker
@@ -26,7 +27,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -45,7 +48,7 @@ object WakeWord {
     private const val TARGET = "adanna"
 
     /** [request] is whatever followed the wake phrase in the same breath ("" when nothing did). */
-    data class Match(val request: String)
+    data class Match(val request: String, val called: Persona? = null)
 
     private val special = Regex("\\bspecial\\s+requests?\\b")
 
@@ -57,8 +60,8 @@ object WakeWord {
         val words = clean.split(' ')
         for (i in words.indices) {
             // "a donna" is heard as two words as often as "adonna" as one.
-            if (isName(words[i])) return Match(requestAfter(words, i, 1))
-            if (i + 1 < words.size && isName(words[i] + words[i + 1])) return Match(requestAfter(words, i, 2))
+            if (isName(words[i])) return Match(requestAfter(words, i, 1), personaOf(words[i]))
+            if (i + 1 < words.size && isName(words[i] + words[i + 1])) return Match(requestAfter(words, i, 2), personaOf(words[i] + words[i + 1]))
         }
         return null
     }
@@ -82,6 +85,8 @@ object WakeWord {
 
     // "Bola" is short, so only the ways recognisers actually write it count; a loose match would fire on "bowl" or "cola".
     private val bolaForms = setOf("bola", "bolla", "bowla", "bolah", "boller", "bolar")
+
+    private fun personaOf(word: String): Persona = if (word in bolaForms) Persona.Bola else Persona.Adanna
 
     private fun isName(word: String): Boolean =
         word in bolaForms || (word.length in 4..8 && editDistance(word, TARGET) <= 1)
@@ -112,9 +117,12 @@ data class Hearing(
     val status: String = "",
 )
 
-/** What the view models listen to. Each value is what she asked right after the wake phrase ("" if nothing). */
+/** She said a wake phrase. [request] is what she asked right after it ("" if nothing); [called] is which name she used. */
+data class WakeEvent(val request: String, val called: Persona? = null)
+
+/** What the view models listen to. */
 interface WakeSource {
-    val wakes: SharedFlow<String>
+    val wakes: SharedFlow<WakeEvent>
     val hearing: StateFlow<Hearing>
 
     /** She said "stop" or "pause" (short phrases only). Works while the assistant talks and while the camera scans. */
@@ -146,12 +154,13 @@ class WakeWordListener @Inject constructor(
     private val voice: VoiceInput,
     private val speaker: Speaker,
     private val permissions: PermissionChecker,
+    private val own: OwnSpeech,
     settings: SettingsStore,
     @ApplicationScope private val scope: CoroutineScope,
 ) : WakeSource {
 
-    private val _wakes = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    override val wakes: SharedFlow<String> = _wakes.asSharedFlow()
+    private val _wakes = MutableSharedFlow<WakeEvent>(extraBufferCapacity = 4)
+    override val wakes: SharedFlow<WakeEvent> = _wakes.asSharedFlow()
 
     private val _stops = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
     override val stops: SharedFlow<Unit> = _stops.asSharedFlow()
@@ -168,6 +177,7 @@ class WakeWordListener @Inject constructor(
 
     @Volatile private var wakeOn = true
     @Volatile private var bargeOn = true
+    @Volatile private var name = Persona.Adanna
 
     // Starts strict (offline, Nigerian English) and relaxes if the phone cannot do that.
     private var preferOffline = true
@@ -176,13 +186,14 @@ class WakeWordListener @Inject constructor(
     init {
         scope.launch {
             combine(
-                settings.settings.map { Pair(it.wakeWord, it.bargeIn) },
+                settings.settings.map { Triple(it.wakeWord, it.bargeIn, it.persona) },
                 foreground,
                 voice.busy,
                 held,
-            ) { (wake, barge), front, busy, hold ->
+            ) { (wake, barge, persona), front, busy, hold ->
                 wakeOn = wake
                 bargeOn = barge
+                name = persona
                 (wake || barge) && front && !busy && !hold
             }
                 .distinctUntilChanged()
@@ -216,17 +227,19 @@ class WakeWordListener @Inject constructor(
                 delay(5_000)
                 continue
             }
-            _hearing.value = Hearing(active = true, status = "Listening for “${WakeWord.NAME}”")
+            _hearing.value = Hearing(active = true, status = "Listening for “${name.displayName}”")
             when (val outcome = withContext(Dispatchers.Main) { listenOnce() }) {
                 is Outcome.Heard -> {
                     failures = 0
                     _hearing.value = Hearing(active = true, status = "Heard you")
-                    _wakes.tryEmit(outcome.request)
+                    _wakes.tryEmit(WakeEvent(outcome.request, outcome.called))
                     delay(1_500) // let the view model take the microphone before we would listen again
                 }
                 Outcome.Stop -> { failures = 0; _stops.tryEmit(Unit); delay(700) }
                 Outcome.Resume -> { failures = 0; _resumes.tryEmit(Unit); delay(700) }
                 Outcome.Silence -> { failures = 0; delay(250) }
+                // After she finishes talking, wait for the tail of her voice and the room to die away before listening.
+                Outcome.Restart -> { failures = 0; delay(if (talking()) 150 else 700) }
                 Outcome.Busy -> delay(800)
                 is Outcome.Failed -> {
                     failures++
@@ -245,7 +258,9 @@ class WakeWordListener @Inject constructor(
     }
 
     private sealed interface Outcome {
-        data class Heard(val request: String) : Outcome
+        data class Heard(val request: String, val called: Persona?) : Outcome
+        /** She started or stopped talking mid-cycle: start a clean cycle so her voice and the user's never mix. */
+        data object Restart : Outcome
         data object Silence : Outcome
         data object Busy : Outcome
         data object Stop : Outcome
@@ -258,32 +273,35 @@ class WakeWordListener @Inject constructor(
         val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
         var finished = false
         var smoothed = 0f
+        var watcher: Job? = null
         fun finish(outcome: Outcome) {
             if (finished) return
             finished = true
+            watcher?.cancel()
             recognizer.setRecognitionListener(null)
             runCatching { recognizer.cancel(); recognizer.destroy() }
             if (cont.isActive) cont.resume(outcome)
         }
+        // A cycle is either "while she talks" or "while she is quiet", never both: her voice must not be heard as the user's.
+        val talkingNow = talking()
         fun check(bundle: Bundle?, final: Boolean) {
-            val heard = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-            val talking = talking()
+            // Whatever the microphone hears that is really the assistant's own voice is thrown away.
+            val heard = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty().filterNot { own.isEcho(it) }
+            if (heard.isEmpty()) { if (final) finish(Outcome.Silence); return }
             if (bargeOn && heard.any { StopWords.matches(it) }) { finish(Outcome.Stop); return }
-            if (bargeOn && !talking && heard.any { ResumeWords.matches(it) }) { finish(Outcome.Resume); return }
-            val name = heard.firstNotNullOfOrNull { WakeWord.matches(it) }
-            if (name != null) {
-                // While she talks her own words may contain her name ("I'm Adanna"), so only the bare name counts then.
-                val counts = if (talking) bargeOn && heard.any { WakeWord.isBareName(it) } else wakeOn
-                if (counts) { finish(Outcome.Heard(if (talking) "" else name.request)); return }
-            }
-            if (!talking) heard.firstOrNull()?.let { said -> _hearing.update { it.copy(text = said) } }
+            // While she is talking only "stop" counts. She does not listen for names or commands while she speaks.
+            if (talkingNow) { if (final) finish(Outcome.Silence); return }
+            if (bargeOn && heard.any { ResumeWords.matches(it) }) { finish(Outcome.Resume); return }
+            val match = heard.firstNotNullOfOrNull { WakeWord.matches(it) }
+            if (match != null && wakeOn) { finish(Outcome.Heard(match.request, match.called)); return }
+            heard.firstOrNull()?.let { said -> _hearing.update { it.copy(text = said) } }
             if (final) finish(Outcome.Silence)
         }
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) = Unit
             override fun onBeginningOfSpeech() = Unit
             override fun onRmsChanged(rmsdB: Float) {
-                if (talking()) return
+                if (talkingNow) return
                 val raw = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
                 smoothed += (raw - smoothed) * 0.4f
                 _hearing.update { it.copy(level = smoothed) }
@@ -304,7 +322,13 @@ class WakeWordListener @Inject constructor(
                 )
             }
         })
+        // The moment she starts or stops talking, end this cycle and begin a clean one.
+        watcher = scope.launch(Dispatchers.Main) {
+            speaker.state.map { it.utteranceId != null }.first { it != talkingNow }
+            finish(Outcome.Restart)
+        }
         cont.invokeOnCancellation {
+            watcher?.cancel()
             main.post {
                 if (!finished) {
                     finished = true

@@ -86,7 +86,7 @@ class RepositoryTest {
             .addInterceptor(BearerInterceptor(tokens))
             .authenticator(RefreshAuthenticator(tokens))
             .build()
-        repo = MirrorRepositoryImpl(retrofit(client).create(MirrorApi::class.java), json)
+        repo = MirrorRepositoryImpl(retrofit(client).create(MirrorApi::class.java), json, FakeSettings())
     }
 
     @After fun tearDown() {
@@ -149,6 +149,7 @@ class RepositoryTest {
                 detailLevel: okhttp3.RequestBody,
                 language: okhttp3.RequestBody,
                 mode: okhttp3.RequestBody,
+                assistant: okhttp3.RequestBody,
             ): retrofit2.Response<ai.visionmirror.data.api.DescribeResponse> = throw java.net.SocketTimeoutException("read timed out")
             override suspend fun speech(body: ai.visionmirror.data.api.SpeechRequest) = throw java.net.SocketTimeoutException()
             override suspend fun assist(body: ai.visionmirror.data.api.AssistRequest) = throw java.net.SocketTimeoutException()
@@ -157,7 +158,7 @@ class RepositoryTest {
             override suspend fun health() = throw java.net.SocketTimeoutException()
             override suspend fun deleteAccount() = throw java.net.SocketTimeoutException()
         }
-        val slowRepo = MirrorRepositoryImpl(slowApi, Json { ignoreUnknownKeys = true })
+        val slowRepo = MirrorRepositoryImpl(slowApi, Json { ignoreUnknownKeys = true }, FakeSettings())
         val e = slowRepo.describe(byteArrayOf(1), DetailLevel.Brief).exceptionOrNull()
         assertTrue("was $e", e is AppError.NetworkTimeout)
         assertTrue(e !is AppError.Offline)

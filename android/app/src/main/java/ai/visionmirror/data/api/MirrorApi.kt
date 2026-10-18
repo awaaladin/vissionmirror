@@ -33,6 +33,7 @@ interface MirrorApi {
         @Part("detail_level") detailLevel: RequestBody,
         @Part("language") language: RequestBody,
         @Part("mode") mode: RequestBody,
+        @Part("assistant") assistant: RequestBody,
     ): Response<DescribeResponse>
 
     @POST("v1/ask")

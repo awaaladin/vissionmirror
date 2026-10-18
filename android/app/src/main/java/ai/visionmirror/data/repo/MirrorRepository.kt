@@ -9,6 +9,8 @@ import ai.visionmirror.data.api.DescribeResponse
 import ai.visionmirror.data.api.DetailLevel
 import ai.visionmirror.data.api.ErrorBody
 import ai.visionmirror.data.api.MirrorApi
+import ai.visionmirror.data.settings.SettingsStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -36,7 +38,12 @@ interface MirrorRepository {
 class MirrorRepositoryImpl @Inject constructor(
     private val api: MirrorApi,
     private val json: Json,
+    private val settings: SettingsStore,
 ) : MirrorRepository {
+
+    /** Who is talking (Adanna or Bola), so the AI answers as that name and never as the other. */
+    private suspend fun assistantName(): String = settings.settings.first().persona.displayName
+
 
     override suspend fun describe(jpeg: ByteArray, detail: DetailLevel, language: String, scene: Boolean): Result<DescribeResponse> =
         call {
@@ -48,14 +55,15 @@ class MirrorRepositoryImpl @Inject constructor(
             api.describe(
                 image, detail.wire.toRequestBody(text), language.toRequestBody(text),
                 (if (scene) "scene" else "mirror").toRequestBody(text),
+                assistantName().toRequestBody(text),
             )
         }
 
     override suspend fun ask(sessionId: String, question: String, language: String): Result<AskResponse> =
-        call { api.ask(AskRequest(sessionId, question.take(MAX_QUESTION), language)) }
+        call { api.ask(AskRequest(sessionId, question.take(MAX_QUESTION), language, assistantName())) }
 
     override suspend fun assist(query: String, language: String): Result<AssistResponse> =
-        call { api.assist(AssistRequest(query.take(400), language)) }
+        call { api.assist(AssistRequest(query.take(400), language, assistantName())) }
 
     override suspend fun deleteSession(sessionId: String) {
         try {

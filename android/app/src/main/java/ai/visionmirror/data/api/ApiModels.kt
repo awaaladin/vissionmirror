@@ -107,7 +107,7 @@ data class DescribeResponse(
 )
 
 @Serializable
-data class AssistRequest(val query: String, val language: String = "en")
+data class AssistRequest(val query: String, val language: String = "en", val assistant: String = "Adanna")
 
 @Serializable
 data class AssistResponse(val kind: String = "answer", @SerialName("spoken_text") val spokenText: String)
@@ -120,6 +120,7 @@ data class AskRequest(
     @SerialName("session_id") val sessionId: String,
     val question: String,
     val language: String = "en",
+    val assistant: String = "Adanna",
 )
 
 @Serializable

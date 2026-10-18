@@ -40,6 +40,7 @@ class AppViewModel @Inject constructor(
                 speech.setLanguage(s.language.speechLocales())
                 speech.setCloudVoice(s.cloudVoice)
                 speech.setPersona(s.persona)
+                speech.prefetch(ai.visionmirror.assistant.Phrases.all(s.persona))
                 speech.setVoice(s.voiceName)
                 haptics.enabled.value = s.haptics
             }

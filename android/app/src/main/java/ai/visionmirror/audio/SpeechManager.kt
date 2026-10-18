@@ -1,5 +1,6 @@
 package ai.visionmirror.audio
 
+import ai.visionmirror.assistant.OwnSpeech
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -35,7 +36,7 @@ import javax.inject.Singleton
 interface Speaker {
     val state: StateFlow<SpeechManager.State>
     val events: SharedFlow<SpeechManager.Event>
-    /** [local] = always the phone's own voice (instant), for short acknowledgements like "Listening." */
+    /** [local] = urgent: a short acknowledgement like "Listening." that must start at once, in the same voice as everything else. */
     fun speak(text: String, priority: SpeechManager.Priority, id: String, local: Boolean = false): String
     fun stop()
     fun pause()
@@ -65,6 +66,7 @@ fun Speaker.say(
 class SpeechManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val cloud: CloudVoice,
+    private val own: OwnSpeech,
 ) : Speaker {
     enum class Priority { Queue, Interrupt }
 
@@ -85,6 +87,11 @@ class SpeechManager @Inject constructor(
     }
 
     private enum class Mode { Waiting, Fetching, Cloud, Local }
+
+    private companion object {
+        const val URGENT_TIMEOUT_MS = 1_500L
+        const val CACHE_MAX_CHARS = 160
+    }
 
     private class Item(val id: String, val text: String) {
         var base = 0
@@ -126,6 +133,13 @@ class SpeechManager @Inject constructor(
     private var locales: List<Locale> = listOf(Locale("en", "NG"), Locale.getDefault(), Locale.US)
 
     private val main = Handler(Looper.getMainLooper())
+
+    // Short sentences already spoken (or prefetched) in the active voice, so repeats start instantly.
+    private val phraseCache = object : LinkedHashMap<String, ByteArray>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>?) = size > 60
+    }
+
+    private fun cacheKey(text: String, speed: Float) = "${persona.name}|${(speed * 20).toInt()}|$text"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -178,6 +192,7 @@ class SpeechManager @Inject constructor(
                 paused = false
                 if (ready) tts?.stop()
             }
+            own.remember(text)
             val item = Item(id, text).also { it.local = local }
             queue.addLast(item)
             if (queue.size == 1) _state.value = State(text = text, utteranceId = id, isPaused = paused)
@@ -240,6 +255,19 @@ class SpeechManager @Inject constructor(
 
     /** The natural Nigerian voice from the internet. Off = always the phone's own voice. */
     fun setCloudVoice(enabled: Boolean) = synchronized(lock) { cloudEnabled = enabled; Unit }
+
+    /** Fetch [phrases] in the active voice now, so they are instant later. Safe to call often; known phrases are skipped. */
+    fun prefetch(phrases: List<String>) {
+        val (male, speed) = synchronized(lock) { if (!cloudEnabled) return; persona.male to rate }
+        scope.launch {
+            for (p in phrases) {
+                val key = synchronized(lock) { cacheKey(p, speed) }
+                if (synchronized(lock) { phraseCache.containsKey(key) }) continue
+                val bytes = cloud.synthesize(p, speed, male, null) ?: return@launch // offline: stop, try again next time
+                synchronized(lock) { phraseCache[key] = bytes }
+            }
+        }
+    }
 
     fun setPitch(value: Float) = synchronized(lock) { pitch = value; tts?.setPitch(effectivePitch()); Unit }
 
@@ -308,7 +336,9 @@ class SpeechManager @Inject constructor(
         val head = queue.firstOrNull() ?: return
         if (head.mode != Mode.Waiting) return
         requestFocus()
-        if (cloudEnabled && !head.local) startCloud(head) else startLocal(head)
+        // The same voice for everything: Adanna is Adanna and Bola is Bola in every sentence, short or long. The phone's own
+        // voice is only the fallback when the cloud voice is off or unreachable.
+        if (cloudEnabled) startCloud(head) else startLocal(head)
     }
 
     private fun startLocal(item: Item) {
@@ -322,7 +352,11 @@ class SpeechManager @Inject constructor(
         val spoken = item.text.substring(item.base.coerceIn(0, item.text.length))
         val speed = rate
         item.fetch = scope.launch {
-            val bytes = cloud.synthesize(spoken, speed, persona.male)
+            val key = cacheKey(spoken, speed)
+            val cached = synchronized(lock) { phraseCache[key] }
+            // Urgent phrases give the cloud only a moment; if it is slow the phone speaks instead of leaving her waiting.
+            val bytes = cached ?: cloud.synthesize(spoken, speed, persona.male, if (item.local) URGENT_TIMEOUT_MS else null)
+                ?.also { if (spoken.length <= CACHE_MAX_CHARS) synchronized(lock) { phraseCache[key] = it } }
             val file = bytes?.let { runCatching { File.createTempFile("voice", ".mp3", context.cacheDir).apply { writeBytes(it) } }.getOrNull() }
             main.post { synchronized(lock) { onFetched(item, file) } }
         }
