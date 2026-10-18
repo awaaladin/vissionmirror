@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     azure_speech_region: str = "westeurope"
     azure_speech_voice: str = "en-NG-EzinneNeural"  # Adanna
     azure_speech_voice_male: str = "en-NG-AbeoNeural"  # Bola
-    rate_speech_device_per_min: int = 40
-    rate_speech_ip_per_min: int = 120
+    rate_speech_device_per_min: int = 120  # phrases are fetched ahead of time, so this must be roomy
+    rate_speech_ip_per_min: int = 300
 
     # VoiceVerse translation API for Hausa, Yoruba, Igbo and Ibibio. Empty = those languages fall back to English.
     voiceverse_url: str | None = None

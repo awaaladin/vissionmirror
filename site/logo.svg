@@ -1,13 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="VisionMirror">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="VisionMirror">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F5D9A0"/><stop offset="1" stop-color="#E0A458"/>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="260" y1="120" x2="800" y2="880">
+      <stop offset="0" stop-color="#F8CF5A"/><stop offset=".5" stop-color="#E0A030"/><stop offset="1" stop-color="#AE5C0E"/>
     </linearGradient>
   </defs>
-  <path d="M54,24 C67.8,24 79,37.6 79,54 C79,70.4 67.8,84 54,84 C40.2,84 29,70.4 29,54 C29,37.6 40.2,24 54,24 z" fill="#E0A458" fill-opacity=".15"/>
-  <path d="M54,27 C65.6,27 75,39.1 75,54 C75,68.9 65.6,81 54,81 C42.4,81 33,68.9 33,54 C33,39.1 42.4,27 54,27 z" fill="url(#g)"/>
-  <path d="M43,45 C43.6,39.4 47.2,35.4 52.4,33.8" fill="none" stroke="#FFF6E2" stroke-opacity=".8" stroke-width="2.4" stroke-linecap="round"/>
-  <path d="M50.1,48.9 A8,8 0 0 1 50.1,59.1" fill="none" stroke="#0C0D10" stroke-width="3" stroke-linecap="round"/>
-  <path d="M54.3,45.3 A13.5,13.5 0 0 1 54.3,62.7" fill="none" stroke="#F2A8B8" stroke-width="3.2" stroke-linecap="round"/>
-  <path d="M58.6,41.8 A19,19 0 0 1 58.6,66.2" fill="none" stroke="#0C0D10" stroke-width="3.2" stroke-linecap="round"/>
+  <g fill="none" stroke="url(#g)" stroke-linecap="round" stroke-linejoin="round">
+    <!-- the mirror: a standing oval, open on the side the voice comes from -->
+    <path d="M603 251 A181 305 0 1 0 603 659" stroke-width="42"/>
+    <path d="M469 760 V826" stroke-width="40"/>
+    <path d="M372 850 H566" stroke-width="38"/>
+    <!-- the eye -->
+    <path d="M392 468 C428 412 492 388 560 394" stroke-width="30"/>
+    <path d="M392 468 C428 524 492 548 560 542" stroke-width="30"/>
+    <!-- the voice -->
+    <path d="M596 382 C642 422 642 516 596 556" stroke-width="28"/>
+    <path d="M659 340 C737 402 737 536 659 598" stroke-width="28"/>
+    <path d="M716 288 C806 382 806 556 716 640" stroke-width="28"/>
+  </g>
+  <circle cx="535" cy="468" r="44" fill="url(#g)"/>
 </svg>

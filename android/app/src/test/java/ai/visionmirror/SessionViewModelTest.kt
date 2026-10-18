@@ -222,12 +222,18 @@ class SessionViewModelTest {
     @Test fun silenceWhileAskingGivesAGentleRetryPrompt() = runTest(dispatcher) {
         repo.describeResults += Result.success(described())
         val vm = vm()
+        vm.clock = { testScheduler.currentTime }
         vm.submitPhoto(byteArrayOf(1), null)
         advanceUntilIdle()
 
+        // She gets the whole listening window first; only then the gentle prompt.
         vm.startAsking()
-        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
-        advanceUntilIdle()
+        repeat(40) {
+            if (!speaker.spoken.last().contains("didn't catch")) {
+                voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
+                advanceTimeBy(500)
+            }
+        }
         assertEquals(AskPhase.Idle, vm.state.value.ask)
         assertTrue(speaker.spoken.last().contains("didn't catch"))
     }
@@ -498,7 +504,7 @@ class SessionViewModelTest {
         assertEquals("Abuja.", speaker.spoken.last())
     }
 
-    @Test fun adannaKeepsListeningForEightSecondsBeforeSayingSheCouldNotHear() = runTest(dispatcher) {
+    @Test fun adannaKeepsListeningForSixSecondsBeforeSayingSheCouldNotHear() = runTest(dispatcher) {
         val vm = vm()
         vm.clock = { testScheduler.currentTime }
         runCurrent()
@@ -516,7 +522,7 @@ class SessionViewModelTest {
             }
         }
         assertTrue(said)
-        assertTrue("waited long enough", testScheduler.currentTime - opened >= 7_500)
+        assertTrue("waited long enough", testScheduler.currentTime - opened >= 5_500)
         assertTrue(voice.starts > 5)
     }
 
@@ -760,5 +766,39 @@ class SessionViewModelTest {
         wake.wake("call 112")
         advanceUntilIdle()
         assertEquals(listOf("112"), phone.dialled)
+    }
+
+    @Test fun tappingAskAlsoGivesHerTimeBeforeSayingItDidNotCatchThat() = runTest(dispatcher) {
+        repo.describeResults += Result.success(described(session = "s1"))
+        val vm = vm()
+        vm.clock = { testScheduler.currentTime }
+        vm.submitPhoto(byteArrayOf(1), null)
+        advanceUntilIdle()
+        vm.startAsking()
+        val opened = testScheduler.currentTime
+        var said = false
+        repeat(40) {
+            if (!said) {
+                voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.NoSpeech))
+                advanceTimeBy(500)
+                said = speaker.spoken.last().contains("didn't catch")
+            }
+        }
+        assertTrue(said)
+        assertTrue(testScheduler.currentTime - opened >= 5_500)
+    }
+
+    @Test fun aStumblingRecogniserIsRetriedInsteadOfBlamingHer() = runTest(dispatcher) {
+        val vm = vm()
+        vm.clock = { testScheduler.currentTime }
+        runCurrent()
+        wake.wake()
+        advanceUntilIdle()
+        val starts = voice.starts
+        // "Busy" or an unknown error is not "I can't hear you": try again quietly first.
+        voice.emit(VoiceEvent.Failed(ai.visionmirror.audio.VoiceFailure.Busy))
+        advanceTimeBy(500)
+        assertEquals(starts + 1, voice.starts)
+        assertFalse(speaker.spoken.last().contains("couldn't hear"))
     }
 }

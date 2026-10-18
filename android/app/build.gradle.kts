@@ -34,8 +34,8 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.9.0"
+        versionCode = 14
+        versionName = "0.9.1"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         // Real phones only. The x86 libraries are for emulators and added 64 MB, past the download host's 100 MB file limit.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }

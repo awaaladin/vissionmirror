@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -89,7 +90,6 @@ class SpeechManager @Inject constructor(
     private enum class Mode { Waiting, Fetching, Cloud, Local }
 
     private companion object {
-        const val URGENT_TIMEOUT_MS = 1_500L
         const val CACHE_MAX_CHARS = 160
     }
 
@@ -141,7 +141,20 @@ class SpeechManager @Inject constructor(
 
     /** The language of what is being said ("ha", "yo", "ig", "en"). Lock held. */
     private fun spokenLanguage() = locales.firstOrNull()?.language ?: "en"
-    private fun cacheKey(text: String, speed: Float) = "${persona.name}|${spokenLanguage()}|${(speed * 20).toInt()}|$text"
+    private fun cacheKey(text: String, speed: Float, male: Boolean, language: String) =
+        "${if (male) "bola" else "adanna"}|$language|${(speed * 20).toInt()}|$text"
+
+    // The same sentences are said all day ("Listening.", "I didn't catch that..."). They are also kept on disk, so after
+    // the first time they are instant, in the right voice, even right after the app starts or while the network is slow.
+    private val phraseDir by lazy { File(context.cacheDir, "phrases").also { it.mkdirs() } }
+
+    private fun fileFor(key: String): File =
+        File(phraseDir, java.security.MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) } + ".mp3")
+
+    private fun readDisk(key: String): ByteArray? =
+        runCatching { fileFor(key).takeIf { it.exists() && it.length() > 0 }?.readBytes() }.getOrNull()
+
+    private fun writeDisk(key: String, bytes: ByteArray) { runCatching { fileFor(key).writeBytes(bytes) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -263,11 +276,19 @@ class SpeechManager @Inject constructor(
         val (male, speed) = synchronized(lock) { if (!cloudEnabled) return; persona.male to rate }
         val language = synchronized(lock) { spokenLanguage() }
         scope.launch {
+            var misses = 0
             for (p in phrases) {
-                val key = synchronized(lock) { cacheKey(p, speed) }
-                if (synchronized(lock) { phraseCache.containsKey(key) }) continue
-                val bytes = cloud.synthesize(p, speed, male, null, language) ?: return@launch // offline: stop, try again next time
+                val key = cacheKey(p, speed, male, language)
+                if (synchronized(lock) { phraseCache.containsKey(key) } || readDisk(key) != null) continue
+                val bytes = cloud.synthesize(p, speed, male, null, language)
+                if (bytes == null) {
+                    if (++misses >= 3) return@launch // offline: stop, try again next time
+                    delay(1_500)
+                    continue
+                }
+                misses = 0
                 synchronized(lock) { phraseCache[key] = bytes }
+                writeDisk(key, bytes)
             }
         }
     }
@@ -356,11 +377,15 @@ class SpeechManager @Inject constructor(
         val speed = rate
         val language = spokenLanguage()
         item.fetch = scope.launch {
-            val key = cacheKey(spoken, speed)
+            val male = persona.male
+            val key = cacheKey(spoken, speed, male, language)
             val cached = synchronized(lock) { phraseCache[key] }
-            // Urgent phrases give the cloud only a moment; if it is slow the phone speaks instead of leaving her waiting.
-            val bytes = cached ?: cloud.synthesize(spoken, speed, persona.male, if (item.local) URGENT_TIMEOUT_MS else null, language)
-                ?.also { if (spoken.length <= CACHE_MAX_CHARS) synchronized(lock) { phraseCache[key] = it } }
+                ?: readDisk(key)?.also { synchronized(lock) { phraseCache[key] = it } }
+            // Wait for the proper voice rather than blurt a sentence in a different one: Bola must be Bola in everything.
+            // The phone's own voice is only the fallback when the cloud voice cannot be reached at all.
+            val bytes = cached ?: cloud.synthesize(spoken, speed, male, null, language)?.also {
+                if (spoken.length <= CACHE_MAX_CHARS) { synchronized(lock) { phraseCache[key] = it }; writeDisk(key, it) }
+            }
             val file = bytes?.let { runCatching { File.createTempFile("voice", ".mp3", context.cacheDir).apply { writeBytes(it) } }.getOrNull() }
             main.post { synchronized(lock) { onFetched(item, file) } }
         }

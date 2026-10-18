@@ -21,7 +21,10 @@ data class AuthUi(
     val name: String = "",
     val email: String = "",
     val password: String = "",
+    val confirm: String = "",
     val showPassword: Boolean = false,
+    /** She has pressed the button at least once, so mistakes are now shown beside their fields. */
+    val submitted: Boolean = false,
     val busy: Boolean = false,
     /** A sentence that is both shown and spoken. */
     val error: String? = null,
@@ -46,30 +49,31 @@ class AuthViewModel @Inject constructor(
         )
     }
 
-    fun setMode(mode: AuthMode) = _ui.update { it.copy(mode = mode, error = null) }
+    fun setMode(mode: AuthMode) = _ui.update { it.copy(mode = mode, error = null, submitted = false, confirm = "") }
     fun setName(v: String) = _ui.update { it.copy(name = v) }
     fun setEmail(v: String) = _ui.update { it.copy(email = v, error = null) }
     fun setPassword(v: String) = _ui.update { it.copy(password = v, error = null) }
+    fun setConfirm(v: String) = _ui.update { it.copy(confirm = v, error = null) }
     fun toggleShowPassword() = _ui.update { it.copy(showPassword = !it.showPassword) }
 
     fun submit() {
         val s = _ui.value
         if (s.busy) return
-        when {
-            s.email.isBlank() -> return fail("Please type your email address.")
-            s.password.isEmpty() -> return fail("Please type your password.")
-        }
+        // Mistakes are explained at once, next to the field, without a round trip to the server.
+        val problems = AuthValidation.check(s.mode, s.email, s.password, s.confirm)
+        _ui.update { it.copy(submitted = true) }
+        problems.first?.let { return fail(it) }
         _ui.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
             val result = if (s.mode == AuthMode.SignIn) {
-                accounts.login(s.email, s.password)
+                accounts.login(s.email.trim(), s.password)
             } else {
-                accounts.register(s.email, s.password, s.name)
+                accounts.register(s.email.trim(), s.password, s.name)
             }
             result
                 .onSuccess {
                     speaker.say(if (s.mode == AuthMode.SignIn) "Signed in. Welcome back." else "Your account is ready. Welcome.", Priority.Interrupt)
-                    _ui.update { it.copy(busy = false, password = "", done = true) }
+                    _ui.update { it.copy(busy = false, password = "", confirm = "", done = true) }
                 }
                 .onFailure { e ->
                     _ui.update { it.copy(busy = false) }

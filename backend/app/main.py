@@ -17,7 +17,7 @@ from app.core.rate_limit import DailyCap, LoginThrottle, RateLimiter
 from app.services.assist_service import AssistService
 from app.services.describe_service import DescribeService
 from app.services.session_store import SessionStore
-from app.services.speech_service import AzureSpeech, NoSpeech, SpeechSynthesizer
+from app.services.speech_service import AzureSpeech, NoSpeech, RoutingSpeech, SpeechSynthesizer, VoiceVerseSpeech
 from app.services.translation_service import NoTranslator, Translator, VoiceVerseTranslator
 from app.services.user_store import AccountsUnavailable, NoUserStore, PostgresUserStore, UserStore
 
@@ -99,14 +99,22 @@ def create_app(
     app.state.limiter = RateLimiter(redis, settings.secret_key)
     app.state.store = SessionStore(redis, settings.session_ttl_seconds)
     app.state.cap = DailyCap(redis, settings.daily_ai_call_limit)
-    app.state.speech = speech_service or (
-        AzureSpeech(
-            settings.azure_speech_key, settings.azure_speech_region, settings.azure_speech_voice,
-            settings.azure_speech_voice_male,
+    if speech_service is None:
+        local = (
+            AzureSpeech(
+                settings.azure_speech_key, settings.azure_speech_region, settings.azure_speech_voice,
+                settings.azure_speech_voice_male,
+            )
+            if settings.azure_speech_key
+            else NoSpeech()
         )
-        if settings.azure_speech_key
-        else NoSpeech()
-    )
+        # Hausa, Yoruba and Igbo are pronounced by the VoiceVerse API, so VisionMirror carries no rules for them.
+        speech_service = (
+            RoutingSpeech(local, VoiceVerseSpeech(settings.voiceverse_url, settings.voiceverse_api_key, settings.voiceverse_timeout_seconds))
+            if settings.voiceverse_url and settings.voiceverse_api_key
+            else local
+        )
+    app.state.speech = speech_service
     app.state.service = DescribeService(provider, app.state.store, app.state.cap, translator)
     app.state.assist = assist_service or AssistService(provider, app.state.cap, translator)
     app.add_exception_handler(APIError, api_error_handler)

@@ -376,6 +376,8 @@ class SessionViewModel @Inject constructor(
         }
         speaker.stop()
         listenMode = ListenMode.Question
+        assistantAttempts = 0
+        assistantStartedAt = clock()
         _state.update { it.copy(ask = AskPhase.Listening, partialQuestion = "", banner = null) }
         earcons.play(Earcon.ListeningOn)
         haptics.click()
@@ -459,17 +461,19 @@ class SessionViewModel @Inject constructor(
         val mode = if (listenMode == ListenMode.None && assistantTurn) ListenMode.Assistant else listenMode
         listenMode = ListenMode.None
         _micLevel.value = 0f
-        // She said nothing yet (or the recogniser lost it). Quietly listen again instead of giving up straight away.
-        if (mode == ListenMode.Assistant && reason == VoiceFailure.NoSpeech && assistantAttempts < ASSISTANT_RETRIES &&
-            clock() - assistantStartedAt < ASSISTANT_PATIENCE_MS
+        // She said nothing yet (or the recogniser stumbled). Quietly listen again instead of giving up straight away, in every
+        // listening mode: the phone's recogniser often gives up within a second, and "I can't hear you" must only come after
+        // she has really had time to speak.
+        val worthAnotherTry = reason == VoiceFailure.NoSpeech || reason == VoiceFailure.Busy ||
+            reason == VoiceFailure.Other || reason == VoiceFailure.Network
+        if ((mode == ListenMode.Assistant || mode == ListenMode.Question) && worthAnotherTry &&
+            assistantAttempts < ASSISTANT_RETRIES && clock() - assistantStartedAt < ASSISTANT_PATIENCE_MS
         ) {
             assistantAttempts++
-            listenMode = ListenMode.Assistant
-            // The recogniser often gives up within a second. Keep the microphone open for the whole window, with a
-            // short breath between tries, so she always has time to start speaking.
+            listenMode = mode
             viewModelScope.launch {
                 delay(ASSISTANT_RETRY_GAP_MS)
-                if (listenMode == ListenMode.Assistant) voice.start(language.recognitionTag())
+                if (listenMode == mode) voice.start(language.recognitionTag())
             }
             return
         }
@@ -946,7 +950,7 @@ class SessionViewModel @Inject constructor(
         const val HANDS_FREE_QUIET_CYCLES = 3
         val HANDS_FREE_SCREENS = setOf("home", "result", "settings")
         /** Keep listening this long, in up to this many quiet restarts, before saying she was not heard. */
-        const val ASSISTANT_PATIENCE_MS = 8_000L
+        const val ASSISTANT_PATIENCE_MS = 6_000L
         const val ASSISTANT_RETRIES = 40
         const val ASSISTANT_RETRY_GAP_MS = 350L
         const val MAX_NETWORK_RETRIES = 4

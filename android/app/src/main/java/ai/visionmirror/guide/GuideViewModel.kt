@@ -9,6 +9,7 @@ import ai.visionmirror.haptics.Haptics
 import ai.visionmirror.haptics.proximityIntervalMs
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,6 +53,7 @@ class GuideViewModel @Inject constructor(
     @Volatile private var failed = false
     @Volatile private var startAt = 0L
     private var lastHaptic = 0L
+    private var detectFailures = 0
 
     init {
         viewModelScope.launch {
@@ -107,14 +109,25 @@ class GuideViewModel @Inject constructor(
     /** Called from the camera thread for each picture. */
     fun onFrame(picture: Bitmap) {
         if (!active || paused || failed || System.currentTimeMillis() < startAt) return
-        val s = sensor ?: runCatching { ObjectSensor(context) }.getOrNull()?.also { sensor = it }
+        val created = if (sensor == null) runCatching { ObjectSensor(context) } else null
+        val s = sensor ?: created?.getOrNull()?.also { sensor = it }
         if (s == null) {
             failed = true
-            _state.update { it.copy(problem = "Guide mode is not available on this phone.", caption = "Guide mode is not available on this phone.") }
-            speaker.say("Guide mode is not available on this phone.", Priority.Interrupt)
+            val why = created?.exceptionOrNull()
+            Log.e("VisionMirror", "guide: object detector could not start", why)
+            val detail = why?.let { " (${it.javaClass.simpleName}: ${it.message.orEmpty().take(140)})" }.orEmpty()
+            _state.update { it.copy(problem = "Guide mode is not available.$detail", caption = "Guide mode could not start on this phone.$detail") }
+            speaker.say("Guide mode could not start on this phone.", Priority.Interrupt)
             return
         }
-        val sightings = GuideLogic.sightings(runCatching { s.detect(picture) }.getOrDefault(emptyList()))
+        val detected = runCatching { s.detect(picture) }
+        detected.exceptionOrNull()?.let { why ->
+            Log.e("VisionMirror", "guide: detection failed", why)
+            if (++detectFailures == 3) {
+                _state.update { it.copy(caption = "Detection keeps failing (${why.javaClass.simpleName}: ${why.message.orEmpty().take(120)})") }
+            }
+        } ?: run { detectFailures = 0 }
+        val sightings = GuideLogic.sightings(detected.getOrDefault(emptyList()))
         buzz(sightings)
         val spoken = announcer.next(sightings) ?: return
         _state.update { it.copy(caption = spoken.text) }
