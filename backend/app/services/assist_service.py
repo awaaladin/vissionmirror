@@ -111,13 +111,15 @@ class AssistService:
         self.translator = translator or NoTranslator()
         self.client = client or httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0))
 
-    async def handle(self, *, query: str, language: str, here: Where | None) -> tuple[str, str]:
+    async def handle(
+        self, *, query: str, language: str, here: Where | None, assistant: str = "Adanna"
+    ) -> tuple[str, str]:
         """Returns (kind, spoken text). Never raises for a failed lookup: the text says so."""
         target = translation_target(language)
         if is_weather(query):
             kind, text = "weather", await self._weather(query, here)
         else:
-            kind, text = "answer", await self._answer(query, "en" if target else language)
+            kind, text = "answer", await self._answer(query, "en" if target else language, assistant)
         if target:
             out = await self.translator.translate(text, target)
             text = out if out is not None else f"{FALLBACK_NOTICE} {text}"
@@ -158,11 +160,11 @@ class AssistService:
 
     # ---- questions -----------------------------------------------------------------------
 
-    async def _answer(self, query: str, language: str) -> str:
+    async def _answer(self, query: str, language: str, assistant: str = "Adanna") -> str:
         await self.cap.reserve()
         try:
             context = await self._wikipedia(query)
-            return await self.provider.answer(question=query, context=context, language=language)
+            return await self.provider.answer(question=query, context=context, language=language, assistant=assistant)
         except Exception:
             await self.cap.release()
             raise

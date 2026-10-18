@@ -40,13 +40,13 @@ class DescribeService:
 
     async def describe(
         self, *, device_id: str, image: bytes, media_type: str, detail_level: DetailLevel, language: str,
-        mode: str = "mirror",
+        mode: str = "mirror", assistant: str = "Adanna",
     ) -> DescribeResponse:
         target = translation_target(language)
         analysis = await self._with_cap(
             lambda: self.provider.describe(
                 image=image, media_type=media_type, detail_level=detail_level,
-                language="en" if target else language, mode=mode,
+                language="en" if target else language, mode=mode, assistant=assistant,
             )
         )
         session_id: uuid.UUID | None = None
@@ -79,6 +79,7 @@ class DescribeService:
                 history=session.history,
                 question=req.question,
                 language="en" if target else req.language,
+                assistant=req.assistant,
             )
         )
         await self.store.append_turns(

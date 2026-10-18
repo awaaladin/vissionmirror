@@ -22,10 +22,11 @@ class ProviderError(APIError):
 class VisionProvider(ABC):
     @abstractmethod
     async def describe(
-        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror"
+        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror",
+        assistant: str = "Adanna",
     ) -> DescribeAnalysis: ...
 
-    async def answer(self, *, question: str, context: str, language: str) -> str:
+    async def answer(self, *, question: str, context: str, language: str, assistant: str = "Adanna") -> str:
         """A short spoken answer to a general question (no photo). [context] is optional source text."""
         return "I can't look that up right now."
 
@@ -39,6 +40,7 @@ class VisionProvider(ABC):
         history: list[Turn],
         question: str,
         language: str,
+        assistant: str = "Adanna",
     ) -> AskResponse: ...
 
 

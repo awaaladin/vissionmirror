@@ -19,5 +19,5 @@ def _where(request: Request) -> Where | None:
 @router.post("/assist", response_model=AssistResponse)
 async def assist(body: AssistRequest, request: Request, _: None = Depends(limited("ask"))) -> AssistResponse:
     """The weather and general questions, for the voice assistant. Never fails because a lookup did: the text says so."""
-    kind, text = await request.app.state.assist.handle(query=body.query, language=body.language, here=_where(request))
+    kind, text = await request.app.state.assist.handle(query=body.query, language=body.language, here=_where(request), assistant=body.assistant)
     return AssistResponse(kind=kind, spoken_text=text)

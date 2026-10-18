@@ -49,10 +49,11 @@ class StructuredProvider(VisionProvider):
         """Return the model's raw text reply (expected to be JSON for model_cls)."""
 
     async def describe(
-        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror"
+        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror",
+        assistant: str = "Adanna",
     ) -> DescribeAnalysis:
         result = await self._structured(
-            system=prompts.describe_system_prompt(detail_level, language, mode),
+            system=prompts.describe_system_prompt(detail_level, language, mode, assistant),
             messages=[
                 {
                     "role": "user",
@@ -72,6 +73,7 @@ class StructuredProvider(VisionProvider):
         history: list[Turn],
         question: str,
         language: str,
+        assistant: str = "Adanna",
     ) -> AskResponse:
         turns = [*(t.model_dump() for t in history), {"role": "user", "text": question}]
         messages: list[dict] = []
@@ -81,14 +83,14 @@ class StructuredProvider(VisionProvider):
                 parts.insert(0, _image_part(image, media_type))
             messages.append({"role": turn["role"], "parts": parts})
         return await self._structured(
-            system=prompts.ask_system_prompt(analysis, language),
+            system=prompts.ask_system_prompt(analysis, language, assistant),
             messages=messages,
             model_cls=AskResponse,
         )
 
-    async def answer(self, *, question: str, context: str, language: str) -> str:
+    async def answer(self, *, question: str, context: str, language: str, assistant: str = "Adanna") -> str:
         result = await self._structured(
-            system=prompts.answer_system_prompt(language),
+            system=prompts.answer_system_prompt(language, assistant),
             messages=[{"role": "user", "parts": [{"type": "text", "text": prompts.answer_user_text(question, context)}]}],
             model_cls=SpokenAnswer,
         )

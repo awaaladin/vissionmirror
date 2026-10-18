@@ -20,6 +20,7 @@ async def describe(
     detail_level: Annotated[DetailLevel, Form()] = "standard",
     language: Annotated[str, Form(pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$")] = "en",
     mode: Annotated[Literal["mirror", "scene"], Form()] = "mirror",
+    assistant: Annotated[Literal["Adanna", "Bola"], Form()] = "Adanna",
     device_id: str = Depends(current_device),
     _: None = Depends(limited("describe")),
     service: DescribeService = Depends(get_service),
@@ -32,4 +33,5 @@ async def describe(
         detail_level=detail_level,
         language=language,
         mode=mode,
+        assistant=assistant,
     )

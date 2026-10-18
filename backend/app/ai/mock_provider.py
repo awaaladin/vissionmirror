@@ -162,14 +162,14 @@ class MockProvider(VisionProvider):
             return self.scenario
         return SCENARIOS[hashlib.sha256(image).digest()[0] % len(SCENARIOS)]
 
-    async def describe(self, *, image, media_type, detail_level, language, mode="mirror") -> DescribeAnalysis:
+    async def describe(self, *, image, media_type, detail_level, language, mode="mirror", assistant="Adanna") -> DescribeAnalysis:
         if mode == "scene":
             return _scene()
         name = self._pick(image)
         return _dark() if name == "dark" else _BUILDERS[name](detail_level)
 
     async def ask(
-        self, *, image, media_type, analysis, history: list[Turn], question, language
+        self, *, image, media_type, analysis, history: list[Turn], question, language, assistant="Adanna"
     ) -> AskResponse:
         q = question.lower()
         if any(w in q for w in _JUDGING_WORDS):
@@ -202,7 +202,7 @@ def _scene() -> DescribeAnalysis:
     )
 
 
-async def _mock_answer(self, *, question, context, language) -> str:
+async def _mock_answer(self, *, question, context, language, assistant="Adanna") -> str:
     return "Lagos is the largest city in Nigeria." if "lagos" in question.lower() else "I am not sure about that."
 
 

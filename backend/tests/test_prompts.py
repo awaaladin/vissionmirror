@@ -129,3 +129,18 @@ def test_scene_mode_prompt_is_about_surroundings_and_keeps_safety():
     assert "Adanna" in p and "Hazards first" in p and "Do not identify real people" in p
     assert "talking mirror" not in p
     assert "talking mirror" in prompts.describe_system_prompt("standard", "en")
+
+
+def test_bola_is_bola_in_every_prompt():
+    from app.schemas.describe import DescribeAnalysis  # noqa: F401  (import check only)
+
+    for text in (
+        prompts.describe_system_prompt("standard", "en-NG", "mirror", "Bola"),
+        prompts.describe_system_prompt("standard", "en-NG", "scene", "Bola"),
+        prompts.answer_system_prompt("en-NG", "Bola"),
+    ):
+        assert "You are Bola" in text and "Your name is Bola" in text
+        assert "You are Adanna" not in text
+        assert "refer to yourself as Bola" in text
+    default = prompts.describe_system_prompt("standard", "en")
+    assert "You are Adanna" in default and "Your name is Adanna" in default

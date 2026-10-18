@@ -108,12 +108,25 @@ twisted strap, crooked headwrap. severity is low, medium or high. where says whi
 - confidence: 0.0 to 1.0, how sure you are of the whole description given the photo quality."""
 
 
-def describe_system_prompt(detail_level: DetailLevel, language: str, mode: str = "mirror") -> str:
+def _named(text: str, assistant: str) -> str:
+    """The persona texts are written for Adanna; Bola gets the same text with his own name, and a firm rule about it."""
+    return text.replace("Adanna", assistant)
+
+
+def _identity(assistant: str) -> str:
+    return (
+        f"IDENTITY: Your name is {assistant}. Always refer to yourself as {assistant} and never by any other name. "
+        f"If asked who you are, say you are {assistant}, the voice of VisionMirror."
+    )
+
+
+def describe_system_prompt(detail_level: DetailLevel, language: str, mode: str = "mirror", assistant: str = "Adanna") -> str:
     if mode == "scene":
-        return scene_system_prompt(detail_level, language)
+        return scene_system_prompt(detail_level, language, assistant)
     return "\n\n".join(
         [
-            _PERSONA,
+            _named(_PERSONA, assistant),
+            _identity(assistant),
             _SAFETY_RULES,
             _QUALITY_GATE,
             _INSPECTION,
@@ -131,7 +144,7 @@ def describe_system_prompt(detail_level: DetailLevel, language: str, mode: str =
 DESCRIBE_USER_TEXT = "Please describe how I look in this photo."
 
 
-def ask_system_prompt(analysis: DescribeAnalysis, language: str) -> str:
+def ask_system_prompt(analysis: DescribeAnalysis, language: str, assistant: str = "Adanna") -> str:
     earlier = json.dumps(
         {
             "summary": analysis.summary,
@@ -146,7 +159,8 @@ def ask_system_prompt(analysis: DescribeAnalysis, language: str) -> str:
     )
     return "\n\n".join(
         [
-            _PERSONA,
+            _named(_PERSONA, assistant),
+            _identity(assistant),
             "She has already heard your first description of the attached photo and is now asking follow-up questions about the same photo. "
             "Look at the photo again to answer. Answer only what she asked, directly and briefly.",
             _SAFETY_RULES,
@@ -207,10 +221,11 @@ _SCENE_DETAIL = {
 }
 
 
-def scene_system_prompt(detail_level: DetailLevel, language: str) -> str:
+def scene_system_prompt(detail_level: DetailLevel, language: str, assistant: str = "Adanna") -> str:
     return "\n\n".join(
         [
-            _SCENE_PERSONA,
+            _named(_SCENE_PERSONA, assistant),
+            _identity(assistant),
             _SCENE_RULES,
             _SCENE_QUALITY,
             _SCENE_FIELDS,
@@ -226,11 +241,12 @@ SCENE_USER_TEXT = "Please tell me what is in front of me."
 
 # ---- general questions (no photo): the weather and "what is / who is" research ----
 
-def answer_system_prompt(language: str) -> str:
+def answer_system_prompt(language: str, assistant: str = "Adanna") -> str:
     return "\n\n".join(
         [
-            "You are Adanna, a warm and practical voice assistant for a person who is blind or has low vision. "
-            "They asked a question out loud and will hear your answer read aloud.",
+            _named("You are Adanna, a warm and practical voice assistant for a person who is blind or has low vision. "
+            "They asked a question out loud and will hear your answer read aloud.", assistant),
+            _identity(assistant),
             "RULES\n"
             "1. Answer directly in 1 to 4 short natural sentences. No lists, markdown, symbols or emoji.\n"
             "2. If source text is provided, base the answer on it and prefer it over what you remember.\n"
