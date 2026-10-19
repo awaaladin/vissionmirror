@@ -255,6 +255,7 @@ class WakeWordListener @Inject constructor(
 
     @Volatile private var wakeOn = true
     @Volatile private var bargeOn = true
+    @Volatile private var quietOn = false
     @Volatile private var name = Persona.Adanna
 
     // Starts strict (offline, Nigerian English) and relaxes if the phone cannot do that.
@@ -265,6 +266,7 @@ class WakeWordListener @Inject constructor(
     private var language: String? = "en-NG"
 
     init {
+        scope.launch { settings.settings.map { it.quietListening }.distinctUntilChanged().collect { quietOn = it } }
         scope.launch { settings.settings.map { it.nameAliases }.distinctUntilChanged().collect { WakeWord.setLearned(it) } }
         scope.launch {
             combine(
@@ -310,7 +312,8 @@ class WakeWordListener @Inject constructor(
             if (failures >= 2 && offlineEars.ready.value) offlineUntil = SystemClock.elapsedRealtime() + OFFLINE_TRUST_MS
             // While she is talking only stop words matter, and the phone's recogniser is weakest then (it also hears her),
             // so the engine inside the app listens, with echo cancellation, for just those words.
-            val offline = offlineEars.ready.value && (!googleOk || talking() || SystemClock.elapsedRealtime() < offlineUntil)
+            // Asleep, the phone's recogniser would beep each time it restarts, all night: the engine inside the app listens quietly instead.
+            val offline = offlineEars.ready.value && (!googleOk || talking() || _asleep.value || quietOn || SystemClock.elapsedRealtime() < offlineUntil)
             if (!googleOk && !offline) {
                 _hearing.value = Hearing(status = if (offlineEars.ready.value) "" else "Getting my offline hearing ready. One moment.")
                 delay(2_000)

@@ -185,6 +185,8 @@ object VoiceSettings {
         "wake.on" -> set("I'll listen for my name.") { it.copy(wakeWord = true) }
         "wake.off" -> set("I won't listen for my name.") { it.copy(wakeWord = false) }
         "commands.on" -> set("Voice commands are on.") { it.copy(voiceCommands = true) }
+        "quiet.on" -> set("Quiet listening is on. No more beeps, but I may mishear my name a little more.") { it.copy(quietListening = true) }
+        "quiet.off" -> set("Normal listening. It may beep, but I hear you better.") { it.copy(quietListening = false) }
         "commands.off" -> set("Voice commands are off.") { it.copy(voiceCommands = false) }
         "barge.on" -> set("I'll stop when you say stop.") { it.copy(bargeIn = true) }
         "barge.off" -> set("I won't stop when you speak.") { it.copy(bargeIn = false) }

@@ -208,6 +208,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setWakeWord(on: Boolean) {
         update { it.copy(wakeWord = on) }
+    }
+
+    fun setQuietListening(on: Boolean) {
+        update { it.copy(quietListening = on) }
         speech.say(if (on) "I'll listen for my name." else "I won't listen for my name.", Priority.Interrupt)
     }
 

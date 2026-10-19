@@ -67,6 +67,20 @@ Works while I am talking. On the camera screens, stopping also pauses and listen
 
 All 33 ways: stop, quiet, enough, silence, hush, cancel, pause, wait, hold on, hang on, shut up, be quiet, stop talking, stop speaking, that is enough, thats enough, okay stop, ok stop, stop it, stop now, please stop, enough now, stop reading, stop describing, cut it, zip it, silence please, quiet please, hush please, stop right there, alright stop, all right stop, thanks stop.
 
+### Stop the listening beeps
+
+Say, for example: “Stop the beeping”; “Quiet listening”; “Listen without beeping”.
+
+I listen for my name with the engine inside the app: silent, but it may mishear my name a little more.
+
+All 37 ways: stop beeping, stop the beeping, stop the beep, no beeping, no beep, no beeps, quiet listening, listen quietly, silent listening, listen without beeping, dont beep, do not beep, stop the sound when listening, turn off the listening sound, no listening sound, stop the listening beep, stop the listening beeps, mute the beep, mute the beeps, beep off, beeping off, quiet listening on, turn on quiet listening, enable quiet listening, use quiet listening, listen without sound, listen silently, i hate the beeping, the beeping is annoying, the beep is annoying, stop that beeping, stop that beep, stop the dinging, no dinging, stop the ding, stop the clicking sound, silence the beep.
+
+### Normal listening (more exact)
+
+Say, for example: “Normal listening”; “More accurate listening”.
+
+All 20 ways: normal listening, listen normally, beep on, beeping on, allow beeping, allow the beep, turn off quiet listening, disable quiet listening, quiet listening off, more accurate listening, accurate listening, better listening, listen carefully, listen properly, use the phones listening, use the phone to listen, use your normal listening, go back to normal listening, bring back the beep, bring back the beeping.
+
 ### Sleep (stay quiet until I call you)
 
 Say, for example: “Sleep”; “Adanna, sleep”; “Go to sleep”; “Be quiet until I call you”.

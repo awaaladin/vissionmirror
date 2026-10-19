@@ -518,6 +518,19 @@ who should i set as my emergency contact|let me set my emergency contact|open em
     note="I open the Emergency contact page and ask for the name. Say it, or spell it letter by letter. Then say the number digit by digit, and say “save”. You can correct any step by saying “no” or “spell it”.")
 
 
+# ---- the beep the phone's recogniser makes each time it starts listening ----
+cmd("quiet.on", "wake", "Stop the listening beeps", "", """stop beeping|stop the beeping|stop the beep|no beeping|no beep|no beeps|quiet listening|listen quietly|silent listening|
+listen without beeping|dont beep|do not beep|stop the sound when listening|turn off the listening sound|no listening sound|
+stop the listening beep|stop the listening beeps|mute the beep|mute the beeps|beep off|beeping off|quiet listening on|turn on quiet listening|
+enable quiet listening|use quiet listening|listen without sound|listen silently|i hate the beeping|the beeping is annoying|the beep is annoying|
+stop that beeping|stop that beep|stop the dinging|no dinging|stop the ding|stop the clicking sound|silence the beep""",
+    examples=["Stop the beeping", "Quiet listening", "Listen without beeping"],
+    note="I listen for my name with the engine inside the app: silent, but it may mishear my name a little more.")
+cmd("quiet.off", "wake", "Normal listening (more exact)", "", """normal listening|listen normally|beep on|beeping on|allow beeping|allow the beep|turn off quiet listening|disable quiet listening|
+quiet listening off|more accurate listening|accurate listening|better listening|listen carefully|listen properly|use the phones listening|
+use the phone to listen|use your normal listening|go back to normal listening|bring back the beep|bring back the beeping""",
+    examples=["Normal listening", "More accurate listening"])
+
 # ---- sleep: stops responding until she is called by name ----
 cmd("wake.sleep", "wake", "Sleep (stay quiet until I call you)", "", """sleep|go to sleep|sleep mode|sleep now|adanna sleep|bola sleep|go to sleep adanna|go to sleep bola|goodnight|good night|take a nap|
 rest|rest now|have a rest|be quiet until i call you|stay quiet until i call you|quiet until i call you|stop listening until i call you|

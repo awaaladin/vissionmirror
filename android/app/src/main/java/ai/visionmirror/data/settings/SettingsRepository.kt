@@ -37,6 +37,8 @@ data class Settings(
     val cloudVoice: Boolean = true,
     /** Listen for "Adanna" while the app is open. */
     val wakeWord: Boolean = true,
+    /** Listen for the name with the engine inside the app: no beep each time the phone's recogniser restarts, a little less exact. */
+    val quietListening: Boolean = false,
     /** Screen brightness while the app is open, 0.05..1. Negative = follow the phone. */
     val brightness: Float = -1f,
     /** Say "stop" (or her name) while she is talking and she stops. */
@@ -82,6 +84,7 @@ class DataStoreSettings @Inject constructor(
         val language = stringPreferencesKey("language")
         val cloudVoice = booleanPreferencesKey("cloud_voice")
         val wakeWord = booleanPreferencesKey("wake_word")
+        val quietListening = booleanPreferencesKey("quiet_listening")
         val brightness = floatPreferencesKey("brightness")
         val bargeIn = booleanPreferencesKey("barge_in")
         val persona = stringPreferencesKey("persona")
@@ -108,6 +111,7 @@ class DataStoreSettings @Inject constructor(
             voiceName = this[Keys.voiceName],
             cloudVoice = this[Keys.cloudVoice] ?: d.cloudVoice,
             wakeWord = this[Keys.wakeWord] ?: d.wakeWord,
+            quietListening = this[Keys.quietListening] ?: d.quietListening,
             brightness = this[Keys.brightness] ?: d.brightness,
             bargeIn = this[Keys.bargeIn] ?: d.bargeIn,
             persona = Persona.from(this[Keys.persona]),
@@ -143,6 +147,7 @@ class DataStoreSettings @Inject constructor(
             p[Keys.language] = s.language.apiTag
             p[Keys.cloudVoice] = s.cloudVoice
             p[Keys.wakeWord] = s.wakeWord
+            p[Keys.quietListening] = s.quietListening
             p[Keys.brightness] = s.brightness
             p[Keys.bargeIn] = s.bargeIn
             p[Keys.persona] = s.persona.name

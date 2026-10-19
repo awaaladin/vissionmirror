@@ -242,6 +242,12 @@ fun SettingsScreen(
                     description = "While the app is open, I listen for “Adanna” or “special request”. I stop listening when you leave the app. Your phone's speech service hears the audio.",
                 )
                 SettingToggleRow(
+                    "Quiet listening (no beeps)",
+                    s.quietListening,
+                    viewModel::setQuietListening,
+                    description = "Some phones beep every time they start listening for my name. This listens with the engine inside the app instead: silent, but it may mishear my name a little more. Use Teach me your voice to help.",
+                )
+                SettingToggleRow(
                     "Natural Nigerian voice",
                     s.cloudVoice,
                     viewModel::setCloudVoice,
