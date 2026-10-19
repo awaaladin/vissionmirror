@@ -60,6 +60,8 @@ class GuideViewModel @Inject constructor(
     @Volatile private var lastFrame: Bitmap? = null
     private var sceneJob: kotlinx.coroutines.Job? = null
     private var describing = false
+    private var lastLookLuma: IntArray? = null
+    private var lastLookAt = 0L
     private val sensors = GuideSensors(context)
     @Volatile private var frames = 0
     @Volatile private var lastSpokeAt = 0L
@@ -99,8 +101,24 @@ class GuideViewModel @Inject constructor(
         sceneJob = viewModelScope.launch {
             kotlinx.coroutines.delay(INTRO_MS + SCENE_FIRST_MS)
             var looks = 0
+            lastLookLuma = null
+            lastLookAt = 0L
+            // Every ten seconds a picture is taken quietly. It is described when the view is new (or after a minute anyway). If it
+            // cannot be described just now (no internet, slow answer) nothing is said and the next picture is tried: never a complaint.
             while (active && looks < SCENE_MAX_PER_VISIT) {
-                if (!paused && !failed && describeSurroundings(force = false)) looks++
+                val frame = lastFrame
+                if (!paused && !failed && frame != null) {
+                    val luma = runCatching { SceneChange.lumaOf(frame) }.getOrNull()
+                    val now = System.currentTimeMillis()
+                    val changed = if (luma != null && lastLookLuma != null) SceneChange.difference(luma, lastLookLuma!!) else null
+                    if (luma != null && SceneChange.shouldLook(changed, now - lastLookAt, SCENE_MIN_GAP_MS, SCENE_FORCE_GAP_MS)) {
+                        if (describeSurroundings(force = false)) {
+                            looks++
+                            lastLookLuma = luma
+                            lastLookAt = System.currentTimeMillis()
+                        }
+                    }
+                }
                 kotlinx.coroutines.delay(SCENE_EVERY_MS)
             }
         }
@@ -216,6 +234,7 @@ class GuideViewModel @Inject constructor(
             result?.sessionId?.let { repo.deleteSession(it) } // the picture is not kept
             val said = result?.spokenText?.trim().orEmpty()
             if (said.isBlank() || !active || (paused && !force)) return false
+            if (force) { lastLookLuma = runCatching { SceneChange.lumaOf(frame) }.getOrNull(); lastLookAt = System.currentTimeMillis() }
             lastSpokeAt = System.currentTimeMillis()
             _state.update { it.copy(caption = said) }
             speaker.say(said, if (force) Priority.Interrupt else Priority.Queue)
@@ -258,9 +277,11 @@ class GuideViewModel @Inject constructor(
     private companion object {
         const val INTRO_MS = 9_000L
         const val QUIET_MS = 12_000L
-        const val SCENE_FIRST_MS = 6_000L
-        const val SCENE_EVERY_MS = 30_000L
-        const val SCENE_MAX_PER_VISIT = 30
+        const val SCENE_FIRST_MS = 4_000L
+        const val SCENE_EVERY_MS = 10_000L   // a quiet picture this often
+        const val SCENE_MIN_GAP_MS = 20_000L // but the AI is asked at most this often
+        const val SCENE_FORCE_GAP_MS = 60_000L // ...and at least this often, even if nothing changed
+        const val SCENE_MAX_PER_VISIT = 40
         const val SCENE_TIMEOUT_MS = 20_000L
         const val ADVICE_GAP_MS = 12_000L
         const val INTRO =
