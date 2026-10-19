@@ -124,7 +124,7 @@ h1{font-size:clamp(2.1rem,5.4vw + .4rem,3.9rem);font-weight:700}
 .orb[data-state="listening"]{--a:3;--spd:3.2s}
 .orb[data-state="thinking"]{--a:1.5;--spd:2.4s}
 .orb[data-state="speaking"]{--a:7;--spd:1.7s}
-.orb .halo{position:absolute;inset:-22%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--glow) 34%,transparent),transparent 70%);filter:blur(12px);animation:breathe 5s ease-in-out infinite;z-index:-1}
+.orb .halo{display:none;position:absolute;inset:-22%;border-radius:50%;background:none;filter:blur(12px);animation:breathe 5s ease-in-out infinite;z-index:-1}
 .orb .rip{position:absolute;inset:-4%;width:108%;height:108%;display:block}
 @keyframes breathe{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.06);opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -669,10 +669,6 @@ footer a{color:var(--muted)}
       var x=o.x,w=o.w,R=w*.5*.78,cx=w/2,cy=o.h/2;
       x.clearRect(0,0,w,o.h);
       var dark=document.documentElement.getAttribute('data-theme')!=='light';
-      /* dark disc */
-      var g=x.createRadialGradient(cx,cy*.9,R*.1,cx,cy,R);
-      g.addColorStop(0,dark?'rgba(27,23,16,.55)':'rgba(239,230,210,.7)');g.addColorStop(1,dark?'rgba(10,9,7,.7)':'rgba(226,214,187,.8)');
-      x.fillStyle=g;x.beginPath();x.arc(cx,cy,R*.93,0,6.2832);x.fill();
       var speed=state==='speaking'?2.4:state==='thinking'?1.8:state==='listening'?1.2:.7;
       x.globalCompositeOperation=dark?'lighter':'source-over';
       lines.forEach(function(L,i){

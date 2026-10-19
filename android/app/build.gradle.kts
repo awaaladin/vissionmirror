@@ -32,7 +32,7 @@ android {
 
     defaultConfig {
         applicationId = "ai.visionmirror"
-        minSdk = 26
+        minSdk = 24
         targetSdk = 36
         versionCode = 15
         versionName = "0.9.2"
