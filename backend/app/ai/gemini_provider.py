@@ -22,30 +22,43 @@ class GeminiProvider(StructuredProvider):
         model: str = "gemini-3.5-flash",
         thinking_level: str = "medium",
         client: httpx.AsyncClient | None = None,
+        fallback_models: tuple[str, ...] = (),
     ):
         self.model = model
+        # When the main model is overloaded (503) or rate limited (429), the next one is tried instead of giving up.
+        self.fallback_models = tuple(m for m in fallback_models if m and m != model)
         self.thinking_level = thinking_level
         self.api_key = api_key
         self.client = client or httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0))
 
     async def _post(self, body: dict) -> httpx.Response:
-        """POST with a few retries for transient trouble (busy server, rate limit, dropped connection)."""
-        for attempt in range(len(RETRY_DELAYS) + 1):
-            try:
-                # Key goes in a header, never the URL, so it can't leak into access logs.
-                r = await self.client.post(
-                    f"{BASE_URL}/models/{self.model}:generateContent",
-                    headers={"x-goog-api-key": self.api_key},
-                    json=body,
-                )
-                failure = None if r.status_code not in RETRY_STATUSES else f"status {r.status_code}"
-            except httpx.HTTPError as exc:
-                r, failure = None, type(exc).__name__
+        """POST with a few retries for transient trouble (busy server, rate limit, dropped connection).
+
+        With fallback models configured, each model gets two tries and then the next one is used: a busy main model
+        must not mean "I couldn't describe that". The describe call is the heart of the app, so it tries hard.
+        """
+        models = (self.model, *self.fallback_models)
+        attempts = 2 if self.fallback_models else len(RETRY_DELAYS) + 1
+        r = None
+        for model in models:
+            for attempt in range(attempts):
+                try:
+                    # Key goes in a header, never the URL, so it can't leak into access logs.
+                    r = await self.client.post(
+                        f"{BASE_URL}/models/{model}:generateContent",
+                        headers={"x-goog-api-key": self.api_key},
+                        json=body,
+                    )
+                    failure = None if r.status_code not in RETRY_STATUSES else f"status {r.status_code}"
+                except httpx.HTTPError as exc:
+                    r, failure = None, type(exc).__name__
+                if failure is None:
+                    break
+                log.warning("gemini transient failure (%s) on %s, attempt %d", failure, model, attempt + 1)
+                if attempt < attempts - 1:
+                    await asyncio.sleep(RETRY_DELAYS[min(attempt, len(RETRY_DELAYS) - 1)])
             if failure is None:
                 break
-            log.warning("gemini transient failure (%s), attempt %d", failure, attempt + 1)
-            if attempt < len(RETRY_DELAYS):
-                await asyncio.sleep(RETRY_DELAYS[attempt])
         if r is None:
             raise unavailable("Could not reach the AI provider.")
         if r.status_code != 200:

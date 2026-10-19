@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     vision_model: str = "claude-sonnet-5-5"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash"
+    # Tried in order when the main model is busy (503) or rate limited (429). Comma separated; empty = none.
+    gemini_fallback_models: str = "gemini-3.5-flash-lite,gemini-3.8-flash"
     gemini_thinking_level: Literal["minimal", "low", "medium", "high"] = "medium"
     vision_effort: Literal["low", "medium", "high"] = "medium"
     anthropic_api_key: str | None = None

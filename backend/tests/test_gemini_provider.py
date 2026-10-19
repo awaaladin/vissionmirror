@@ -153,3 +153,26 @@ def test_build_provider_gemini_needs_key():
     with pytest.raises(ValueError):
         build_provider(Settings(**base))
     assert isinstance(build_provider(Settings(**base, gemini_api_key="k")), GeminiProvider)
+
+
+async def test_a_busy_main_model_falls_back_to_the_next_one():
+    urls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(request.url.path)
+        if "main-model" in request.url.path:
+            return httpx.Response(503, text="busy")
+        return gemini_reply(good_text)
+
+    good_text = await good()
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    p = GeminiProvider(api_key="k", model="main-model", client=client, fallback_models=("backup-model", "main-model"))
+    assert (await describe(p)).confidence == 0.7
+    assert [u.split("/")[-1].split(":")[0] for u in urls] == ["main-model", "main-model", "backup-model"]
+
+
+async def test_every_model_busy_still_ends_in_a_clean_error():
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(429, text="slow")))
+    p = GeminiProvider(api_key="k", model="a", client=client, fallback_models=("b", "c"))
+    with pytest.raises(ProviderError):
+        await describe(p)

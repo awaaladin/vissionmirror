@@ -8,7 +8,7 @@ from redis.exceptions import RedisError
 from starlette.formparsers import MultiPartParser
 
 from app.ai.provider import VisionProvider, build_provider
-from app.api.v1 import account, ask, assist, auth, describe, health, session, speech
+from app.api.v1 import account, ask, assist, auth, describe, health, session, speech, transcribe
 from app.core.config import Settings, get_settings
 from app.core.errors import APIError, api_error_handler
 from app.core.logging import setup_logging
@@ -17,6 +17,7 @@ from app.core.rate_limit import DailyCap, LoginThrottle, RateLimiter
 from app.services.assist_service import AssistService
 from app.services.describe_service import DescribeService
 from app.services.session_store import SessionStore
+from app.services.transcription_service import NoTranscriber, Transcriber, VoiceVerseTranscriber
 from app.services.speech_service import AzureSpeech, NoSpeech, RoutingSpeech, SpeechSynthesizer, VoiceVerseSpeech
 from app.services.translation_service import NoTranslator, Translator, VoiceVerseTranslator
 from app.services.user_store import AccountsUnavailable, NoUserStore, PostgresUserStore, UserStore
@@ -58,6 +59,7 @@ def create_app(
     translator: Translator | None = None,
     speech_service: SpeechSynthesizer | None = None,
     assist_service: AssistService | None = None,
+    transcriber: Transcriber | None = None,
 ) -> FastAPI:
     """Dependencies are injectable so tests can use fakeredis and MockProvider."""
     settings = settings or get_settings()
@@ -86,6 +88,8 @@ def create_app(
             await app.state.speech.aclose()
         if hasattr(translator, "aclose"):
             await translator.aclose()
+        if hasattr(app.state.transcriber, "aclose"):
+            await app.state.transcriber.aclose()
         if owns_redis:
             await redis.aclose()
 
@@ -115,13 +119,18 @@ def create_app(
             else local
         )
     app.state.speech = speech_service
+    app.state.transcriber = transcriber or (
+        VoiceVerseTranscriber(settings.voiceverse_url, settings.voiceverse_api_key, settings.voiceverse_timeout_seconds)
+        if settings.voiceverse_url and settings.voiceverse_api_key
+        else NoTranscriber()
+    )
     app.state.service = DescribeService(provider, app.state.store, app.state.cap, translator)
     app.state.assist = assist_service or AssistService(provider, app.state.cap, translator)
     app.add_exception_handler(APIError, api_error_handler)
     app.add_exception_handler(RedisError, redis_error_handler)
     app.add_exception_handler(AccountsUnavailable, accounts_unavailable_handler)
 
-    for module in (health, auth, account, describe, ask, assist, session, speech):
+    for module in (health, auth, account, describe, ask, assist, session, speech, transcribe):
         app.include_router(module.router, prefix="/v1")
 
     # Added last = outermost. Order outside-in: request context, CORS, security headers, body limit.
