@@ -11,6 +11,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,6 +54,8 @@ interface VoiceInput {
 class SystemVoiceInput @Inject constructor(
     @ApplicationContext private val context: Context,
     private val offlineEars: OfflineEars,
+    private val cloudEars: CloudEars,
+    @ai.visionmirror.di.ApplicationScope private val scope: kotlinx.coroutines.CoroutineScope,
 ) : VoiceInput {
     private val main = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
@@ -61,6 +64,8 @@ class SystemVoiceInput @Inject constructor(
     private var busyRetries = 0
     private var flips = 0
     private var offlineHandle: OfflineEars.Handle? = null
+    private var cloudJob: kotlinx.coroutines.Job? = null
+    private var cloudDownUntil = 0L
     private var offlineTimeout: Runnable? = null
     private var lastLanguage: String? = null
 
@@ -84,6 +89,7 @@ class SystemVoiceInput @Inject constructor(
         lastLanguage = language
         lastPartial = ""
         cancelNow()
+        if (startCloud(language)) return
         if (!isAvailable) {
             if (!startOffline()) _events.tryEmit(VoiceEvent.Failed(VoiceFailure.Unavailable))
             return
@@ -111,8 +117,41 @@ class SystemVoiceInput @Inject constructor(
     }
 
     override fun finish() = onMain {
+        if (cloudJob?.isActive == true) { cloudEars.finishNow(); return@onMain }
         if (offlineHandle != null) finishOffline(heardSoFar = true) else recognizer?.stopListening()
         Unit
+    }
+
+    /**
+     * Hausa, Yoruba and Igbo: no phone recogniser understands them, so the speech is recorded and recognised by VoiceVerse
+     * through the backend. If that cannot be done (no internet, service down) she is heard by the phone's own recogniser instead.
+     */
+    private fun startCloud(language: String?): Boolean {
+        val lang = language?.substringBefore('-')?.lowercase()
+        if (lang !in CLOUD_LANGUAGES || System.currentTimeMillis() < cloudDownUntil) return false
+        _busy.value = true
+        smoothed = 0f
+        cloudJob = scope.launch {
+            val heard = cloudEars.listen(
+                lang!!,
+                onReady = { main.post { _events.tryEmit(VoiceEvent.Ready) } },
+                onLevel = { level -> main.post { _events.tryEmit(VoiceEvent.Level(level)) } },
+                onSpeechStart = { main.post { _events.tryEmit(VoiceEvent.SpeechStarted) } },
+            )
+            main.post {
+                if (cloudJob == null) return@post // cancelled meanwhile
+                cloudJob = null
+                when (heard) {
+                    is CloudHeard.Words -> { _busy.value = false; _events.tryEmit(VoiceEvent.Final(heard.english)) }
+                    CloudHeard.Nothing -> { _busy.value = false; _events.tryEmit(VoiceEvent.Failed(VoiceFailure.NoSpeech)) }
+                    CloudHeard.Failed -> {
+                        cloudDownUntil = System.currentTimeMillis() + CLOUD_COOLDOWN_MS
+                        startNow(lastLanguage)
+                    }
+                }
+            }
+        }
+        return true
     }
 
     /**
@@ -170,6 +209,8 @@ class SystemVoiceInput @Inject constructor(
     override fun cancel() = onMain { cancelNow() }
 
     private fun cancelNow() {
+        cloudJob?.cancel()
+        cloudJob = null
         stopOffline()
         recognizer?.apply {
             setRecognitionListener(null)
@@ -267,6 +308,8 @@ class SystemVoiceInput @Inject constructor(
         // language not supported (12), language unavailable (13)
         val RELAX_CODES = setOf(1, 2, 4, 10, 11, 12, 13)
         const val OFFLINE_WAIT_MS = 7_000L
+        val CLOUD_LANGUAGES = setOf("ha", "yo", "ig")
+        const val CLOUD_COOLDOWN_MS = 120_000L
         val FILLERS = setOf("uh", "um", "umm", "hmm", "hm", "mm", "mhm", "ah", "oh", "eh", "huh", "er", "erm", "the", "a")
     }
 

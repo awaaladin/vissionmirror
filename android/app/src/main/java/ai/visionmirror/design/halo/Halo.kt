@@ -216,18 +216,6 @@ fun Halo(
                         val alpha = (0.34f + (q % 3) * 0.12f) * (0.75f + 0.25f * liveGlow.coerceIn(0f, 1.5f))
                         drawPath(path, color.copy(alpha = alpha.coerceIn(0f, 1f)), style = Stroke(width = lineWidth))
                     }
-
-                    // Thinking: one bright arc travels round the ring.
-                    if (shimmer > 0.01f) {
-                        val deg = Math.toDegrees(phases.angle.value.toDouble()).toFloat()
-                        drawArc(
-                            color = highlight.copy(alpha = 0.85f * shimmer),
-                            startAngle = deg - 24f, sweepAngle = 48f, useCenter = false,
-                            topLeft = Offset(center.x - r * 1.02f, center.y - r * 1.02f),
-                            size = Size(r * 2.04f, r * 2.04f),
-                            style = Stroke(width = lineWidth * 1.6f, cap = StrokeCap.Round),
-                        )
-                    }
                 }
             },
         contentAlignment = Alignment.Center,

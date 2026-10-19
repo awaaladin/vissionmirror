@@ -44,6 +44,8 @@ data class Settings(
     /** Adanna (woman's voice) or Bola (man's voice). */
     val persona: Persona = Persona.Adanna,
     val emergencyContacts: List<EmergencyContact> = emptyList(),
+    /** How the phone hears her own voice say the names, learned in "Teach me your voice": entries like "adanna|adina". */
+    val nameAliases: List<String> = emptyList(),
     /** "Access granted": she keeps listening after every answer, so nothing needs touching. */
     val handsFree: Boolean = false,
     /** Which language she is spoken to in (and, where the phone can, listened to in). */
@@ -84,6 +86,7 @@ class DataStoreSettings @Inject constructor(
         val bargeIn = booleanPreferencesKey("barge_in")
         val persona = stringPreferencesKey("persona")
         val emergencyContacts = stringPreferencesKey("emergency_contacts")
+        val nameAliases = stringPreferencesKey("name_aliases")
         val handsFree = booleanPreferencesKey("hands_free")
         val detail = stringPreferencesKey("detail_level")
         val haptics = booleanPreferencesKey("haptics")
@@ -110,6 +113,9 @@ class DataStoreSettings @Inject constructor(
             persona = Persona.from(this[Keys.persona]),
             emergencyContacts = this[Keys.emergencyContacts]?.let {
                 runCatching { kotlinx.serialization.json.Json.decodeFromString<List<EmergencyContact>>(it) }.getOrNull()
+            }.orEmpty(),
+            nameAliases = this[Keys.nameAliases]?.let {
+                runCatching { kotlinx.serialization.json.Json.decodeFromString<List<String>>(it) }.getOrNull()
             }.orEmpty(),
             handsFree = this[Keys.handsFree] ?: d.handsFree,
             language = ResponseLanguage.fromApiTag(this[Keys.language]),
@@ -141,6 +147,7 @@ class DataStoreSettings @Inject constructor(
             p[Keys.bargeIn] = s.bargeIn
             p[Keys.persona] = s.persona.name
             p[Keys.emergencyContacts] = kotlinx.serialization.json.Json.encodeToString(s.emergencyContacts)
+            p[Keys.nameAliases] = kotlinx.serialization.json.Json.encodeToString(s.nameAliases)
             p[Keys.handsFree] = s.handsFree
             if (s.voiceName != null) p[Keys.voiceName] = s.voiceName else p.remove(Keys.voiceName)
             p[Keys.detail] = s.detailLevel.wire

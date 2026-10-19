@@ -143,3 +143,10 @@ data class ErrorBody(
     val message: String = "",
     @SerialName("spoken_text") val spokenText: String = "",
 )
+
+/** What was said: [text] in her own language, [english] the same in English. */
+@Serializable
+data class TranscribeResponse(
+    val text: String = "",
+    val english: String = "",
+)

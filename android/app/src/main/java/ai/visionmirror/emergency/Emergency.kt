@@ -141,6 +141,15 @@ object EmergencyIntents {
                 "clear my emergency contacts", "clear emergency contacts", "remove emergency contacts")
         ) return EmergencyIntent.ClearContacts
         share.find(text)?.let { return EmergencyIntent.Share(it.groupValues[1].trim().ifBlank { null }) }
+        if (ai.visionmirror.assistant.VoiceCatalog.installed) {
+            when (ai.visionmirror.assistant.VoiceCatalog.match(text)) {
+                "safety.list" -> return EmergencyIntent.ListContacts
+                "safety.clear" -> return EmergencyIntent.ClearContacts
+                "safety.call" -> return EmergencyIntent.CallEmergency
+                "safety.where" -> return EmergencyIntent.WhereAmI
+                "safety.sos" -> return EmergencyIntent.Sos
+            }
+        }
         if (has("call 112", "dial 112", "call 199", "call the police", "call emergency", "call an ambulance", "call the emergency number")) {
             return EmergencyIntent.CallEmergency
         }

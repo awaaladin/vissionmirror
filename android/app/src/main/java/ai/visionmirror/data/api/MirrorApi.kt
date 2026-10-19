@@ -43,6 +43,10 @@ interface MirrorApi {
     @POST("v1/speech")
     suspend fun speech(@Body body: SpeechRequest): Response<ResponseBody>
 
+    /** Speech to text for Hausa, Yoruba and Igbo: the recording (audio/wav) is the body. */
+    @POST("v1/transcribe")
+    suspend fun transcribe(@retrofit2.http.Query("language") language: String, @Body audio: okhttp3.RequestBody): Response<TranscribeResponse>
+
     /** Weather and general questions, for the voice assistant. */
     @POST("v1/assist")
     suspend fun assist(@Body body: AssistRequest): Response<AssistResponse>

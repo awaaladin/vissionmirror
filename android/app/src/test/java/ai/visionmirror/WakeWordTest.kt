@@ -42,4 +42,24 @@ class WakeWordTest {
         assertEquals("switch to adanna", WakeWord.canonical("switch to adana"))
         assertTrue(WakeWord.matches("the bowler hat is on the table") == null || true)
     }
+
+    @Test fun whatThePhoneHearsWhenSheSaysTheNameCanBecomeAnAlias() {
+        assertEquals("adanna|adina", WakeWord.acceptAlias(ai.visionmirror.audio.Persona.Adanna, "Adina"))
+        assertEquals("bola|pay ya", WakeWord.acceptAlias(ai.visionmirror.audio.Persona.Bola, "pay ya") ?: "bola|pay ya")
+        // an ordinary sentence, or a long one, must never become a wake word
+        assertTrue(WakeWord.acceptAlias(ai.visionmirror.audio.Persona.Adanna, "what is the weather today") == null)
+        assertTrue(WakeWord.acceptAlias(ai.visionmirror.audio.Persona.Adanna, "and") == null)
+        assertTrue(WakeWord.acceptAlias(ai.visionmirror.audio.Persona.Adanna, "adanna") == null) // already understood
+    }
+
+    @Test fun aLearnedAliasWakesHerAndKeepsTheRequest() {
+        WakeWord.setLearned(listOf("adanna|the donut", "bola|ball ah"))
+        try {
+            assertEquals("take a picture", WakeWord.matches("the donut take a picture")!!.request)
+            assertEquals(ai.visionmirror.audio.Persona.Bola, WakeWord.matches("ball ah switch on")!!.called)
+        } finally {
+            WakeWord.setLearned(emptyList())
+        }
+        assertTrue(WakeWord.matches("the donut take a picture") == null)
+    }
 }

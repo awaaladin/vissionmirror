@@ -220,8 +220,8 @@ footer a{color:var(--muted)}
 .reveal{opacity:0;transform:translateY(22px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{opacity:1;transform:none}
 .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+.sayall .cmd-note{margin:.2rem 0 .6rem}.sayall .chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0 .7rem}.sayall .chips b{background:var(--raised);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:.3rem .8rem;font-weight:600;font-size:.88rem}.sayall .more{font-size:.84rem;line-height:1.7;color:var(--muted)}.sayall .more i{font-style:normal;white-space:nowrap}.sayall h3{margin:2rem 0 .3rem;font-size:1.15rem}.sayall .sec-intro{margin:0 0 .6rem;color:var(--muted);font-size:.92rem}.sayall .find{width:100%;max-width:28rem;padding:.8rem 1rem;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;margin:.4rem 0 1rem}.sayall .none{display:none;color:var(--muted)}.sayall summary span{display:flex;flex-direction:column;gap:.1rem}.sayall .eg{font-weight:400;color:var(--muted);font-size:.84rem}
+@media(prefers-reduced-motion:reduce){  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .reveal{opacity:1;transform:none}
 }
 </style>
@@ -250,6 +250,7 @@ footer a{color:var(--muted)}
         <a href="#features">What it does</a>
         <a href="#meet">Adanna &amp; Bola</a>
         <a href="#how">How to use</a>
+        <a href="#say">What to say</a>
         <a href="#story">Our story</a>
         <a href="#install">Install</a>
         <a href="#contact">Contact</a>
@@ -464,6 +465,20 @@ footer a{color:var(--muted)}
 </section>
 
 <!-- ================= PRIVACY ================= -->
+<section class="band" id="say">
+  <div class="wrap sayall">
+    <div class="sec-head reveal">
+      <p class="kicker">Every word it understands</p>
+      <h2>What you can say.</h2>
+      <p>Say the name first: <strong>Adanna</strong>, <strong>Bola</strong> or <strong>Special request</strong>. Then ask in your own words. Each thing below can be said many different ways. Tap one to see them all, or search.</p>
+    </div>
+    <label class="sr-only" for="sayFind" style="position:absolute;left:-9999px">Search what you can say</label>
+    <input class="find" id="sayFind" type="search" placeholder="Search: dark mode, louder, read, emergency&hellip;" autocomplete="off">
+    <p class="none" id="sayNone">Nothing matches. Try another word, like &ldquo;bigger&rdquo; or &ldquo;camera&rdquo;.</p>
+    __COMMANDS__
+  </div>
+</section>
+
 <section class="band" id="privacy">
   <div class="wrap">
     <div class="sec-head reveal"><p class="kicker">Trust</p><h2>Your privacy, plainly.</h2></div>
@@ -507,7 +522,7 @@ footer a{color:var(--muted)}
     <details><summary>&ldquo;Blocked&rdquo; / &ldquo;Dangerous file blocked&rdquo;</summary><div class="body"><ol><li>Open Chrome&rsquo;s menu &rarr; <strong>Downloads</strong> and find the blocked file.</li><li>Tap the file, then choose <strong>Keep</strong> or <strong>Download anyway</strong>.</li><li>Still blocked? Chrome &rarr; Settings &rarr; Privacy and security &rarr; Safe Browsing &rarr; <strong>Standard protection</strong> just for this download.</li><li>Or try Firefox, Samsung Internet or Edge: the same link works.</li></ol></div></details>
     <details><summary>&ldquo;Your phone isn&rsquo;t allowed to install unknown apps from this source&rdquo;</summary><div class="body"><ol><li>Tap <strong>Settings</strong> in that message.</li><li>Turn on <strong>Allow from this source</strong> (listed under the browser you used).</li><li>Press Back, then tap <strong>Install</strong>.</li></ol><p class="note">You can switch that permission off again afterwards: Settings &rarr; Apps &rarr; your browser &rarr; Install unknown apps.</p></div></details>
     <details><summary>Google Play Protect says &ldquo;Blocked&rdquo; or &ldquo;App not verified&rdquo;</summary><div class="body"><ol><li>Tap <strong>More details</strong>, then <strong>Install anyway</strong>.</li><li>If you only see &ldquo;Scan app&rdquo;, choose it, then <strong>Install anyway</strong>.</li><li>No such choice? Play Store &rarr; your profile picture &rarr; Play Protect &rarr; the gear icon, and briefly switch off &ldquo;Improve harmful app detection&rdquo;. Install, then switch it back on.</li></ol></div></details>
-    <details><summary>The download keeps failing, or &ldquo;App not installed&rdquo;</summary><div class="body"><ul><li>Check you have about 200 MB of free storage and a steady connection (Wi-Fi is best).</li><li>Delete the partial file in Downloads and try again, or use another browser.</li><li>If an older VisionMirror will not be replaced, uninstall it first (your settings reset).</li><li>Check your phone runs Android 8 or newer: Settings &rarr; About phone.</li></ul></div></details>
+    <details><summary>The download keeps failing, or &ldquo;App not installed&rdquo;</summary><div class="body"><ul><li>Check you have about 200 MB of free storage and a steady connection (Wi-Fi is best).</li><li>Delete the partial file in Downloads and try again, or use another browser.</li><li>If an older VisionMirror will not be replaced, uninstall it first (your settings reset).</li><li>Check your phone runs Android 7 or newer: Settings &rarr; About phone.</li></ul></div></details>
     <details><summary>It is a work or school phone</summary><div class="body"><p>Managed phones often block apps from outside the Play Store. Use a personal phone, or ask whoever manages the device.</p></div></details>
     <details><summary>Check the file is genuine (optional)</summary><div class="body"><p>Every file has a fingerprint. After downloading, a &ldquo;hash checker&rdquo; app can show its SHA-256. It should match the checksum above. If it does not, delete the file and download again from this page.</p></div></details>
   </div>
@@ -630,6 +645,18 @@ footer a{color:var(--muted)}
   var url=location.origin+location.pathname; $('pageUrl').textContent=url;
   function copy(text,btn){(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){var o=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=o},1800)},function(){window.prompt('Copy this:',text)})}
   $('copyUrl').onclick=function(){copy(url,this)};
+
+  /* ---- search the list of things you can say ---- */
+  (function(){
+    var box=$('sayFind'); if(!box)return;
+    var items=[].slice.call(document.querySelectorAll('.sayall details'));
+    box.addEventListener('input',function(){
+      var q=box.value.toLowerCase().trim(), shown=0;
+      items.forEach(function(d){var hit=!q||d.textContent.toLowerCase().indexOf(q)>-1; d.hidden=!hit; if(hit)shown++; if(q&&hit)d.open=true; else if(!q)d.open=false});
+      [].slice.call(document.querySelectorAll('.sayall .sec')).forEach(function(s){s.hidden=!!q&&!s.querySelector('details:not([hidden])')});
+      $('sayNone').style.display=(q&&!shown)?'block':'none';
+    });
+  })();
 
   /* ---- version, size and checksum come from release.json, written when each build is published ---- */
   fetch('release.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():Promise.reject()}).then(function(rel){

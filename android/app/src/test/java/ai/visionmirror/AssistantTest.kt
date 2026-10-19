@@ -49,4 +49,24 @@ class AssistantTest {
         assertNull(AssistantIntents.parse("what colour is my shirt", hasSession = true))
         assertNull(AssistantIntents.parse("is my collar folded over on the left side today", hasSession = false))
     }
+
+    @Test fun takeAPictureOfMeIsDoneAtOnceFromAnywhere() {
+        for (said in listOf("take a picture of me", "take a photo of me", "take a selfie", "take my picture", "photo of me", "snap me")) {
+            for (screen in listOf(null, "home", "mirror", "look/read")) {
+                assertEquals(said, AssistantAction.SnapSelfie, AssistantIntents.parse(said, hasSession = false, screen = screen))
+            }
+        }
+    }
+
+    @Test fun frontAndBackCameraAreCommandsOfTheirOwn() {
+        assertEquals(AssistantAction.UseFrontCamera, AssistantIntents.parse("switch to the front camera", false, "look/read"))
+        assertEquals(AssistantAction.UseFrontCamera, AssistantIntents.parse("front camera", false, "home"))
+        assertEquals(AssistantAction.UseBackCamera, AssistantIntents.parse("use the back camera", false, "mirror"))
+        assertEquals(AssistantAction.UseBackCamera, AssistantIntents.parse("change to rear camera", false, null))
+    }
+
+    @Test fun signInAndAccountOpenTheAccountScreen() {
+        assertEquals(AssistantAction.OpenAccount, AssistantIntents.parse("sign in", false, "home"))
+        assertEquals(AssistantAction.OpenAccount, AssistantIntents.parse("open my account", false, "home"))
+    }
 }

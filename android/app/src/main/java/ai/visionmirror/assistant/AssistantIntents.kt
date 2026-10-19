@@ -2,7 +2,10 @@ package ai.visionmirror.assistant
 
 /** Somewhere Adanna can take her, or something she can do on the open screen, by voice. */
 enum class AssistantAction {
-    OpenMirror, OpenRead, OpenLook, OpenGuide, OpenSettings, OpenHome,
+    OpenMirror, OpenRead, OpenLook, OpenGuide, OpenSettings, OpenHome, OpenAccount,
+
+    /** "Take a picture of me": open the mirror and take it at once. */
+    SnapSelfie, UseFrontCamera, UseBackCamera,
 
     /** Act on the screen that is open. */
     TakePhoto, FlipCamera, LookAgain, GoBack,
@@ -35,7 +38,7 @@ object AssistantIntents {
         return knowledge.any { " $it " in padded }
     }
 
-    private val explicit = Regex("^(open|go to|go|start|switch to|show|use|take me to)\\b")
+    private val explicit = Regex("^(open|go to|go|start|switch to|show|use|take me to|launch|load|enter|bring up|navigate to|head to|let me see|i want to|i want|i need|can you|could you|please)\\b")
 
     private fun normalise(s: String) = s.lowercase().replace("'", "").replace("’", "").replace(Regex("[^a-z ]"), " ").trim().replace(Regex("\\s+"), " ")
 
@@ -46,6 +49,44 @@ object AssistantIntents {
         fun has(vararg phrases: String) = phrases.any { " $it " in " $text " }
         val onMirror = screen == "mirror"
         val onLook = screen?.startsWith("look") == true
+
+        // The catalog (shared/voice-commands.json) knows dozens of ways of saying each of these.
+        if (VoiceCatalog.installed) {
+            val id = VoiceCatalog.match(text, screen)
+            when (id) {
+                "cam.selfie" -> return AssistantAction.SnapSelfie
+                "cam.front" -> return AssistantAction.UseFrontCamera
+                "cam.back" -> return AssistantAction.UseBackCamera
+                "cam.snap" -> return AssistantAction.TakePhoto // the catalog only offers it on the mirror
+                "cam.again" -> return AssistantAction.LookAgain // ...and this one on the look screens
+                "cam.flip" -> if (words.size <= 8) return AssistantAction.FlipCamera
+                "open.back" -> if (words.size <= 8) return AssistantAction.GoBack
+                "open.settings", "open.account", "open.home", "open.guide", "open.look", "open.read", "open.mirror" -> {
+                    // A long sentence, or any question once there is a photo to ask about, is a question and not an order.
+                    if (!explicit.containsMatchIn(text) && (words.size > 6 || (hasSession && words.size > 2))) return null
+                    return when (id) {
+                        "open.settings" -> AssistantAction.OpenSettings
+                        "open.account" -> AssistantAction.OpenAccount
+                        "open.home" -> AssistantAction.OpenHome
+                        "open.guide" -> AssistantAction.OpenGuide
+                        "open.look" -> AssistantAction.OpenLook
+                        "open.read" -> AssistantAction.OpenRead
+                        else -> AssistantAction.OpenMirror
+                    }
+                }
+            }
+        }
+
+        // ---- things that must happen at once, from any screen
+        if (words.size <= 9) {
+            if (has("take a picture of me", "take a photo of me", "take my picture", "take my photo", "take me a picture", "take me a photo",
+                    "take a selfie", "take selfie", "take a pic of me", "picture of me", "photo of me", "snap me", "capture me",
+                    "take a picture of myself", "take a photo of myself")
+            ) return AssistantAction.SnapSelfie
+            val camera = has("use", "switch", "change", "turn", "select", "open", "go to") || words.size <= 3
+            if (camera && has("front camera", "selfie camera", "front facing camera")) return AssistantAction.UseFrontCamera
+            if (camera && has("back camera", "rear camera", "main camera")) return AssistantAction.UseBackCamera
+        }
 
         // ---- buttons on the open screen
         if (words.size <= 6) {
@@ -64,6 +105,7 @@ object AssistantIntents {
         if (!asked && (words.size > 6 || (hasSession && words.size > 2))) return null
         return when {
             has("settings", "setting", "preferences") -> AssistantAction.OpenSettings
+            has("sign in", "log in", "login", "sign out", "log out", "my account", "account") -> AssistantAction.OpenAccount
             has("home", "menu", "main menu") -> AssistantAction.OpenHome
             has("guide me", "start guide", "guide mode", "start guiding", "walk with me", "watch ahead", "watch for obstacles", "detect objects", "what is ahead of me") ->
                 AssistantAction.OpenGuide

@@ -22,7 +22,9 @@ object StopWords {
     fun matches(utterance: String): Boolean {
         val text = normalise(utterance)
         val parts = text.split(' ')
-        if (text.isEmpty() || parts.size > 3) return false
+        if (text.isEmpty() || parts.size > 4) return false
+        if (parts.size <= 4 && VoiceCatalog.phrases("cam.pause", "wake.stop").any { " $it " in " $text " }) return true
+        if (parts.size > 3) return false
         return text == "shut up" || text == "hold on" || text == "hang on" || parts.any { it in words }
     }
 }
@@ -33,7 +35,7 @@ object ResumeWords {
 
     fun matches(utterance: String): Boolean {
         val text = normalise(utterance)
-        return text.isNotEmpty() && text.split(' ').size <= 3 && text in phrases
+        return text.isNotEmpty() && text.split(' ').size <= 3 && (text in phrases || text in VoiceCatalog.phrases("cam.resume"))
     }
 }
 
@@ -93,4 +95,11 @@ class ScreenCommands @Inject constructor() {
     private val _flow = MutableSharedFlow<ScreenCommand>(extraBufferCapacity = 4)
     val flow: SharedFlow<ScreenCommand> = _flow.asSharedFlow()
     fun send(command: ScreenCommand) { _flow.tryEmit(command) }
+
+    @Volatile private var pending: ScreenCommand? = null
+
+    /** For a screen that is not open yet ("take a picture of me" from Home): it does this the moment it opens. */
+    fun later(command: ScreenCommand) { pending = command }
+
+    fun takePending(): ScreenCommand? = pending.also { pending = null }
 }

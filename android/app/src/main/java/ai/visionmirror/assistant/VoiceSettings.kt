@@ -46,8 +46,13 @@ object VoiceSettings {
 
         fun set(say: String, change: (Settings) -> Settings): SettingChange = SettingChange.Set(say, change)
 
+        if (has("what can you do", "what can i say", "what can i ask", "what are the commands", "list commands", "show commands") || text == "help") {
+            return SettingChange.Help
+        }
+        // The catalog knows every way of saying each of these (dozens of synonyms each), so it is asked first.
+        if (VoiceCatalog.installed) VoiceCatalog.match(text)?.let { id -> fromCatalog(id)?.let { return it } }
+
         return when {
-            has("what can you do", "what can i say", "what can i ask") || (text == "help") -> SettingChange.Help
 
             // ---- wake word / commands
             has("wake word", "listen for my name", "listening for my name") ->
@@ -139,8 +144,54 @@ object VoiceSettings {
         }
     }
 
+    private fun set(say: String, change: (Settings) -> Settings): SettingChange = SettingChange.Set(say, change)
+
+    /** What each setting command of the catalog does. */
+    private fun fromCatalog(id: String): SettingChange? = when (id) {
+        "vol.max" -> SettingChange.VolumeMax
+        "vol.up" -> SettingChange.Volume(+1)
+        "vol.down" -> SettingChange.Volume(-1)
+        "rate.normal" -> set("Normal speed.") { it.copy(speechRate = SpeechRate.Normal.value) }
+        "rate.slow" -> set("Slower.") { it.copy(speechRate = stepRate(it.speechRate, -1)) }
+        "rate.fast" -> set("Faster.") { it.copy(speechRate = stepRate(it.speechRate, +1)) }
+        "bright.full" -> set("Brightness is at full.") { it.copy(brightness = 1f) }
+        "bright.auto" -> set("Brightness now follows your phone.") { it.copy(brightness = Brightness.SYSTEM) }
+        "bright.up" -> set("Brighter.") { it.copy(brightness = Brightness.up(it.brightness)) }
+        "bright.down" -> set("Dimmer.") { it.copy(brightness = Brightness.down(it.brightness)) }
+        "text.huge" -> set("Text size: huge.") { it.copy(textScale = TextSize.Huge.scale) }
+        "text.normal" -> set("Text size: normal.") { it.copy(textScale = TextSize.Normal.scale) }
+        "text.bigger" -> set("Bigger text.") { it.copy(textScale = stepText(it.textScale, +1)) }
+        "text.smaller" -> set("Smaller text.") { it.copy(textScale = stepText(it.textScale, -1)) }
+        "font.hyper" -> set("Hyperlegible font.") { it.copy(fontChoice = FontChoice.Hyperlegible) }
+        "font.standard" -> set("Standard font.") { it.copy(fontChoice = FontChoice.Standard) }
+        "contrast.on" -> set("High contrast is on.") { it.copy(highContrast = true) }
+        "contrast.off" -> set("High contrast is off.") { it.copy(highContrast = false) }
+        "theme.light" -> set("Light mode.") { it.copy(themeMode = ThemeMode.Light) }
+        "theme.dark" -> set("Dark mode.") { it.copy(themeMode = ThemeMode.Dark) }
+        "theme.system" -> set("The theme now follows your phone.") { it.copy(themeMode = ThemeMode.System) }
+        "motion.full" -> set("Full motion is back.") { it.copy(reduceMotion = false) }
+        "motion.reduce" -> set("Reduced motion is on.") { it.copy(reduceMotion = true) }
+        "haptics.on" -> set("Vibration is on.") { it.copy(haptics = true) }
+        "haptics.off" -> set("Vibration is off.") { it.copy(haptics = false) }
+        "detail.brief" -> set("Brief descriptions.") { it.copy(detailLevel = DetailLevel.Brief) }
+        "detail.detailed" -> set("Detailed descriptions.") { it.copy(detailLevel = DetailLevel.Detailed) }
+        "detail.standard" -> set("Standard descriptions.") { it.copy(detailLevel = DetailLevel.Standard) }
+        "wake.on" -> set("I'll listen for my name.") { it.copy(wakeWord = true) }
+        "wake.off" -> set("I won't listen for my name.") { it.copy(wakeWord = false) }
+        "commands.on" -> set("Voice commands are on.") { it.copy(voiceCommands = true) }
+        "commands.off" -> set("Voice commands are off.") { it.copy(voiceCommands = false) }
+        "barge.on" -> set("I'll stop when you say stop.") { it.copy(bargeIn = true) }
+        "barge.off" -> set("I won't stop when you speak.") { it.copy(bargeIn = false) }
+        "voice.bola" -> set("Hello, I'm Bola.") { it.copy(persona = Persona.Bola, voiceName = null) }
+        "voice.adanna" -> set("Hello, I'm Adanna.") { it.copy(persona = Persona.Adanna, voiceName = null) }
+        "voice.next" -> SettingChange.NextVoice
+        "voice.local" -> set("I'll use your phone's voice.") { it.copy(cloudVoice = false) }
+        "voice.cloud" -> set("I'll use the natural Nigerian voice.") { it.copy(cloudVoice = true) }
+        else -> null
+    }
+
     private fun languageChange(text: String): SettingChange? {
-        val asked = Regex("\\b(speak|talk|use|switch to|change to|change language to|answer in|reply in|respond in|in)\\s+(?:to me in\\s+)?(nigerian english|english|hausa|yoruba|igbo|ibibio)\\b").find(text)
+        val asked = Regex("\\b(speak|talk|use|switch to|change to|change language to|switch language to|set language to|set the language to|answer in|reply in|respond in|say it in|tell me in|translate to|talk to me in|speak to me in|go to|i want|i prefer|please speak|please use|can you speak|can you talk|give me|read it in|describe in|in)\\s+(?:to me in\\s+)?(nigerian english|english|hausa|yoruba|igbo|ibibio)\\b").find(text)
             ?: return null
         val language = when (asked.groupValues[2]) {
             "hausa" -> ResponseLanguage.Hausa

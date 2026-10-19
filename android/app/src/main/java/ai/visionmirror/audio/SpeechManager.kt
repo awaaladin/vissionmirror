@@ -125,6 +125,9 @@ class SpeechManager @Inject constructor(
     private var tts: TextToSpeech? = null
     private var ready = false
     private var paused = false
+
+    /** True while the app is not on screen: the assistant must stay silent, whatever is still waiting to be said. */
+    @Volatile private var background = false
     private var rate = 1.0f
     private var pitch = 1.0f
     private var persona = Persona.Adanna
@@ -199,7 +202,7 @@ class SpeechManager @Inject constructor(
 
     /** Returns the utterance id so callers can match [Event]s. */
     override fun speak(text: String, priority: Priority, id: String, local: Boolean): String {
-        if (text.isBlank()) return id
+        if (text.isBlank() || background) return id // nothing may be said while the app is out of sight
         synchronized(lock) {
             if (priority == Priority.Interrupt) {
                 queue.forEach { it.release() }
@@ -223,6 +226,12 @@ class SpeechManager @Inject constructor(
         if (ready) tts?.stop()
         _state.value = State()
         abandonFocus()
+    }
+
+    /** The app went out of sight (true) or came back (false). Going out silences everything at once. */
+    fun setBackground(value: Boolean) {
+        background = value
+        if (value) stop()
     }
 
     override fun pause() = synchronized(lock) {

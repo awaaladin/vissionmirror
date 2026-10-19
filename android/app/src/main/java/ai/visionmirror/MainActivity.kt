@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
     private val permissionLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { }
 
     private val appViewModel: AppViewModel by viewModels()
+    private val session: ai.visionmirror.session.SessionViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // The system splash stays up until settings are loaded, so we know whether to show onboarding.
@@ -73,12 +74,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        speech.setBackground(false)
+        session.onForeground()
         wake.setForeground(true)
     }
 
     override fun onStop() {
         wake.setForeground(false)
-        speech.stop()
+        // Leaving the app ends the conversation: no more talking, no more listening, nothing queued to say later.
+        session.onBackground()
+        speech.setBackground(true)
         super.onStop()
     }
 }

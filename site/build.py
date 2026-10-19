@@ -68,6 +68,35 @@ def main() -> None:
     print(f"published {version}: {release['sizeMB']} MB, sha256 {release['sha256'][:16]}...")
 
 
+def render_commands() -> str:
+    """The "What you can say" section, from the same catalog the app's parser uses (shared/voice-commands.json)."""
+    import html as h
+
+    data = json.loads((HERE.parent / "shared" / "voice-commands.json").read_text(encoding="utf-8"))
+    out = []
+    for sec in data["sections"]:
+        cmds = [c for c in data["commands"] if c["section"] == sec["id"]]
+        if not cmds:
+            continue
+        out.append(f'<div class="sec"><h3>{h.escape(sec["title"])}</h3><p class="sec-intro">{h.escape(sec["intro"])}</p>')
+        for c in cmds:
+            chips = "".join(f"<b>&ldquo;{h.escape(e)}&rdquo;</b>" for e in c["examples"])
+            phrases = [p for p in c["phrases"]]
+            more = " ".join(f"<i>{h.escape(p)}</i> &middot;" for p in phrases)
+            note = f'<p class="cmd-note">{h.escape(c["note"])}</p>' if c["note"] else ""
+            screens = f'<p class="cmd-note">Only on the {h.escape(", ".join(c["screens"]))} screen.</p>' if c["screens"] else ""
+            verbs = ""
+            if c["verbs"]:
+                verbs = '<p class="more"><strong>Start with any of:</strong> ' + ", ".join(h.escape(v) for v in c["verbs"][:30]) + "</p>"
+            out.append(
+                f'<details><summary><span>{h.escape(c["title"])}<small class="eg">&ldquo;{h.escape(c["examples"][0])}&rdquo;</small></span></summary><div class="body">'
+                f'<div class="chips">{chips}</div>{note}{screens}'
+                f'<p class="more"><strong>{len(phrases)} ways to say it:</strong> {more}</p>{verbs}</div></details>'
+            )
+        out.append("</div>")
+    return "\n".join(out)
+
+
 def render(args, release) -> None:
     """Write index.html from the template: the QR code for this address and the contact button."""
     import html as _html
@@ -80,7 +109,7 @@ def render(args, release) -> None:
         if email
         else '<p><strong>Contact details are being set up.</strong> Check back soon.</p>'
     )
-    page = (HERE / "index.template.html").read_text(encoding="utf-8").replace("__QR__", svg).replace("__CONTACT__", contact)
+    page = (HERE / "index.template.html").read_text(encoding="utf-8").replace("__QR__", svg).replace("__CONTACT__", contact).replace("__COMMANDS__", render_commands())
     (HERE / "index.html").write_text(page, encoding="utf-8")
     if release is None:
         print("re-rendered index.html (APK and release.json unchanged)")

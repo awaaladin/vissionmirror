@@ -22,6 +22,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -67,6 +68,8 @@ class SettingsViewModel @Inject constructor(
     private val store: SettingsStore,
     private val speech: SpeechManager,
     private val accounts: AccountRepository,
+    private val voice: ai.visionmirror.audio.VoiceInput,
+    private val wake: ai.visionmirror.audio.WakeSource,
 ) : ViewModel() {
 
     val account: StateFlow<AccountState> = accounts.state
@@ -129,6 +132,54 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setBargeIn(on: Boolean) = update { it.copy(bargeIn = on) }
+
+    /** What the "Teach me your voice" exercise is doing right now, in words; null when it is not running. */
+    private val _teaching = MutableStateFlow<String?>(null)
+    val teaching: StateFlow<String?> = _teaching
+
+    /**
+     * She says [persona]'s name three times. Whatever the phone actually hears for each (even if it is "adina" or "pay ya")
+     * is saved, so from then on that is also taken as the name. Nothing is recorded or sent anywhere.
+     */
+    fun teach(persona: Persona) {
+        if (_teaching.value != null) return
+        viewModelScope.launch {
+            val name = persona.displayName
+            val learned = LinkedHashSet<String>()
+            wake.hold(true) // the name listener must stay off the microphone while she is being taught
+            try {
+                for (round in 1..3) {
+                    _teaching.value = "Say $name. ($round of 3)"
+                    speech.say("Say $name.", Priority.Interrupt)
+                    kotlinx.coroutines.delay(1_800)
+                    voice.start("en-NG")
+                    val event = kotlinx.coroutines.withTimeoutOrNull(9_000) {
+                        voice.events.first { it is ai.visionmirror.audio.VoiceEvent.Final || it is ai.visionmirror.audio.VoiceEvent.Failed }
+                    }
+                    voice.cancel()
+                    val heard = (event as? ai.visionmirror.audio.VoiceEvent.Final)?.text.orEmpty()
+                    _teaching.value = if (heard.isBlank()) "I didn't hear that one." else "I heard: $heard"
+                    ai.visionmirror.audio.WakeWord.acceptAlias(persona, heard)?.let(learned::add)
+                    kotlinx.coroutines.delay(900)
+                }
+                if (learned.isEmpty()) {
+                    speech.say("I heard $name clearly already, or I couldn't catch it. Nothing needed changing.", Priority.Interrupt)
+                } else {
+                    update { s -> s.copy(nameAliases = (s.nameAliases + learned).distinct().takeLast(24)) }
+                    speech.say("Thank you. I will also listen for how I heard you say $name.", Priority.Interrupt)
+                }
+            } finally {
+                voice.cancel()
+                wake.hold(false)
+                _teaching.value = null
+            }
+        }
+    }
+
+    fun forgetLearnedNames() {
+        update { it.copy(nameAliases = emptyList()) }
+        speech.say("I forgot how you say the names. I will listen the normal way.", Priority.Interrupt)
+    }
 
     /** Saves the one person who is told where she is when she asks for help. Typed or chosen from her contacts. */
     fun saveEmergencyContact(name: String, number: String) {

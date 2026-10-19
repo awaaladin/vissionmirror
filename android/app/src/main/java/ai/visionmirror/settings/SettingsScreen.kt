@@ -144,6 +144,19 @@ fun SettingsScreen(
                 if (saved != null) GhostAction("Remove emergency contact", viewModel::clearEmergencyContact, Modifier.fillMaxWidth(), icon = VmIcons.Close)
             }
 
+            SettingGroup("Teach me your voice") {
+                val teaching by viewModel.teaching.collectAsStateWithLifecycle()
+                BasicText(
+                    "If I often miss my name, teach me how you say it. Say the name three times and I will remember how I hear you. " +
+                        if (s.nameAliases.isEmpty()) "Nothing learned yet." else "I have learned ${s.nameAliases.size} way(s) of hearing you.",
+                    style = Vm.type.body.copy(color = Vm.colors.boneMuted),
+                )
+                teaching?.let { BasicText(it, style = Vm.type.label.copy(color = Vm.colors.champagne)) }
+                GhostAction("Teach Adanna my voice", { viewModel.teach(Persona.Adanna) }, Modifier.fillMaxWidth(), icon = VmIcons.Person)
+                GhostAction("Teach Bola my voice", { viewModel.teach(Persona.Bola) }, Modifier.fillMaxWidth(), icon = VmIcons.Person)
+                if (s.nameAliases.isNotEmpty()) GhostAction("Forget what I taught", viewModel::forgetLearnedNames, Modifier.fillMaxWidth(), icon = VmIcons.Close)
+            }
+
             SettingGroup("Text") {
                 BasicText("Text size", style = Vm.type.label.copy(color = Vm.colors.bone))
                 SegmentedControl(

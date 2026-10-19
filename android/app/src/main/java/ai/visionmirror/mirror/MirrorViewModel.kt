@@ -154,7 +154,19 @@ class MirrorViewModel @Inject constructor(
         autoSuppressed = false
         coach.reset()
         _state.value = MirrorUiState(facing = _state.value.facing)
-        speaker.say("I'll guide you. Hold the phone at arm's length, facing you. Tap anywhere to talk to me.", Priority.Interrupt)
+        // "Take a picture of me" from another screen: no guidance, just take it as soon as the camera is ready.
+        val waiting = screenCommands.takePending()
+        if (waiting == ScreenCommand.TakePhoto) {
+            speaker.say("Taking your picture.", Priority.Interrupt, local = true)
+            viewModelScope.launch {
+                var waited = 0
+                while (!captureController.isReady && waited < 5_000) { delay(100); waited += 100 }
+                delay(700) // let the camera settle its exposure
+                if (active) capture()
+            }
+        } else {
+            speaker.say("I'll guide you. Hold the phone at arm's length, facing you. Tap anywhere to talk to me.", Priority.Interrupt)
+        }
         // If the phone cannot speak at all, say so on screen instead of leaving a silent mirror.
         (speaker as? ai.visionmirror.audio.SpeechManager)?.problem?.let { why ->
             _state.update { it.copy(caption = "I can't speak on this phone. $why") }

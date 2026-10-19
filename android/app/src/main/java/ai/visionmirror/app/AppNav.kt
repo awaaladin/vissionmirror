@@ -94,9 +94,11 @@ fun AppNav(
                 AssistantAction.OpenGuide -> Routes.GUIDE
                 AssistantAction.OpenSettings -> Routes.SETTINGS
                 AssistantAction.OpenHome -> Routes.HOME
+                AssistantAction.OpenAccount -> Routes.ACCOUNT
                 AssistantAction.GoBack -> { nav.popBackStack(); return@collect }
                 // These are buttons on the open screen; the view model already pressed them.
-                AssistantAction.TakePhoto, AssistantAction.FlipCamera, AssistantAction.LookAgain -> return@collect
+                AssistantAction.TakePhoto, AssistantAction.FlipCamera, AssistantAction.LookAgain,
+                AssistantAction.SnapSelfie, AssistantAction.UseFrontCamera, AssistantAction.UseBackCamera -> return@collect
             }
             nav.navigate(route) {
                 popUpTo(Routes.HOME)

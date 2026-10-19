@@ -38,6 +38,9 @@ class CapturedPhoto(val bitmap: Bitmap, val jpeg: ByteArray)
 class CaptureController {
     internal var imageCapture: ImageCapture? = null
 
+    /** The camera is bound and a photo can be taken. */
+    val isReady: Boolean get() = imageCapture != null
+
     /** Null if the camera is not ready or the capture failed. */
     suspend fun capture(context: Context): CapturedPhoto? {
         val capture = imageCapture ?: return null

@@ -53,6 +53,35 @@ object WakeWord {
 
     private val special = Regex("\\bspecial\\s+requests?\\b")
 
+    // ---- what the phone hears when SHE says the names (learned in Settings > Teach me your voice) ----
+    private class Alias(val words: List<String>, val persona: Persona)
+
+    @Volatile private var learned: List<Alias> = emptyList()
+
+    /** [entries] look like "adanna|adina" (the name, then what was heard). */
+    fun setLearned(entries: List<String>) {
+        learned = entries.mapNotNull { e ->
+            val (who, heard) = e.split('|', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+            val words = heard.split(' ').filter { it.isNotBlank() }
+            if (words.isEmpty()) null else Alias(words, if (who == "bola") Persona.Bola else Persona.Adanna)
+        }
+    }
+
+    /**
+     * Whether what the phone heard when she was asked to say [persona]'s name can safely become a wake alias: it must be
+     * short, sound something like the name, and not be an ordinary sentence. Returns the entry to save, or null.
+     */
+    fun acceptAlias(persona: Persona, heard: String): String? {
+        val clean = heard.lowercase().replace(Regex("[^a-z ]"), " ").trim().replace(Regex("\\s+"), " ")
+        if (clean.isEmpty() || clean.split(' ').size > 2) return null
+        val target = if (persona == Persona.Bola) "bola" else TARGET
+        val joined = clean.replace(" ", "")
+        if (joined.length < 3 || joined == target) return null
+        val allowed = if (persona == Persona.Bola) 2 else 3
+        if (editDistance(joined, target) > allowed) return null
+        return "${target}|$clean"
+    }
+
     /** How "Bola" is often written when it is split in two ("bo la", "pay ya"). */
     private val bolaPairs = setOf("bola", "bowla", "boula", "polar", "payya", "pia")
 
@@ -62,6 +91,12 @@ object WakeWord {
         special.find(clean)?.let { return Match(clean.substring(it.range.last + 1).trim()) }
 
         val words = clean.split(' ')
+        for (alias in learned) {
+            val n = alias.words.size
+            for (i in 0..words.size - n) {
+                if (words.subList(i, i + n) == alias.words) return Match(requestAfter(words, i, n), alias.persona)
+            }
+        }
         for (i in words.indices) {
             // "a donna" is heard as two words as often as "adonna" as one.
             // Said from across the room the name is often mangled, so near the start of the sentence one more slip is allowed.
@@ -214,6 +249,7 @@ class WakeWordListener @Inject constructor(
     private var language: String? = "en-NG"
 
     init {
+        scope.launch { settings.settings.map { it.nameAliases }.distinctUntilChanged().collect { WakeWord.setLearned(it) } }
         scope.launch {
             combine(
                 settings.settings.map { Triple(it.wakeWord, it.bargeIn, it.persona) },

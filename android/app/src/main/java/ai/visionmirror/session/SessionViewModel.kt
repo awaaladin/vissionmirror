@@ -39,6 +39,7 @@ import ai.visionmirror.data.api.DetailLevel
 import ai.visionmirror.data.net.Connectivity
 import ai.visionmirror.data.net.PermissionChecker
 import ai.visionmirror.data.repo.MirrorRepository
+import ai.visionmirror.data.settings.CameraFacing
 import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.di.ApplicationScope
 import ai.visionmirror.haptics.Haptics
@@ -211,8 +212,12 @@ class SessionViewModel @Inject constructor(
             wake.stops.collect {
                 speaker.stop()
                 if (sosJob?.isActive == true) cancelSos()
-                // On the camera screens "stop" or "pause" also holds the scan or the countdown, to give her a gap.
-                if (onCameraScreen()) screenCommands.send(ScreenCommand.Pause)
+                // On the camera screens "stop" or "pause" also holds the scan or the countdown, then listens: the
+                // person cannot be expected to find a button, so saying "pause" is all it takes to give a request.
+                if (onCameraScreen()) {
+                    screenCommands.send(ScreenCommand.Pause)
+                    if (!assistantTurn && listenMode == ListenMode.None && permissions.hasMic()) openTurnWith("Paused. I'm listening.")
+                }
             }
         }
         viewModelScope.launch { wake.resumes.collect { if (onCameraScreen()) screenCommands.send(ScreenCommand.Resume) } }
@@ -389,6 +394,18 @@ class SessionViewModel @Inject constructor(
         if (listenMode == ListenMode.Question) voice.finish()
     }
 
+    @Volatile private var inBackground = false
+
+    /** The app went out of sight: stop talking, stop listening, and forget the turn that was in progress. */
+    fun onBackground() {
+        inBackground = true
+        cancelAsking()
+        pendingReply = null
+        speaker.stop()
+    }
+
+    fun onForeground() { inBackground = false }
+
     fun cancelAsking() {
         pendingMic = null
         endAssistantTurn()
@@ -399,7 +416,7 @@ class SessionViewModel @Inject constructor(
     }
 
     private fun maybeListenForCommand() {
-        if (!voiceCommandsEnabled || !permissions.hasMic()) return
+        if (inBackground || !voiceCommandsEnabled || !permissions.hasMic()) return
         if (_state.value.phase != Phase.Result || _state.value.ask != AskPhase.Idle) return
         listenMode = ListenMode.Command
         voice.start(language.recognitionTag())
@@ -569,7 +586,7 @@ class SessionViewModel @Inject constructor(
 
     private fun openAssistantMic() {
         pendingMic = null
-        if (listenMode != ListenMode.Assistant) { endAssistantTurn(); return }
+        if (inBackground || listenMode != ListenMode.Assistant) { endAssistantTurn(); return }
         // A beat of quiet after "Listening." so the end of my own voice is not what the microphone hears first.
         viewModelScope.launch {
             delay(MIC_SETTLE_MS)
@@ -598,6 +615,9 @@ class SessionViewModel @Inject constructor(
                 else -> Unit
             }
         }
+        AssistantIntents.parse(text, hasPhoto, screen)
+            ?.takeIf { it == AssistantAction.SnapSelfie || it == AssistantAction.UseFrontCamera || it == AssistantAction.UseBackCamera }
+            ?.let { routeAction(it); return }
         VoiceSettings.parse(text)?.let { applySetting(it); return }
         HandsFree.parse(text)?.let { applyHandsFree(it); return }
         ClockAnswer.answer(text, java.time.ZonedDateTime.now())?.let { speaker.say(it, Priority.Interrupt); return }
@@ -812,7 +832,40 @@ class SessionViewModel @Inject constructor(
             AssistantAction.TakePhoto -> screenCommands.send(ScreenCommand.TakePhoto)
             AssistantAction.FlipCamera -> screenCommands.send(ScreenCommand.FlipCamera)
             AssistantAction.LookAgain -> screenCommands.send(ScreenCommand.LookAgain)
+            AssistantAction.SnapSelfie -> snapSelfie()
+            AssistantAction.UseFrontCamera -> useCamera(CameraFacing.Front)
+            AssistantAction.UseBackCamera -> useCamera(CameraFacing.Back)
             else -> _actions.tryEmit(action)
+        }
+    }
+
+    /** "Take a picture of me": the photo is taken at once, from whatever screen she is on. */
+    private fun snapSelfie() {
+        viewModelScope.launch { settings.update { it.copy(cameraFacing = CameraFacing.Front) } }
+        if (screen == "mirror") {
+            screenCommands.send(ScreenCommand.TakePhoto)
+        } else {
+            screenCommands.later(ScreenCommand.TakePhoto) // the mirror takes it as soon as its camera is ready
+            _actions.tryEmit(AssistantAction.OpenMirror)
+        }
+    }
+
+    /** "Switch to the front camera" really switches it (the mirror follows the saved setting), or opens what has it. */
+    private fun useCamera(facing: CameraFacing) {
+        viewModelScope.launch { settings.update { it.copy(cameraFacing = facing) } }
+        val front = facing == CameraFacing.Front
+        when {
+            screen == "mirror" -> speaker.say(if (front) "Using the front camera." else "Using the back camera.", Priority.Interrupt, local = true)
+            front -> {
+                speaker.say("Opening the front camera.", Priority.Interrupt, local = true)
+                _actions.tryEmit(AssistantAction.OpenMirror)
+            }
+            screen == "guide" || screen?.startsWith("look") == true ->
+                speaker.say("Reading and guiding already use the back camera.", Priority.Interrupt, local = true)
+            else -> {
+                speaker.say("Opening the back camera.", Priority.Interrupt, local = true)
+                _actions.tryEmit(AssistantAction.OpenLook)
+            }
         }
     }
 
@@ -835,7 +888,7 @@ class SessionViewModel @Inject constructor(
             val roomToListen = screen in HANDS_FREE_SCREENS
             val idle = !assistantTurn && listenMode == ListenMode.None && _state.value.ask == AskPhase.Idle &&
                 _state.value.phase != Phase.Analysing
-            if (!handsFree || !quiet || !roomToListen || !idle || !permissions.hasMic()) return@launch
+            if (inBackground || !handsFree || !quiet || !roomToListen || !idle || !permissions.hasMic()) return@launch
             assistantTurn = true
             assistantAttempts = 0
             assistantStartedAt = clock()
