@@ -20,6 +20,16 @@ object VoiceCommands {
         if (text.isEmpty() || text.split(' ').size > 6) return null
         val padded = " $text "
         val hits = words.filter { (_, phrases) -> phrases.any { " $it " in padded } }.keys
+        if (hits.size > 1) return null // "stop and ask": two commands, so neither
+        // "Say that again", "I missed that", "start the photo again", "I have a question": every way listed on the website. These
+        // name the thing precisely, so they win over a single short word inside them ("start" in "start the photo again").
+        if (ai.visionmirror.assistant.VoiceCatalog.installed) {
+            when (ai.visionmirror.assistant.VoiceCatalog.match(text, only = setOf("res.retake", "res.repeat", "res.ask"))) {
+                "res.retake" -> return VoiceCommand.Retake
+                "res.repeat" -> return VoiceCommand.Repeat
+                "res.ask" -> return VoiceCommand.Ask
+            }
+        }
         return hits.singleOrNull()
     }
 }

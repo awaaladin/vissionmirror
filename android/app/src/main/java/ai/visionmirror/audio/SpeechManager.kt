@@ -42,6 +42,9 @@ interface Speaker {
     fun stop()
     fun pause()
     fun resume()
+
+    /** Asleep: nothing may be said until [silenced] is false again. */
+    fun setSilenced(silenced: Boolean) {}
 }
 
 /** Convenience with defaults (interfaces can't be overridden with default arguments). */
@@ -128,6 +131,9 @@ class SpeechManager @Inject constructor(
 
     /** True while the app is not on screen: the assistant must stay silent, whatever is still waiting to be said. */
     @Volatile private var background = false
+
+    /** True while she has said "sleep": quiet until her name is heard. */
+    @Volatile private var silenced = false
     private var rate = 1.0f
     private var pitch = 1.0f
     private var persona = Persona.Adanna
@@ -202,7 +208,7 @@ class SpeechManager @Inject constructor(
 
     /** Returns the utterance id so callers can match [Event]s. */
     override fun speak(text: String, priority: Priority, id: String, local: Boolean): String {
-        if (text.isBlank() || background) return id // nothing may be said while the app is out of sight
+        if (text.isBlank() || background || silenced) return id // nothing may be said while the app is out of sight or asleep
         synchronized(lock) {
             if (priority == Priority.Interrupt) {
                 queue.forEach { it.release() }
@@ -226,6 +232,11 @@ class SpeechManager @Inject constructor(
         if (ready) tts?.stop()
         _state.value = State()
         abandonFocus()
+    }
+
+    override fun setSilenced(silenced: Boolean) {
+        this.silenced = silenced
+        if (silenced) stop()
     }
 
     /** The app went out of sight (true) or came back (false). Going out silences everything at once. */

@@ -15,6 +15,8 @@ import ai.visionmirror.audio.WakeEvent
 import ai.visionmirror.audio.WakeSource
 import ai.visionmirror.audio.WakeWord
 import ai.visionmirror.assistant.AssistantAction
+import ai.visionmirror.assistant.ControlHints
+import ai.visionmirror.assistant.VoiceCatalog
 import ai.visionmirror.assistant.AssistantIntents
 import ai.visionmirror.assistant.ClockAnswer
 import ai.visionmirror.assistant.HandsFree
@@ -196,6 +198,7 @@ class SessionViewModel @Inject constructor(
         }
         viewModelScope.launch { voice.events.collect(::onVoiceEvent) }
         viewModelScope.launch { wake.wakes.collect(::onWake) }
+        viewModelScope.launch { wake.sleeps.collect { goToSleep() } }
         // The microphone opens the moment "Listening." has been said.
         viewModelScope.launch {
             speaker.events.collect { e ->
@@ -396,6 +399,25 @@ class SessionViewModel @Inject constructor(
 
     @Volatile private var inBackground = false
 
+    /** Asleep: say so, then go completely quiet until her name is heard again. */
+    private fun goToSleep() {
+        if (wake.asleep.value) return
+        cancelAsking()
+        pendingReply = null
+        _contactDraft.value = null
+        if (onCameraScreen()) screenCommands.send(ScreenCommand.Pause)
+        val name = _persona.value.displayName
+        wake.setAsleep(true)
+        val id = speaker.say("Going to sleep. Say $name when you want me.", Priority.Interrupt, local = true)
+        viewModelScope.launch {
+            // Let the goodnight finish, then silence everything (guidance on the camera screens included).
+            kotlinx.coroutines.withTimeoutOrNull(5_000) {
+                speaker.events.first { (it is SpeechManager.Event.Done || it is SpeechManager.Event.Failed) && it.eventId() == id }
+            }
+            if (wake.asleep.value) speaker.setSilenced(true)
+        }
+    }
+
     /** The app went out of sight: stop talking, stop listening, and forget the turn that was in progress. */
     fun onBackground() {
         inBackground = true
@@ -485,7 +507,7 @@ class SessionViewModel @Inject constructor(
         val worthAnotherTry = reason == VoiceFailure.NoSpeech || reason == VoiceFailure.Busy ||
             reason == VoiceFailure.Other || reason == VoiceFailure.Network
         if ((mode == ListenMode.Assistant || mode == ListenMode.Question) && worthAnotherTry &&
-            assistantAttempts < ASSISTANT_RETRIES && clock() - assistantStartedAt < ASSISTANT_PATIENCE_MS
+            assistantAttempts < ASSISTANT_RETRIES && clock() - assistantStartedAt < (if (_contactDraft.value != null) CONTACT_PATIENCE_MS else ASSISTANT_PATIENCE_MS)
         ) {
             assistantAttempts++
             listenMode = mode
@@ -510,11 +532,12 @@ class SessionViewModel @Inject constructor(
         }
         if (mode == ListenMode.Assistant) {
             endAssistantTurn()
+            val dropped = pendingReply
             pendingReply = null // she did not answer in time; the question is dropped
-            if (_contactDraft.value != null) {
-                _contactDraft.value = null
+            if (_contactDraft.value != null && dropped != null) {
+                // In the emergency contact conversation, saying nothing for a while is not the end: the step decides what to do.
                 _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
-                speaker.say("I stopped waiting. Say set my emergency contact when you want to carry on.", Priority.Interrupt, local = true)
+                dropped("")
                 return
             }
             if (handsFree && reason == VoiceFailure.NoSpeech) {
@@ -542,6 +565,11 @@ class SessionViewModel @Inject constructor(
 
     /** The wake word was heard anywhere in the app. [request] is what she said after it, if anything. */
     private fun onWake(event: WakeEvent) {
+        // Asleep, her name wakes the assistant, and what she said after it is then handled as usual.
+        if (wake.asleep.value) {
+            wake.setAsleep(false)
+            speaker.setSilenced(false)
+        }
         if (listenMode == ListenMode.Question || listenMode == ListenMode.Assistant) return
         haptics.click()
         handleWake(event.request, event.called)
@@ -610,6 +638,8 @@ class SessionViewModel @Inject constructor(
         val hasPhoto = sessionId != null
         // An answer to a question I just asked ("Say yes to save"): it belongs to that question, nothing else.
         pendingReply?.let { reply -> pendingReply = null; reply(text); return }
+        // "Sleep": quiet, and deaf to everything but her name, until she calls.
+        if (VoiceCatalog.installed && VoiceCatalog.match(text, only = setOf("wake.sleep")) != null) { goToSleep(); return }
         // "Cancel" during the emergency countdown stops it, however it was heard.
         if (sosJob?.isActive == true && StopWords.matches(text)) { speaker.stop(); cancelSos(); return }
         EmergencyIntents.parse(text)?.let { handleEmergency(it); return }
@@ -641,6 +671,8 @@ class SessionViewModel @Inject constructor(
             Unit
         }
         AssistantIntents.parse(text, hasPhoto, screen)?.let { routeAction(it); return }
+        // The app CAN change these. If the words were not recognised, a hint is better than the AI saying it cannot.
+        ControlHints.forRequest(text, hasPhoto)?.let { speaker.say(it, Priority.Interrupt); return }
         if (hasPhoto && !AssistantIntents.isKnowledgeQuestion(text)) submitQuestion(text) else askAssistant(text)
     }
 
@@ -792,8 +824,19 @@ class SessionViewModel @Inject constructor(
         askContactName("Let's set your emergency contact. Who should it be? Say their name.")
     }
 
+    private var contactSilences = 0
+
     private fun contactTurn(prompt: String, onReply: (String) -> Unit): Unit {
-        pendingReply = { reply -> onReply(reply) }
+        pendingReply = { reply ->
+            // Silence is not the end of the conversation: the step asks again, and only three silent turns in a row stop it.
+            if (reply.isBlank()) contactSilences++ else contactSilences = 0
+            if (contactSilences >= 3) {
+                contactSilences = 0
+                abortContact("I stopped waiting. Say set my emergency contact when you want to carry on.")
+            } else {
+                onReply(reply)
+            }
+        }
         openTurnWith(prompt)
     }
 
@@ -825,7 +868,7 @@ class SessionViewModel @Inject constructor(
                 spelling != null -> confirmContactName(spelling)
                 ai.visionmirror.emergency.SpokenInput.isNo(reply) ->
                     askContactName("Okay. Spell the name for me, one letter at a time.")
-                ai.visionmirror.emergency.SpokenInput.isYes(reply) -> askContactNumber("Now the phone number. Say each digit, one by one.")
+                ai.visionmirror.emergency.SpokenInput.isYes(reply) -> askContactNumber("Now the phone number. Take your time: say a few digits, pause, and go on. Say done when you have finished.")
                 else -> {
                     // Neither yes nor spelling: take it as the name said again.
                     val again = ai.visionmirror.emergency.SpokenInput.cleanName(reply)
@@ -835,20 +878,32 @@ class SessionViewModel @Inject constructor(
         }
     }
 
-    private fun askContactNumber(prompt: String) {
-        _contactDraft.update { it?.copy(step = "number") }
-        contactTurn(prompt) { reply ->
-            val digits = ai.visionmirror.emergency.SpokenInput.digits(reply)
-            val count = digits.count { it.isDigit() }
-            when {
-                ai.visionmirror.emergency.SpokenInput.isCancel(reply) -> abortContact()
-                ai.visionmirror.emergency.SpokenInput.wantsNameChange(reply) -> askContactName("Okay. Say the name, or spell it.")
-                count < 7 -> askContactNumber(
-                    if (count == 0) "I didn't catch any digits. Say the whole number, one digit at a time."
-                    else "I only caught $count digits. Please say the whole number again, one digit at a time.",
-                )
-                else -> confirmContactNumber(digits)
-            }
+    /**
+     * The number is taken in pieces: people pause between groups of digits, so each piece is added to what was heard before, shown on
+     * the page, and answered with "Go on". It is finished when it looks complete (11 digits, or +234 and 12) or she says "done".
+     */
+    private fun askContactNumber(prompt: String, soFar: String = "") {
+        _contactDraft.update { it?.copy(number = soFar, step = "number") }
+        contactTurn(prompt) { reply -> onNumberPiece(reply, soFar) }
+    }
+
+    private fun onNumberPiece(reply: String, soFar: String) {
+        val spoken = ai.visionmirror.emergency.SpokenInput
+        if (spoken.isCancel(reply)) return abortContact()
+        if (spoken.wantsNameChange(reply)) return askContactName("Okay. Say the name, or spell it.")
+        val piece = spoken.digits(reply)
+        val all = if (piece.startsWith("+") && soFar.isNotEmpty()) soFar + piece.drop(1) else soFar + piece
+        val count = all.count { it.isDigit() }
+        val complete = if (all.startsWith("+")) count >= 12 else count >= 11
+        val done = spoken.saysDone(reply)
+        _contactDraft.update { it?.copy(number = all, step = "number") }
+        when {
+            count >= 7 && (complete || done || (piece.isEmpty() && reply.isBlank())) -> confirmContactNumber(all)
+            piece.isEmpty() && soFar.isEmpty() ->
+                askContactNumber("I didn't catch any digits. Say the whole number, a few digits at a time. Say done when you have finished.")
+            piece.isEmpty() -> contactTurn(if (reply.isBlank()) "Still listening. Go on, or say done." else "I didn't catch digits there. Go on with the number.") { r -> onNumberPiece(r, all) }
+            done -> contactTurn("That is only $count digits so far. Go on with the rest.") { r -> onNumberPiece(r, all) }
+            else -> contactTurn("Go on.") { r -> onNumberPiece(r, all) }
         }
     }
 
@@ -859,7 +914,7 @@ class SessionViewModel @Inject constructor(
             when {
                 ai.visionmirror.emergency.SpokenInput.isCancel(reply) -> abortContact()
                 again.count { it.isDigit() } >= 7 -> confirmContactNumber(again) // she simply said the number again
-                ai.visionmirror.emergency.SpokenInput.isNo(reply) -> askContactNumber("Okay. Say the number again, one digit at a time.")
+                ai.visionmirror.emergency.SpokenInput.isNo(reply) -> askContactNumber("Okay. Say the number again, a few digits at a time.")
                 ai.visionmirror.emergency.SpokenInput.isYes(reply) -> askContactSave()
                 else -> confirmContactNumber(number)
             }
@@ -1011,7 +1066,7 @@ class SessionViewModel @Inject constructor(
             val roomToListen = screen in HANDS_FREE_SCREENS
             val idle = !assistantTurn && listenMode == ListenMode.None && _state.value.ask == AskPhase.Idle &&
                 _state.value.phase != Phase.Analysing
-            if (inBackground || !handsFree || !quiet || !roomToListen || !idle || !permissions.hasMic()) return@launch
+            if (inBackground || wake.asleep.value || !handsFree || !quiet || !roomToListen || !idle || !permissions.hasMic()) return@launch
             assistantTurn = true
             assistantAttempts = 0
             assistantStartedAt = clock()
@@ -1129,6 +1184,7 @@ class SessionViewModel @Inject constructor(
         val HANDS_FREE_SCREENS = setOf("home", "result", "settings")
         /** Keep listening this long, in up to this many quiet restarts, before saying she was not heard. */
         const val ASSISTANT_PATIENCE_MS = 6_000L
+        const val CONTACT_PATIENCE_MS = 12_000L // spelling a name or reading out digits takes longer
         const val ASSISTANT_RETRIES = 40
         const val ASSISTANT_RETRY_GAP_MS = 350L
         const val MAX_NETWORK_RETRIES = 4

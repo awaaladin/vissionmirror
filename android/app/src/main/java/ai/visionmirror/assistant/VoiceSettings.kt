@@ -49,6 +49,10 @@ object VoiceSettings {
         if (has("what can you do", "what can i say", "what can i ask", "what are the commands", "list commands", "show commands") || text == "help") {
             return SettingChange.Help
         }
+        // "Read the larger text" is a request to read, not to change the text size.
+        if (text.startsWith("read ")) return null
+        // A question ("what does the bigger text on the label say") is not an order to change a setting.
+        if (text.substringBefore(' ') in QUESTION_STARTS && text.split(' ').size > 3) return null
         // The catalog knows every way of saying each of these (dozens of synonyms each), so it is asked first.
         if (VoiceCatalog.installed) VoiceCatalog.match(text)?.let { id -> fromCatalog(id)?.let { return it } }
 
@@ -144,6 +148,8 @@ object VoiceSettings {
         }
     }
 
+    private val QUESTION_STARTS = setOf("what", "which", "who", "whom", "where", "why", "how", "when", "is", "are", "was", "were", "does", "did")
+
     private fun set(say: String, change: (Settings) -> Settings): SettingChange = SettingChange.Set(say, change)
 
     /** What each setting command of the catalog does. */
@@ -191,6 +197,16 @@ object VoiceSettings {
     }
 
     private fun languageChange(text: String): SettingChange? {
+        // Just the name of the language ("Hausa") is a request too.
+        val bare = when (text) {
+            "hausa" -> ResponseLanguage.Hausa
+            "yoruba" -> ResponseLanguage.Yoruba
+            "igbo" -> ResponseLanguage.Igbo
+            "ibibio" -> ResponseLanguage.Ibibio
+            "english", "nigerian english" -> ResponseLanguage.NigerianEnglish
+            else -> null
+        }
+        if (bare != null) return SettingChange.Set("${bare.label}.") { it.copy(language = bare, voiceName = null) }
         val asked = Regex("\\b(speak|talk|use|switch to|change to|change language to|switch language to|set language to|set the language to|answer in|reply in|respond in|say it in|tell me in|translate to|talk to me in|speak to me in|go to|i want|i prefer|please speak|please use|can you speak|can you talk|give me|read it in|describe in|in)\\s+(?:to me in\\s+)?(nigerian english|english|hausa|yoruba|igbo|ibibio)\\b").find(text)
             ?: return null
         val language = when (asked.groupValues[2]) {

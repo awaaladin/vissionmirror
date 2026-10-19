@@ -58,6 +58,12 @@ object HandsFree {
     fun parse(utterance: String): Change? {
         val text = normalise(utterance)
         if (text.isEmpty() || text.split(' ').size > 7) return null
+        if (VoiceCatalog.installed) {
+            when (VoiceCatalog.match(text, only = setOf("hands.on", "hands.off"))) {
+                "hands.off" -> return Change.Off
+                "hands.on" -> return Change.On
+            }
+        }
         val padded = " $text "
         if (off.any { " $it " in padded }) return Change.Off
         if (on.any { " $it " in padded }) return Change.On

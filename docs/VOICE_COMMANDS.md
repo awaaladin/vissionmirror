@@ -67,6 +67,14 @@ Works while I am talking. On the camera screens, stopping also pauses and listen
 
 All 33 ways: stop, quiet, enough, silence, hush, cancel, pause, wait, hold on, hang on, shut up, be quiet, stop talking, stop speaking, that is enough, thats enough, okay stop, ok stop, stop it, stop now, please stop, enough now, stop reading, stop describing, cut it, zip it, silence please, quiet please, hush please, stop right there, alright stop, all right stop, thanks stop.
 
+### Sleep (stay quiet until I call you)
+
+Say, for example: “Sleep”; “Adanna, sleep”; “Go to sleep”; “Be quiet until I call you”.
+
+I go quiet and ignore everything except my name. Say “Adanna” or “Bola” to wake me.
+
+All 47 ways: go to sleep, sleep mode, sleep now, adanna sleep, bola sleep, go to sleep adanna, go to sleep bola, goodnight, good night, take a nap, rest, have a rest, be quiet until i call you, stay quiet until i call you, quiet until i call you, stop listening until i call you, stop listening until i call, stop listening until i call your name, dont listen until i call you, do not listen until i call you, mute yourself, silence until i call you, turn yourself off, switch yourself off, power down, shut down, go quiet, go silent, go to standby, standby mode, sleep until i call you, sleep until called, take a break, have a break, stand down and sleep, nap time, time to sleep, go off, log off, go offline, i need quiet, i want quiet, give me quiet, give me some quiet, be silent, stay silent, stay asleep.
+
 ## Open things
 
 Say where you want to go. These work from any screen.
@@ -239,11 +247,15 @@ Say, for example: “Brighter”; “Increase the brightness”; “I can't see 
 
 All 27 ways: brighter, brightness up, increase brightness, increase the brightness, raise brightness, raise the brightness, more brightness, higher brightness, make it brighter, make the screen brighter, brighten, brighten the screen, lighten the screen, screen brighter, light up the screen, turn up the brightness, turn the brightness up, up the brightness, boost brightness, screen too dark, cant see the screen, i cant see the screen, i cannot see the screen, more light on the screen, brighter screen, make the screen lighter, screen lighter.
 
+Or mix one of these things: brightness, screen brightness, screen, display, backlight, screen light, display brightness with one of these words: increase, increased, raise, higher, more, up, boost, brighter, brighten, lift, bump, turn up, put up, increasing, raising, in any order (for example “increase the brightness”).
+
 ### Dimmer screen
 
 Say, for example: “Dimmer”; “Dim the screen”; “It's too bright”.
 
 All 27 ways: dimmer, brightness down, decrease brightness, decrease the brightness, lower brightness, lower the brightness, less brightness, reduce brightness, reduce the brightness, dim the screen, dim it, dim, make it dimmer, make the screen dimmer, screen dimmer, dim the display, turn down the brightness, turn the brightness down, screen too bright, it hurts my eyes, softer screen, less glare, lower the light, tone down the screen, brightness lower, dimmer screen, make the screen softer.
+
+Or mix one of these things: brightness, screen brightness, screen, display, backlight, screen light, display brightness with one of these words: decrease, reduce, lower, less, down, dimmer, dim, lessen, drop, cut, minus, turn down, put down, decreasing, reducing, lowering, in any order (for example “decrease the brightness”).
 
 ### Largest text
 
@@ -263,11 +275,15 @@ Say, for example: “Bigger text”; “Increase the font size”; “I can't re
 
 All 97 ways: bigger text, larger text, increase text, increase the text, text bigger, text larger, make the text bigger, make it bigger, bigger font, larger font, increase font, increase the font, increase font size, increase the font size, font bigger, font larger, make the font bigger, enlarge the text, enlarge text, enlarge the font, zoom in, zoom the text, magnify, magnify the text, big letters, bigger letters, larger letters, bigger writing, make the letters bigger, make writing bigger, bigger print, larger print, big print, make everything bigger, bigger words, i cant read this, i cannot read this, text too small, text is too small, words too small, font too small, letters too small, cant read the text, i cannot read the text, text is tiny, tiny text, increase the text size, increase text size, raise the text size, text size bigger, text size larger, text size up, text size higher, increase the size of the text, raise the size of the text, make the text size bigger, make text size bigger, bigger text size, larger text size, make the font size bigger, make font size bigger, bigger font size, larger font size, font size bigger, font size larger, font size up, font size higher, raise the font size, raise font size, enlarge the text size, enlarge the font size, boost the text size, boost the font size, turn the text size up, turn up the text size, turn the font size up, turn up the font size, bring the text size up, bring up the text size, take the text size up, text size a bit bigger, text size a little bigger, text a bit bigger, text a little bigger, font a bit bigger, font a little bigger, more text size, more font size, text size plus, font size plus, text bigger please, make the writing bigger, make the words bigger, make the print bigger, increase the size of the font, increase the print size, bigger print size.
 
+Or mix one of these things: text, font, letters, writing, print, words, text size, font size, lettering with one of these words: increase, increased, raise, bigger, larger, enlarge, up, more, higher, boost, magnify, zoom, big, large, increasing, raising, enlarging, in any order (for example “increase the text”).
+
 ### Smaller text
 
 Say, for example: “Smaller text”; “Reduce the font size”; “The text is too big”.
 
 All 78 ways: smaller text, reduce text, reduce the text, text smaller, make the text smaller, make it smaller, smaller font, reduce font, reduce the font, decrease text, decrease the text, decrease font size, decrease the font size, font smaller, shrink the text, shrink text, shrink the font, make the font smaller, smaller letters, smaller writing, smaller print, make the letters smaller, make everything smaller, text too big, text is too big, font too big, letters too big, words too big, text too large, text is too large, reduce the text size, reduce text size, lower the text size, decrease the text size, text size smaller, text size down, text size lower, reduce the size of the text, decrease the size of the text, lower the size of the text, make the text size smaller, make text size smaller, smaller text size, reduce the font size, reduce font size, lower the font size, font size smaller, font size down, font size lower, make the font size smaller, make font size smaller, smaller font size, reduce the size of the font, decrease the size of the font, lessen the text size, lessen the font size, cut the text size, cut down the text size, shrink the text size, shrink the font size, text size a bit smaller, text size a little smaller, text a bit smaller, text a little smaller, font a bit smaller, font a little smaller, less text size, less font size, turn the text size down, turn down the text size, turn the font size down, turn down the font size, bring the text size down, bring down the text size, take the text size down, text size minus, font size minus, text smaller please.
+
+Or mix one of these things: text, font, letters, writing, print, words, text size, font size, lettering with one of these words: decrease, reduce, smaller, lower, shrink, less, down, small, minus, lessen, cut, decreasing, reducing, lowering, shrinking, in any order (for example “decrease the text”).
 
 ### Easy-to-read font
 
@@ -383,11 +399,15 @@ Say, for example: “Louder”; “Turn it up”; “I can't hear you”.
 
 All 38 ways: louder, volume up, turn it up, speak up, increase volume, increase the volume, raise the volume, raise volume, more volume, higher volume, make it louder, make louder, louder please, up the volume, boost the volume, boost volume, crank it up, i cannot hear you, cant hear you, i cant hear you, too quiet, too soft, too low, you are too quiet, speak louder, talk louder, say it louder, increase sound, sound up, turn up the sound, volume higher, more sound, amplify, bump the volume, a bit louder, little louder, much louder, volume a bit higher.
 
+Or mix one of these things: volume, sound, audio, speaker, your voice, loudness, the sound, sound level, volume level with one of these words: increase, increased, raise, higher, more, up, louder, boost, bump, lift, turn up, put up, increasing, raising, in any order (for example “increase the volume”).
+
 ### Quieter
 
 Say, for example: “Quieter”; “Turn it down”; “You're too loud”.
 
 All 34 ways: quieter, volume down, turn it down, softer, lower the volume, lower volume, decrease volume, decrease the volume, reduce volume, reduce the volume, less volume, lower the sound, make it quieter, make quieter, quieter please, speak softer, talk softer, too loud, too noisy, you are too loud, sound down, turn down the sound, volume lower, less sound, bring the volume down, tone it down, lower your voice, a bit quieter, little quieter, much quieter, volume a bit lower, not so loud, not too loud, keep it down.
+
+Or mix one of these things: volume, sound, audio, speaker, your voice, loudness, the sound, sound level, volume level with one of these words: decrease, reduce, lower, less, down, quieter, softer, lessen, drop, cut, minus, turn down, put down, decreasing, reducing, lowering, in any order (for example “decrease the volume”).
 
 ### Normal speaking speed
 
@@ -401,11 +421,15 @@ Say, for example: “Slower”; “You're too fast”; “Slow down”.
 
 All 32 ways: slower, slow down, speak slowly, talk slowly, speed down, too fast, you are too fast, you talk too fast, you speak too fast, speak more slowly, talk more slowly, more slowly, slowly please, slow it down, slow speech, slower speech, reduce speed, reduce your speed, lower the speed, lower speed, decrease speed, decrease your speed, take it slow, take your time, not so fast, not too fast, go slower, say it slower, speak slower, talk slower, a bit slower, little slower.
 
+Or mix one of these things: speed, pace, speaking, talking, speech, speaking speed, talking speed, speech speed, speech rate with one of these words: decrease, reduce, slower, lower, down, less, slow, lessen, drop, minus, slow down, decreasing, reducing, lowering, in any order (for example “decrease the speed”).
+
 ### Speak faster
 
 Say, for example: “Faster”; “Speed up”; “You're too slow”.
 
 All 30 ways: faster, speed up, speak quickly, talk faster, too slow, you are too slow, you talk too slow, you speak too slowly, speak faster, talk quicker, quicker, more quickly, hurry up, faster please, go faster, say it faster, increase speed, increase your speed, raise the speed, higher speed, speed it up, fast speech, faster speech, speak fast, talk fast, a bit faster, little faster, move faster, get on with it, much faster.
+
+Or mix one of these things: speed, pace, speaking, talking, speech, speaking speed, talking speed, speech speed, speech rate with one of these words: increase, raise, faster, quicker, up, higher, more, boost, speed up, quick, fast, increasing, raising, in any order (for example “increase the speed”).
 
 ## Voice and language
 
@@ -531,4 +555,4 @@ All 33 ways: access, access granted, grant access, i grant you access, you have 
 
 Say, for example: “That's all”; “Goodbye”; “Release access”.
 
-All 34 ways: hands free off, turn off hands free, release access, revoke access, take back control, stand down, thats all, that is all, goodbye, good bye, im done, i am done, stop listening, thank you that is all, that will be all, we are done, were done, all done, i am finished, im finished, that is everything, thats everything, nothing else, you can stop, you can rest, go to sleep, bye, bye bye, see you, see you later, good night, goodnight, take a break, go quiet.
+All 28 ways: hands free off, turn off hands free, release access, revoke access, take back control, stand down, thats all, that is all, goodbye, good bye, im done, i am done, stop listening, thank you that is all, that will be all, we are done, were done, all done, i am finished, im finished, that is everything, thats everything, nothing else, you can stop, bye, bye bye, see you, see you later.

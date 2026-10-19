@@ -3,6 +3,7 @@ package ai.visionmirror.audio
 import ai.visionmirror.assistant.OwnSpeech
 import ai.visionmirror.assistant.ResumeWords
 import ai.visionmirror.assistant.StopWords
+import ai.visionmirror.assistant.VoiceCatalog
 import ai.visionmirror.data.net.PermissionChecker
 import ai.visionmirror.data.settings.SettingsStore
 import ai.visionmirror.di.ApplicationScope
@@ -197,6 +198,14 @@ interface WakeSource {
      * her request), because two recognisers on one microphone make both fail, which sounded like "I can't hear you".
      */
     fun hold(held: Boolean)
+
+    /** She said "sleep" (or "Adanna, sleep"): the app goes quiet, and only her name wakes it. */
+    val sleeps: SharedFlow<Unit>
+
+    /** True while asleep. */
+    val asleep: StateFlow<Boolean>
+
+    fun setAsleep(asleep: Boolean)
 }
 
 /**
@@ -233,6 +242,13 @@ class WakeWordListener @Inject constructor(
     private val _hearing = MutableStateFlow(Hearing())
     override val hearing: StateFlow<Hearing> = _hearing.asStateFlow()
 
+    private val _sleeps = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
+    override val sleeps: SharedFlow<Unit> = _sleeps.asSharedFlow()
+
+    private val _asleep = MutableStateFlow(false)
+    override val asleep: StateFlow<Boolean> = _asleep.asStateFlow()
+    override fun setAsleep(asleep: Boolean) { _asleep.value = asleep }
+
     private val foreground = MutableStateFlow(false)
     private val held = MutableStateFlow(false)
     private val main = Handler(Looper.getMainLooper())
@@ -256,11 +272,13 @@ class WakeWordListener @Inject constructor(
                 foreground,
                 voice.busy,
                 held,
-            ) { (wake, barge, persona), front, busy, hold ->
+                _asleep,
+            ) { (wake, barge, persona), front, busy, hold, sleeping ->
                 wakeOn = wake
                 bargeOn = barge
                 name = persona
-                (wake || barge) && front && !busy && !hold
+                // Asleep, the name must still be heard, whatever the settings say: it is the only way to wake her.
+                (wake || barge || sleeping) && front && !busy && !hold
             }
                 .distinctUntilChanged()
                 .collectLatest { shouldListen ->
@@ -298,7 +316,11 @@ class WakeWordListener @Inject constructor(
                 delay(2_000)
                 continue
             }
-            _hearing.value = Hearing(active = true, status = "Listening for “${name.displayName}”" + if (offline) " (on this phone)" else "")
+            _hearing.value = Hearing(
+                active = true,
+                status = if (_asleep.value) "Asleep. Say “${name.displayName}” to wake me."
+                else "Listening for “${name.displayName}”" + if (offline) " (on this phone)" else "",
+            )
             when (val outcome = withContext(Dispatchers.Main) { if (offline) listenOffline() else listenOnce() }) {
                 is Outcome.Heard -> {
                     failures = 0
@@ -306,6 +328,7 @@ class WakeWordListener @Inject constructor(
                     _wakes.tryEmit(WakeEvent(outcome.request, outcome.called))
                     delay(1_500) // let the view model take the microphone before we would listen again
                 }
+                Outcome.Sleep -> { failures = 0; _sleeps.tryEmit(Unit); delay(600) }
                 Outcome.Stop -> { failures = 0; _stops.tryEmit(Unit); delay(400) }
                 Outcome.Resume -> { failures = 0; _resumes.tryEmit(Unit); delay(400) }
                 Outcome.Silence -> { failures = 0; delay(150) }
@@ -340,6 +363,7 @@ class WakeWordListener @Inject constructor(
         data object Silence : Outcome
         data object Busy : Outcome
         data object Stop : Outcome
+        data object Sleep : Outcome
         data object Resume : Outcome
         data class Failed(val code: Int) : Outcome
     }
@@ -348,6 +372,13 @@ class WakeWordListener @Inject constructor(
     private fun decide(heardRaw: List<String>, talkingNow: Boolean): Outcome? {
         val heard = heardRaw.filterNot { own.isEcho(it) }
         if (heard.isEmpty()) return null
+        // Asleep: nothing but her name does anything.
+        if (_asleep.value) {
+            val match = heard.firstNotNullOfOrNull { WakeWord.matches(it) }
+            return if (match != null) Outcome.Heard(match.request, match.called) else null
+        }
+        // "Sleep", "go to sleep", "be quiet until I call you": works even while she talks, and needs no name.
+        if (VoiceCatalog.installed && heard.any { it.trim().split(' ').size <= 6 && VoiceCatalog.match(it, only = SLEEP_ID) != null }) return Outcome.Sleep
         if (bargeOn && heard.any { StopWords.matches(it) }) return Outcome.Stop
         if (talkingNow) return null
         if (bargeOn && heard.any { ResumeWords.matches(it) }) return Outcome.Resume
@@ -511,7 +542,8 @@ class WakeWordListener @Inject constructor(
 
     private companion object {
         const val WAKE_SETTLE_MS = 550L
-        val STOP_WORDS = listOf("stop", "pause", "wait", "hold on", "hang on", "quiet", "enough", "silence", "hush", "cancel", "shut up", "one moment", "one second", "freeze", "halt")
+        val STOP_WORDS = listOf("stop", "pause", "wait", "hold on", "hang on", "quiet", "enough", "silence", "hush", "cancel", "shut up", "one moment", "one second", "freeze", "halt", "sleep", "go to sleep", "goodnight")
+        val SLEEP_ID = setOf("wake.sleep")
         const val OFFLINE_TRUST_MS = 120_000L
 
         // Android's SpeechRecognizer error codes that mean "not with these settings": network timeout (1), network (2),

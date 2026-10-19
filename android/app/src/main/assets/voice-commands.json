@@ -98,7 +98,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.sos",
@@ -147,7 +149,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": "Counts down for a few seconds, then texts your location to your emergency contact. Say “cancel” to stop it."
+   "note": "Counts down for a few seconds, then texts your location to your emergency contact. Say “cancel” to stop it.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.share",
@@ -182,7 +186,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.setcontact",
@@ -215,7 +221,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": "You can also type it: Settings, Emergency contact."
+   "note": "You can also type it: Settings, Emergency contact.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.list",
@@ -247,7 +255,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.clear",
@@ -279,7 +289,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.call",
@@ -317,7 +329,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": "Opens the dialer; you press the green button."
+   "note": "Opens the dialer; you press the green button.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "vol.max",
@@ -358,7 +372,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "vol.up",
@@ -414,7 +430,34 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "volume",
+    "sound",
+    "audio",
+    "speaker",
+    "your voice",
+    "loudness",
+    "the sound",
+    "sound level",
+    "volume level"
+   ],
+   "directions": [
+    "increase",
+    "increased",
+    "raise",
+    "higher",
+    "more",
+    "up",
+    "louder",
+    "boost",
+    "bump",
+    "lift",
+    "turn up",
+    "put up",
+    "increasing",
+    "raising"
+   ]
   },
   {
    "id": "vol.down",
@@ -466,7 +509,36 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "volume",
+    "sound",
+    "audio",
+    "speaker",
+    "your voice",
+    "loudness",
+    "the sound",
+    "sound level",
+    "volume level"
+   ],
+   "directions": [
+    "decrease",
+    "reduce",
+    "lower",
+    "less",
+    "down",
+    "quieter",
+    "softer",
+    "lessen",
+    "drop",
+    "cut",
+    "minus",
+    "turn down",
+    "put down",
+    "decreasing",
+    "reducing",
+    "lowering"
+   ]
   },
   {
    "id": "rate.normal",
@@ -507,7 +579,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "rate.slow",
@@ -557,7 +631,34 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "speed",
+    "pace",
+    "speaking",
+    "talking",
+    "speech",
+    "speaking speed",
+    "talking speed",
+    "speech speed",
+    "speech rate"
+   ],
+   "directions": [
+    "decrease",
+    "reduce",
+    "slower",
+    "lower",
+    "down",
+    "less",
+    "slow",
+    "lessen",
+    "drop",
+    "minus",
+    "slow down",
+    "decreasing",
+    "reducing",
+    "lowering"
+   ]
   },
   {
    "id": "rate.fast",
@@ -605,7 +706,33 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "speed",
+    "pace",
+    "speaking",
+    "talking",
+    "speech",
+    "speaking speed",
+    "talking speed",
+    "speech speed",
+    "speech rate"
+   ],
+   "directions": [
+    "increase",
+    "raise",
+    "faster",
+    "quicker",
+    "up",
+    "higher",
+    "more",
+    "boost",
+    "speed up",
+    "quick",
+    "fast",
+    "increasing",
+    "raising"
+   ]
   },
   {
    "id": "bright.full",
@@ -642,7 +769,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "bright.auto",
@@ -684,7 +813,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "bright.up",
@@ -729,7 +860,33 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "brightness",
+    "screen brightness",
+    "screen",
+    "display",
+    "backlight",
+    "screen light",
+    "display brightness"
+   ],
+   "directions": [
+    "increase",
+    "increased",
+    "raise",
+    "higher",
+    "more",
+    "up",
+    "boost",
+    "brighter",
+    "brighten",
+    "lift",
+    "bump",
+    "turn up",
+    "put up",
+    "increasing",
+    "raising"
+   ]
   },
   {
    "id": "bright.down",
@@ -774,7 +931,34 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "brightness",
+    "screen brightness",
+    "screen",
+    "display",
+    "backlight",
+    "screen light",
+    "display brightness"
+   ],
+   "directions": [
+    "decrease",
+    "reduce",
+    "lower",
+    "less",
+    "down",
+    "dimmer",
+    "dim",
+    "lessen",
+    "drop",
+    "cut",
+    "minus",
+    "turn down",
+    "put down",
+    "decreasing",
+    "reducing",
+    "lowering"
+   ]
   },
   {
    "id": "text.huge",
@@ -839,7 +1023,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "text.normal",
@@ -899,7 +1085,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "text.bigger",
@@ -1014,7 +1202,37 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "text",
+    "font",
+    "letters",
+    "writing",
+    "print",
+    "words",
+    "text size",
+    "font size",
+    "lettering"
+   ],
+   "directions": [
+    "increase",
+    "increased",
+    "raise",
+    "bigger",
+    "larger",
+    "enlarge",
+    "up",
+    "more",
+    "higher",
+    "boost",
+    "magnify",
+    "zoom",
+    "big",
+    "large",
+    "increasing",
+    "raising",
+    "enlarging"
+   ]
   },
   {
    "id": "text.smaller",
@@ -1110,7 +1328,35 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [
+    "text",
+    "font",
+    "letters",
+    "writing",
+    "print",
+    "words",
+    "text size",
+    "font size",
+    "lettering"
+   ],
+   "directions": [
+    "decrease",
+    "reduce",
+    "smaller",
+    "lower",
+    "shrink",
+    "less",
+    "down",
+    "small",
+    "minus",
+    "lessen",
+    "cut",
+    "decreasing",
+    "reducing",
+    "lowering",
+    "shrinking"
+   ]
   },
   {
    "id": "font.hyper",
@@ -1194,7 +1440,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "font.standard",
@@ -1271,7 +1519,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "contrast.off",
@@ -1314,7 +1564,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "contrast.on",
@@ -1423,7 +1675,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "theme.light",
@@ -1509,7 +1763,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "theme.dark",
@@ -1601,7 +1857,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "theme.system",
@@ -1685,7 +1943,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "motion.full",
@@ -1723,7 +1983,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "motion.reduce",
@@ -1770,7 +2032,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "haptics.off",
@@ -1816,7 +2080,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "haptics.on",
@@ -1885,7 +2151,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "detail.brief",
@@ -1939,7 +2207,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "detail.detailed",
@@ -1986,7 +2256,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "detail.standard",
@@ -2031,7 +2303,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "wake.off",
@@ -2069,7 +2343,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "wake.on",
@@ -2110,7 +2386,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "commands.off",
@@ -2140,7 +2418,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "commands.on",
@@ -2194,7 +2474,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "barge.off",
@@ -2232,7 +2514,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "barge.on",
@@ -2274,7 +2558,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "voice.bola",
@@ -2369,7 +2655,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "voice.adanna",
@@ -2466,7 +2754,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "voice.next",
@@ -2508,7 +2798,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "voice.local",
@@ -2552,7 +2844,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "voice.cloud",
@@ -2662,7 +2956,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.back",
@@ -2713,7 +3009,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.settings",
@@ -2798,7 +3096,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.account",
@@ -2880,7 +3180,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.home",
@@ -2962,7 +3264,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.guide",
@@ -3024,7 +3328,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.look",
@@ -3089,7 +3395,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.read",
@@ -3159,7 +3467,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "open.mirror",
@@ -3221,7 +3531,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.selfie",
@@ -3273,7 +3585,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.front",
@@ -3358,7 +3672,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.back",
@@ -3447,7 +3763,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.flip",
@@ -3506,7 +3824,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.snapnow",
@@ -3564,7 +3884,9 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": "On the mirror it takes the photo at once. From any other screen it opens the mirror and takes it."
+   "note": "On the mirror it takes the photo at once. From any other screen it opens the mirror and takes it.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.snap",
@@ -3597,7 +3919,9 @@
    "screens": [
     "mirror"
    ],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.again",
@@ -3662,7 +3986,9 @@
    "screens": [
     "look"
    ],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.pause",
@@ -3717,7 +4043,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": "Works even while I am talking. After you say it I stop, and listen for what you need."
+   "note": "Works even while I am talking. After you say it I stop, and listen for what you need.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "cam.resume",
@@ -3762,7 +4090,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "res.retake",
@@ -3808,9 +4138,11 @@
     "Retake",
     "Take another photo"
    ],
-   "doc_only": true,
+   "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "res.repeat",
@@ -3859,9 +4191,11 @@
     "Say that again",
     "I missed that"
    ],
-   "doc_only": true,
+   "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "res.ask",
@@ -3901,9 +4235,11 @@
     "I have a question",
     "Can I ask something?"
    ],
-   "doc_only": true,
+   "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "lang.set",
@@ -3972,7 +4308,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": "Say the language's name. Hausa, Yoruba and Igbo are translated for you."
+   "note": "Say the language's name. Hausa, Yoruba and Igbo are translated for you.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "hands.on",
@@ -4021,9 +4359,11 @@
     "Hands-free on",
     "Take control"
    ],
-   "doc_only": true,
+   "doc_only": false,
    "screens": [],
-   "note": "After this I keep listening after every answer, so you never need to touch the screen or say my name."
+   "note": "After this I keep listening after every answer, so you never need to touch the screen or say my name.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "hands.off",
@@ -4055,16 +4395,10 @@
     "thats everything",
     "nothing else",
     "you can stop",
-    "you can rest",
-    "go to sleep",
     "bye",
     "bye bye",
     "see you",
-    "see you later",
-    "good night",
-    "goodnight",
-    "take a break",
-    "go quiet"
+    "see you later"
    ],
    "verbs": [],
    "bare": 6,
@@ -4073,9 +4407,11 @@
     "Goodbye",
     "Release access"
    ],
-   "doc_only": true,
+   "doc_only": false,
    "screens": [],
-   "note": ""
+   "note": "",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "wake.name",
@@ -4120,7 +4456,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": "Say the name, wait for “Listening”, then say your request. Or say it all at once: “Bola, read this”. The phone must be unlocked with the app open. Teach me your accent in Settings, Teach me your voice."
+   "note": "Say the name, wait for “Listening”, then say your request. Or say it all at once: “Bola, read this”. The phone must be unlocked with the app open. Teach me your accent in Settings, Teach me your voice.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "wake.stop",
@@ -4171,7 +4509,9 @@
    ],
    "doc_only": true,
    "screens": [],
-   "note": "Works while I am talking. On the camera screens, stopping also pauses and listens for your next request."
+   "note": "Works while I am talking. On the camera screens, stopping also pauses and listens for your next request.",
+   "objects": [],
+   "directions": []
   },
   {
    "id": "safety.setstart",
@@ -4220,7 +4560,77 @@
    ],
    "doc_only": false,
    "screens": [],
-   "note": "I open the Emergency contact page and ask for the name. Say it, or spell it letter by letter. Then say the number digit by digit, and say “save”. You can correct any step by saying “no” or “spell it”."
+   "note": "I open the Emergency contact page and ask for the name. Say it, or spell it letter by letter. Then say the number digit by digit, and say “save”. You can correct any step by saying “no” or “spell it”.",
+   "objects": [],
+   "directions": []
+  },
+  {
+   "id": "wake.sleep",
+   "section": "wake",
+   "title": "Sleep (stay quiet until I call you)",
+   "reply": "",
+   "phrases": [
+    "go to sleep",
+    "sleep mode",
+    "sleep now",
+    "adanna sleep",
+    "bola sleep",
+    "go to sleep adanna",
+    "go to sleep bola",
+    "goodnight",
+    "good night",
+    "take a nap",
+    "rest",
+    "have a rest",
+    "be quiet until i call you",
+    "stay quiet until i call you",
+    "quiet until i call you",
+    "stop listening until i call you",
+    "stop listening until i call",
+    "stop listening until i call your name",
+    "dont listen until i call you",
+    "do not listen until i call you",
+    "mute yourself",
+    "silence until i call you",
+    "turn yourself off",
+    "switch yourself off",
+    "power down",
+    "shut down",
+    "go quiet",
+    "go silent",
+    "go to standby",
+    "standby mode",
+    "sleep until i call you",
+    "sleep until called",
+    "take a break",
+    "have a break",
+    "stand down and sleep",
+    "nap time",
+    "time to sleep",
+    "go off",
+    "log off",
+    "go offline",
+    "i need quiet",
+    "i want quiet",
+    "give me quiet",
+    "give me some quiet",
+    "be silent",
+    "stay silent",
+    "stay asleep"
+   ],
+   "verbs": [],
+   "bare": 6,
+   "examples": [
+    "Sleep",
+    "Adanna, sleep",
+    "Go to sleep",
+    "Be quiet until I call you"
+   ],
+   "doc_only": false,
+   "screens": [],
+   "note": "I go quiet and ignore everything except my name. Say “Adanna” or “Bola” to wake me.",
+   "objects": [],
+   "directions": []
   }
  ]
 }

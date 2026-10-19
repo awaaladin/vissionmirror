@@ -40,6 +40,13 @@ class ContactDialogTest {
         assertEquals("Mama", SpokenInput.cleanName("Mama"))
     }
 
+    @Test fun sayingDoneIsRecognised() {
+        assertTrue(SpokenInput.saysDone("done"))
+        assertTrue(SpokenInput.saysDone("that's all"))
+        assertTrue(SpokenInput.saysDone("okay I'm done"))
+        assertFalse(SpokenInput.saysDone("zero eight zero three"))
+    }
+
     @Test fun shortAnswers() {
         assertTrue(SpokenInput.isYes("yes that is right"))
         assertTrue(SpokenInput.isNo("no that's wrong"))

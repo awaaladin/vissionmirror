@@ -88,6 +88,7 @@ object SpokenInput {
         return any.any { " $it " in padded }
     }
 
+    fun saysDone(spoken: String) = has(spoken, "done", "finished", "thats all", "that is all", "thats it", "that is it", "complete", "next", "im done", "i am done", "okay done", "end")
     fun isYes(spoken: String) = has(spoken, "yes", "yeah", "yep", "yup", "correct", "right", "that is right", "thats right", "sure", "okay", "ok", "confirm", "exactly", "perfect")
     fun isNo(spoken: String) = has(spoken, "no", "nope", "wrong", "incorrect", "not right", "not correct", "thats wrong", "that is wrong", "again", "change it", "redo", "mistake", "not that")
     fun isSave(spoken: String) = has(spoken, "save", "save it", "yes", "yeah", "yep", "confirm", "okay", "ok", "do it", "go ahead", "correct", "right")

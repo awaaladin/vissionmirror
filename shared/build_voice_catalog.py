@@ -54,12 +54,13 @@ SECTIONS = [
 C: list[dict] = []
 
 
-def cmd(id, section, title, reply, phrases, verbs=(), bare=6, examples=(), doc_only=False, screens=(), note=""):
+def cmd(id, section, title, reply, phrases, verbs=(), bare=6, examples=(), doc_only=False, screens=(), note="", axis=None):
     C.append({
         "id": id, "section": section, "title": title, "reply": reply,
         "phrases": L(phrases) if isinstance(phrases, str) else list(phrases),
         "verbs": list(verbs), "bare": bare, "examples": list(examples),
         "doc_only": doc_only, "screens": list(screens), "note": note,
+        "objects": L(axis[0]) if axis else [], "directions": L(axis[1]) if axis else [],
     })
 
 
@@ -517,6 +518,57 @@ who should i set as my emergency contact|let me set my emergency contact|open em
     note="I open the Emergency contact page and ask for the name. Say it, or spell it letter by letter. Then say the number digit by digit, and say “save”. You can correct any step by saying “no” or “spell it”.")
 
 
+# ---- sleep: stops responding until she is called by name ----
+cmd("wake.sleep", "wake", "Sleep (stay quiet until I call you)", "", """sleep|go to sleep|sleep mode|sleep now|adanna sleep|bola sleep|go to sleep adanna|go to sleep bola|goodnight|good night|take a nap|
+rest|rest now|have a rest|be quiet until i call you|stay quiet until i call you|quiet until i call you|stop listening until i call you|
+stop listening until i call|stop listening until i call your name|dont listen until i call you|do not listen until i call you|
+mute yourself|silence until i call you|turn yourself off|switch yourself off|power down|shut down|go quiet|go silent|
+go to standby|standby mode|sleep until i call you|sleep until called|take a break|have a break|stand down and sleep|nap time|time to sleep|
+go off|log off|go offline|i need quiet|i want quiet|give me quiet|give me some quiet|be silent|stay silent|stay asleep""",
+    examples=["Sleep", "Adanna, sleep", "Go to sleep", "Be quiet until I call you"],
+    note="I go quiet and ignore everything except my name. Say “Adanna” or “Bola” to wake me.")
+
+
+def _remove(id, phrases):
+    drop = set(L(phrases))
+    for c in C:
+        if c["id"] == id:
+            c["phrases"] = [p for p in c["phrases"] if p not in drop]
+            return
+    raise KeyError(id)
+
+
+# "Good night" and friends mean sleep; hands-free ends with "that's all" and "goodbye".
+_remove("hands.off", """go to sleep|good night|goodnight|take a break|go quiet|rest now|sleep|you can rest|go to sleep""")
+# These were listed for people but only the app's older, narrower wording worked. They are live now, so every one works.
+for _id in ("hands.on", "hands.off", "res.retake", "res.repeat", "res.ask"):
+    _set(_id, doc_only=False)
+
+
+# ---- any order, any wording: an object and a direction ----
+def _axis(id, objects, directions):
+    for c in C:
+        if c["id"] == id:
+            c["objects"] = L(objects)
+            c["directions"] = L(directions)
+            return
+    raise KeyError(id)
+
+
+_SCREEN = "brightness|screen brightness|screen|display|backlight|screen light|display brightness"
+_SOUND = "volume|sound|audio|speaker|your voice|loudness|the sound|sound level|volume level"
+_TEXT = "text|font|letters|writing|print|words|text size|font size|lettering"
+_SPEED = "speed|pace|speaking|talking|speech|speaking speed|talking speed|speech speed|speech rate"
+_axis("bright.up", _SCREEN, "increase|increased|raise|higher|more|up|boost|brighter|brighten|lift|bump|turn up|put up|increasing|raising")
+_axis("bright.down", _SCREEN, "decrease|reduce|lower|less|down|dimmer|dim|lessen|drop|cut|minus|turn down|put down|decreasing|reducing|lowering")
+_axis("vol.up", _SOUND, "increase|increased|raise|higher|more|up|louder|boost|bump|lift|turn up|put up|increasing|raising")
+_axis("vol.down", _SOUND, "decrease|reduce|lower|less|down|quieter|softer|lessen|drop|cut|minus|turn down|put down|decreasing|reducing|lowering")
+_axis("text.bigger", _TEXT, "increase|increased|raise|bigger|larger|enlarge|up|more|higher|boost|magnify|zoom|big|large|increasing|raising|enlarging")
+_axis("text.smaller", _TEXT, "decrease|reduce|smaller|lower|shrink|less|down|small|minus|lessen|cut|decreasing|reducing|lowering|shrinking")
+_axis("rate.fast", _SPEED, "increase|raise|faster|quicker|up|higher|more|boost|speed up|quick|fast|increasing|raising")
+_axis("rate.slow", _SPEED, "decrease|reduce|slower|lower|down|less|slow|lessen|drop|minus|slow down|decreasing|reducing|lowering")
+
+
 # Phrases that are also ordinary things to say ABOUT a photo ("is it too bright?", "tell me more") or that are too
 # easily said by accident. They stay out, so a question stays a question and nothing changes by mistake.
 DROP = set(L("""too dark|it is too dark|its too dark|too bright|it is too bright|its too bright|too small|too big|too large|
@@ -535,6 +587,9 @@ def normalise(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+AXIS_EXCLUDE = L("""read|reads|reading|say|says|said|what|which|who|whom|where|why|how|when|is|are|was|were|does|did|do|would|should|could""")
+
+
 def match_score(c: dict, text: str) -> tuple[int, int, int] | None:
     """(words, characters) of the longest phrase of [c] found in [text], or None when [c] does not match.
 
@@ -544,6 +599,9 @@ def match_score(c: dict, text: str) -> tuple[int, int, int] | None:
     padded = f" {text} "
     hits = [normalise(p) for p in c["phrases"] if f" {normalise(p)} " in padded]
     if not hits:
+        # "increase the screen brightness a bit", "brightness higher please": an object and a direction, in any order.
+        if c["objects"] and 2 <= len(text.split()) <= 9 and not any(f" {w} " in padded for w in AXIS_EXCLUDE)                 and any(f" {normalise(o)} " in padded for o in c["objects"]) and any(f" {normalise(d)} " in padded for d in c["directions"]):
+            return (1, 0, 0)
         return None
     if c["verbs"] and len(text.split()) > c["bare"] and not any(f" {normalise(v)} " in padded for v in c["verbs"]):
         return None
@@ -597,6 +655,16 @@ def check() -> int:
                     bad += 1
                     if bad <= 60:
                         print(f"  CLASH  '{s}' -> {got} (wanted {c['id']})")
+    for c in live:
+        for o in c["objects"]:
+            for d in c["directions"]:
+                for shape in ("{d} the {o}", "{o} {d}", "please {d} the {o} a bit"):
+                    sentence = shape.format(d=d, o=o)
+                    got = first_match(sentence)
+                    if got != c["id"]:
+                        bad += 1
+                        if bad <= 60:
+                            print(f"  CLASH  '{sentence}' -> {got} (wanted {c['id']})")
     return bad
 
 
@@ -631,6 +699,8 @@ def markdown() -> str:
             lines += ["", "All " + str(len(c["phrases"])) + " ways: " + ", ".join(c["phrases"]) + ".", ""]
             if c["verbs"]:
                 lines += ["Put any of these in front: " + ", ".join(c["verbs"]) + ".", ""]
+            if c["objects"]:
+                lines += ["Or mix one of these things: " + ", ".join(c["objects"]) + " with one of these words: " + ", ".join(c["directions"]) + ", in any order (for example " + q(c["directions"][0] + " the " + c["objects"][0]) + ").", ""]
     return "\n".join(lines)
 
 

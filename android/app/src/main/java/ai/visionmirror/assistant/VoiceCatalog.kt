@@ -11,6 +11,8 @@ private data class RawCommand(
     val bare: Int = 6,
     @kotlinx.serialization.SerialName("doc_only") val docOnly: Boolean = false,
     val screens: List<String> = emptyList(),
+    val objects: List<String> = emptyList(),
+    val directions: List<String> = emptyList(),
 )
 
 @Serializable
@@ -32,6 +34,8 @@ object VoiceCatalog {
         val bare: Int,
         val screens: List<String>,
         val docOnly: Boolean,
+        val objects: List<String> = emptyList(),
+        val directions: List<String> = emptyList(),
     )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -51,12 +55,14 @@ object VoiceCatalog {
                 c.phrases.map(::normalise).filter { it.isNotEmpty() },
                 c.verbs.map(::normalise).filter { it.isNotEmpty() },
                 c.bare, c.screens, c.docOnly,
+                c.objects.map(::normalise).filter { it.isNotEmpty() },
+                c.directions.map(::normalise).filter { it.isNotEmpty() },
             )
         }
     }
 
     /** The id of the command [utterance] asks for ("theme.dark", "open.read"...), or null. [screen] is the open route. */
-    fun match(utterance: String, screen: String? = null): String? {
+    fun match(utterance: String, screen: String? = null, only: Set<String>? = null): String? {
         val text = normalise(utterance)
         if (text.isEmpty()) return null
         val padded = " $text "
@@ -64,13 +70,23 @@ object VoiceCatalog {
         var best: String? = null
         var bestScore = -1L
         for (e in entries) {
-            if (e.docOnly) continue
+            if (only != null) { if (e.id !in only) continue } else if (e.docOnly) continue
             if (e.screens.isNotEmpty() && (screen == null || e.screens.none { screen.startsWith(it) })) continue
             var longest = ""
             for (p in e.phrases) {
                 if (p.length > longest.length && (" $p " in padded)) longest = p
             }
-            if (longest.isEmpty()) continue
+            if (longest.isEmpty()) {
+                // "increase the screen brightness a bit", "brightness higher please": an object and a direction, in any order.
+                // Questions and "read ..." are left alone, so a question about a photo stays a question.
+                if (e.objects.isNotEmpty() && wordCount in 2..9 && AXIS_EXCLUDE.none { " $it " in padded } &&
+                    e.objects.any { " $it " in padded } && e.directions.any { " $it " in padded } && 1_000_000L > bestScore
+                ) {
+                    best = e.id
+                    bestScore = 1_000_000L
+                }
+                continue
+            }
             if (e.verbs.isNotEmpty() && wordCount > e.bare && e.verbs.none { " $it " in padded }) continue
             val words = longest.count { it == ' ' } + 1
             val score = words * 1_000_000L + longest.length * 10L + if (e.screens.isNotEmpty()) 1 else 0
@@ -81,6 +97,11 @@ object VoiceCatalog {
         }
         return best
     }
+
+    private val AXIS_EXCLUDE = setOf(
+        "read", "reads", "reading", "say", "says", "said", "what", "which", "who", "whom", "where", "why", "how", "when",
+        "is", "are", "was", "were", "does", "did", "do", "would", "should", "could",
+    )
 
     /** All the phrases of the commands [ids] (live or not), for the short words that stop or resume her. */
     fun phrases(vararg ids: String): Set<String> =
