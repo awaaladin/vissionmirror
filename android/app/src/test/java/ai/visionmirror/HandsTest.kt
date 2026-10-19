@@ -14,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HandsTest {
+    @org.junit.Before fun loadVoiceCatalog() = TestCatalog.load()
+
     @Test fun stopWordsOnlyCountInShortUtterances() {
         assertTrue(StopWords.matches("stop"))
         assertTrue(StopWords.matches("Adanna stop"))

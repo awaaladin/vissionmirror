@@ -22,6 +22,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EmergencyAndGuideTest {
+    @org.junit.Before fun loadVoiceCatalog() = TestCatalog.load()
+
     // ---- emergency intents
     @Test fun emergencyIntents() {
         assertEquals(EmergencyIntent.WhereAmI, EmergencyIntents.parse("where am I"))

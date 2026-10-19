@@ -290,7 +290,9 @@ class WakeWordListener @Inject constructor(
             }
             val googleOk = SpeechRecognizer.isRecognitionAvailable(context)
             if (failures >= 2 && offlineEars.ready.value) offlineUntil = SystemClock.elapsedRealtime() + OFFLINE_TRUST_MS
-            val offline = offlineEars.ready.value && (!googleOk || SystemClock.elapsedRealtime() < offlineUntil)
+            // While she is talking only stop words matter, and the phone's recogniser is weakest then (it also hears her),
+            // so the engine inside the app listens, with echo cancellation, for just those words.
+            val offline = offlineEars.ready.value && (!googleOk || talking() || SystemClock.elapsedRealtime() < offlineUntil)
             if (!googleOk && !offline) {
                 _hearing.value = Hearing(status = if (offlineEars.ready.value) "" else "Getting my offline hearing ready. One moment.")
                 delay(2_000)
@@ -394,14 +396,18 @@ class WakeWordListener @Inject constructor(
             speaker.state.map { it.utteranceId != null }.first { it != talkingNow }
             finish(Outcome.Restart)
         }
-        handle = offlineEars.listen(
-            object : OfflineEars.Listener {
-                override fun onPartial(text: String) { scope.launch(Dispatchers.Main) { consider(text, false) } }
-                override fun onSentence(text: String) { scope.launch(Dispatchers.Main) { consider(text, true) } }
-                override fun onError(message: String) { scope.launch(Dispatchers.Main) { finish(Outcome.Failed(-1)) } }
-            },
-            pauseSeconds = 0.9f,
-        )
+        handle = if (talkingNow) {
+            offlineEars.listenForWords(STOP_WORDS) { heard -> scope.launch(Dispatchers.Main) { consider(heard, true) } }
+        } else {
+            offlineEars.listen(
+                object : OfflineEars.Listener {
+                    override fun onPartial(text: String) { scope.launch(Dispatchers.Main) { consider(text, false) } }
+                    override fun onSentence(text: String) { scope.launch(Dispatchers.Main) { consider(text, true) } }
+                    override fun onError(message: String) { scope.launch(Dispatchers.Main) { finish(Outcome.Failed(-1)) } }
+                },
+                pauseSeconds = 0.9f,
+            )
+        }
         if (handle == null) finish(Outcome.Failed(-1))
         cont.invokeOnCancellation {
             watcher?.cancel()
@@ -505,6 +511,7 @@ class WakeWordListener @Inject constructor(
 
     private companion object {
         const val WAKE_SETTLE_MS = 550L
+        val STOP_WORDS = listOf("stop", "pause", "wait", "hold on", "hang on", "quiet", "enough", "silence", "hush", "cancel", "shut up", "one moment", "one second", "freeze", "halt")
         const val OFFLINE_TRUST_MS = 120_000L
 
         // Android's SpeechRecognizer error codes that mean "not with these settings": network timeout (1), network (2),

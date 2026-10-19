@@ -111,6 +111,19 @@ fun SettingsScreen(
                 val saved = s.emergencyContacts.firstOrNull()
                 var name by remember(saved) { mutableStateOf(saved?.name.orEmpty()) }
                 var number by remember(saved) { mutableStateOf(saved?.number.orEmpty()) }
+                // While she is being asked by voice, what was said appears here as it is understood.
+                val draft by session.contactDraft.collectAsStateWithLifecycle()
+                androidx.compose.runtime.LaunchedEffect(draft) { draft?.let { name = it.name; number = it.number } }
+                draft?.let { d ->
+                    BasicText(
+                        when (d.step) {
+                            "name" -> "Listening for the name\u2026"
+                            "number" -> "Listening for the number\u2026"
+                            else -> "Say save to keep it, or cancel."
+                        },
+                        style = Vm.type.label.copy(color = Vm.colors.champagne),
+                    )
+                }
                 val context = LocalContext.current
                 val picker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                     val uri = result.data?.data ?: return@rememberLauncherForActivityResult

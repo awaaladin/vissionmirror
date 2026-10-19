@@ -11,6 +11,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VoiceSettingsTest {
+    @org.junit.Before fun loadVoiceCatalog() = TestCatalog.load()
+
     private fun applied(said: String, from: Settings = Settings()): Settings =
         (VoiceSettings.parse(said) as SettingChange.Set).change(from)
 

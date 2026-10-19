@@ -31,6 +31,8 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModelTest {
+    @org.junit.Before fun loadVoiceCatalog() = TestCatalog.load()
+
     private val dispatcher = StandardTestDispatcher()
     private val repo = FakeRepo()
     private val speaker = FakeSpeaker()

@@ -20,6 +20,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -60,6 +61,8 @@ class LookViewModel @Inject constructor(
     private val earcons: Earcons,
     private val haptics: Haptics,
     private val screenCommands: ScreenCommands,
+    private val repo: ai.visionmirror.data.repo.MirrorRepository,
+    private val settings: ai.visionmirror.data.settings.SettingsStore,
 ) : ViewModel() {
 
     val captureController = CaptureController()
@@ -144,12 +147,22 @@ class LookViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The phone's scanner reads the writing first (instant, works offline). Then the AI looks at the same photo with the
+     * scanner's words as a hint: it fixes mistakes, completes cut-off words from context, and explains abbreviations, the way
+     * a friend would read it out. With no internet, the scanner's own words are read as they are.
+     */
     private suspend fun readAloud(photo: CapturedPhoto): String {
-        val text = TextReader.read(photo.bitmap)
-        return if (text.isBlank()) {
-            "I can't see any writing. Move a little closer, make sure there is light, and tap to try again."
-        } else {
-            "It says: " + text.take(MAX_READ_CHARS)
+        val scanned = TextReader.read(photo.bitmap)
+        speaker.say("Let me read that.", Priority.Interrupt, local = true)
+        _state.update { it.copy(caption = "Reading...") }
+        val language = settings.settings.first().language.apiTag
+        val smart = kotlinx.coroutines.withTimeoutOrNull(READ_TIMEOUT_MS) { repo.read(photo.jpeg, scanned, language).getOrNull() }
+            ?.spokenText?.trim().orEmpty()
+        return when {
+            smart.isNotBlank() -> smart.take(MAX_READ_CHARS)
+            scanned.isNotBlank() -> "It says: " + scanned.take(MAX_READ_CHARS)
+            else -> "I can't see any writing. Move a little closer, make sure there is light, and tap to try again."
         }
     }
 
@@ -172,6 +185,7 @@ class LookViewModel @Inject constructor(
     }
 
     private companion object {
-        const val MAX_READ_CHARS = 1_500
+        const val MAX_READ_CHARS = 2_500
+        const val READ_TIMEOUT_MS = 20_000L
     }
 }

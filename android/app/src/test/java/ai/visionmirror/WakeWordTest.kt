@@ -9,6 +9,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WakeWordTest {
+    @org.junit.Before fun loadVoiceCatalog() = TestCatalog.load()
+
     @Test fun herOwnSentenceContainingHerNameIsNotJustHerName() {
         assertTrue(WakeWord.isBareName("Adanna"))
         assertTrue(WakeWord.isBareName("hey adanna"))

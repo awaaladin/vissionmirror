@@ -150,3 +150,7 @@ data class TranscribeResponse(
     val text: String = "",
     val english: String = "",
 )
+
+/** The writing in a photo, read aloud and made sense of by the AI. */
+@Serializable
+data class ReadResponse(@SerialName("spoken_text") val spokenText: String = "")

@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -40,6 +41,8 @@ class GuideViewModel @Inject constructor(
     private val speaker: Speaker,
     private val haptics: Haptics,
     private val screenCommands: ScreenCommands,
+    private val repo: ai.visionmirror.data.repo.MirrorRepository,
+    private val settings: ai.visionmirror.data.settings.SettingsStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GuideUiState())
@@ -54,6 +57,9 @@ class GuideViewModel @Inject constructor(
     @Volatile private var startAt = 0L
     private var lastHaptic = 0L
     private var detectFailures = 0
+    @Volatile private var lastFrame: Bitmap? = null
+    private var sceneJob: kotlinx.coroutines.Job? = null
+    private var describing = false
     private val sensors = GuideSensors(context)
     @Volatile private var frames = 0
     @Volatile private var lastSpokeAt = 0L
@@ -68,6 +74,7 @@ class GuideViewModel @Inject constructor(
                     ScreenCommand.Pause -> pause(announce = true)
                     ScreenCommand.Hold -> pause(announce = false)
                     ScreenCommand.Resume, ScreenCommand.LookAgain -> resume()
+                    ScreenCommand.DescribeNow -> viewModelScope.launch { describeSurroundings(force = true) }
                     else -> Unit
                 }
             }
@@ -87,6 +94,16 @@ class GuideViewModel @Inject constructor(
         lastSpokeAt = startAt
         lastNothingAt = startAt
         sensors.start()
+        // Now and then, take a proper look at the whole scene with the AI (the on-phone sensing only knows everyday objects).
+        sceneJob?.cancel()
+        sceneJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(INTRO_MS + SCENE_FIRST_MS)
+            var looks = 0
+            while (active && looks < SCENE_MAX_PER_VISIT) {
+                if (!paused && !failed && describeSurroundings(force = false)) looks++
+                kotlinx.coroutines.delay(SCENE_EVERY_MS)
+            }
+        }
         // If no pictures arrive at all, say so instead of staying silent.
         viewModelScope.launch {
             kotlinx.coroutines.delay(INTRO_MS + 6_000)
@@ -113,6 +130,8 @@ class GuideViewModel @Inject constructor(
         runCatching { sensor?.close() }
         sensor = null
         sensors.stop()
+        sceneJob?.cancel()
+        sceneJob = null
     }
 
     fun togglePause() = if (paused) resume() else pause(announce = true)
@@ -138,6 +157,7 @@ class GuideViewModel @Inject constructor(
     fun onFrame(picture: Bitmap) {
         if (!active || paused || failed) return
         frames++
+        lastFrame = picture
         if (System.currentTimeMillis() < startAt) return
         val created = if (sensor == null) runCatching { ObjectSensor(context) } else null
         val s = sensor ?: created?.getOrNull()?.also { sensor = it }
@@ -178,6 +198,33 @@ class GuideViewModel @Inject constructor(
         if (!busy || spoken.urgent) speaker.say(spoken.text, if (spoken.urgent) Priority.Interrupt else Priority.Queue)
     }
 
+    /**
+     * Takes the latest picture to the AI and says what the whole scene looks like. Skipped (false) while she is being spoken to,
+     * while paused, or when there is nothing to look at; [force] (she asked) ignores the first two. Nothing is stored.
+     */
+    private suspend fun describeSurroundings(force: Boolean): Boolean {
+        val frame = lastFrame ?: return false
+        if (describing || (!force && speaker.state.value.utteranceId != null)) return false
+        describing = true
+        try {
+            if (force) speaker.say("Looking around.", Priority.Interrupt, local = true)
+            val jpeg = ai.visionmirror.imaging.ImageProcessor.toJpeg(frame)
+            val language = settings.settings.first().language.apiTag
+            val result = kotlinx.coroutines.withTimeoutOrNull(SCENE_TIMEOUT_MS) {
+                repo.describe(jpeg, ai.visionmirror.data.api.DetailLevel.Brief, language, scene = true).getOrNull()
+            }
+            result?.sessionId?.let { repo.deleteSession(it) } // the picture is not kept
+            val said = result?.spokenText?.trim().orEmpty()
+            if (said.isBlank() || !active || (paused && !force)) return false
+            lastSpokeAt = System.currentTimeMillis()
+            _state.update { it.copy(caption = said) }
+            speaker.say(said, if (force) Priority.Interrupt else Priority.Queue)
+            return true
+        } finally {
+            describing = false
+        }
+    }
+
     /** How the phone is held and how much light there is, from its own sensors, at most every 12 seconds. */
     private fun adviseFromSensors() {
         val now = System.currentTimeMillis()
@@ -211,6 +258,10 @@ class GuideViewModel @Inject constructor(
     private companion object {
         const val INTRO_MS = 9_000L
         const val QUIET_MS = 12_000L
+        const val SCENE_FIRST_MS = 6_000L
+        const val SCENE_EVERY_MS = 30_000L
+        const val SCENE_MAX_PER_VISIT = 30
+        const val SCENE_TIMEOUT_MS = 20_000L
         const val ADVICE_GAP_MS = 12_000L
         const val INTRO =
             "Guide mode is on. I'll tell you about people and objects ahead. I can't see steps, holes or glass, " +

@@ -57,7 +57,7 @@ object AssistantIntents {
                 "cam.selfie" -> return AssistantAction.SnapSelfie
                 "cam.front" -> return AssistantAction.UseFrontCamera
                 "cam.back" -> return AssistantAction.UseBackCamera
-                "cam.snap" -> return AssistantAction.TakePhoto // the catalog only offers it on the mirror
+                "cam.snap", "cam.snapnow" -> return AssistantAction.TakePhoto // "cam.snap" (bare "now", "go") is only offered on the mirror
                 "cam.again" -> return AssistantAction.LookAgain // ...and this one on the look screens
                 "cam.flip" -> if (words.size <= 8) return AssistantAction.FlipCamera
                 "open.back" -> if (words.size <= 8) return AssistantAction.GoBack
@@ -111,7 +111,7 @@ object AssistantIntents {
                 AssistantAction.OpenGuide
             has("look around", "around me", "in front of me", "surroundings", "whats here", "what is here", "describe", "what am i holding",
                 "what colour is this", "what color is this", "what colour is that", "what color is that") -> AssistantAction.OpenLook
-            has("read", "reading", "what does it say", "what does this say", "text", "label") -> AssistantAction.OpenRead
+            has("read", "reading", "what does it say", "what does this say") -> AssistantAction.OpenRead
             has("mirror", "photo", "selfie", "outfit", "how do i look", "picture") -> AssistantAction.OpenMirror
             else -> null
         }

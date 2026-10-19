@@ -399,6 +399,7 @@ class SessionViewModel @Inject constructor(
     /** The app went out of sight: stop talking, stop listening, and forget the turn that was in progress. */
     fun onBackground() {
         inBackground = true
+        _contactDraft.value = null
         cancelAsking()
         pendingReply = null
         speaker.stop()
@@ -510,6 +511,12 @@ class SessionViewModel @Inject constructor(
         if (mode == ListenMode.Assistant) {
             endAssistantTurn()
             pendingReply = null // she did not answer in time; the question is dropped
+            if (_contactDraft.value != null) {
+                _contactDraft.value = null
+                _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
+                speaker.say("I stopped waiting. Say set my emergency contact when you want to carry on.", Priority.Interrupt, local = true)
+                return
+            }
             if (handsFree && reason == VoiceFailure.NoSpeech) {
                 // Hands-free listens again on its own: no scolding when she simply has nothing to say yet.
                 _state.update { it.copy(ask = AskPhase.Idle, partialQuestion = "") }
@@ -675,6 +682,7 @@ class SessionViewModel @Inject constructor(
                     Priority.Interrupt,
                 )
             }
+            EmergencyIntent.StartSetContact -> startContactDialog()
             EmergencyIntent.ClearContacts -> askConfirm("Remove all your emergency contacts? Say yes to confirm.") {
                 viewModelScope.launch {
                     settings.update { it.copy(emergencyContacts = emptyList()) }
@@ -771,6 +779,118 @@ class SessionViewModel @Inject constructor(
         }
     }
 
+    // ---- "set my emergency contact": the assistant asks for the name and the number, and she answers by voice -----------
+
+    private val _contactDraft = MutableStateFlow<ai.visionmirror.emergency.ContactDraft?>(null)
+
+    /** What is being entered right now; the Settings page shows it in its fields as it is said. */
+    val contactDraft: StateFlow<ai.visionmirror.emergency.ContactDraft?> = _contactDraft
+
+    private fun startContactDialog() {
+        _contactDraft.value = ai.visionmirror.emergency.ContactDraft(step = "name")
+        _actions.tryEmit(AssistantAction.OpenSettings) // the Emergency contact page fills in as she speaks
+        askContactName("Let's set your emergency contact. Who should it be? Say their name.")
+    }
+
+    private fun contactTurn(prompt: String, onReply: (String) -> Unit): Unit {
+        pendingReply = { reply -> onReply(reply) }
+        openTurnWith(prompt)
+    }
+
+    private fun abortContact(said: String = "Okay. I did not change your emergency contact.") {
+        _contactDraft.value = null
+        speaker.say(said, Priority.Interrupt)
+    }
+
+    private fun askContactName(prompt: String): Unit = contactTurn(prompt) { reply ->
+        val text = reply.trim()
+        when {
+            text.isBlank() -> askContactName("I didn't catch the name. Say it again, or spell it letter by letter.")
+            ai.visionmirror.emergency.SpokenInput.isCancel(text) -> abortContact()
+            else -> {
+                val name = ai.visionmirror.emergency.SpokenInput.spelled(text) ?: ai.visionmirror.emergency.SpokenInput.cleanName(text)
+                if (name.isBlank()) askContactName("I didn't catch the name. Say it again, or spell it letter by letter.")
+                else confirmContactName(name)
+            }
+        }
+    }
+
+    private fun confirmContactName(name: String) {
+        _contactDraft.update { it?.copy(name = name, step = "name") }
+        contactTurn("I heard $name. Say yes if that is right, or spell it for me, letter by letter.") { reply ->
+            val spelling = ai.visionmirror.emergency.SpokenInput.spelled(reply)
+            when {
+                reply.isBlank() -> confirmContactName(name)
+                ai.visionmirror.emergency.SpokenInput.isCancel(reply) -> abortContact()
+                spelling != null -> confirmContactName(spelling)
+                ai.visionmirror.emergency.SpokenInput.isNo(reply) ->
+                    askContactName("Okay. Spell the name for me, one letter at a time.")
+                ai.visionmirror.emergency.SpokenInput.isYes(reply) -> askContactNumber("Now the phone number. Say each digit, one by one.")
+                else -> {
+                    // Neither yes nor spelling: take it as the name said again.
+                    val again = ai.visionmirror.emergency.SpokenInput.cleanName(reply)
+                    if (again.isBlank()) confirmContactName(name) else confirmContactName(again)
+                }
+            }
+        }
+    }
+
+    private fun askContactNumber(prompt: String) {
+        _contactDraft.update { it?.copy(step = "number") }
+        contactTurn(prompt) { reply ->
+            val digits = ai.visionmirror.emergency.SpokenInput.digits(reply)
+            val count = digits.count { it.isDigit() }
+            when {
+                ai.visionmirror.emergency.SpokenInput.isCancel(reply) -> abortContact()
+                ai.visionmirror.emergency.SpokenInput.wantsNameChange(reply) -> askContactName("Okay. Say the name, or spell it.")
+                count < 7 -> askContactNumber(
+                    if (count == 0) "I didn't catch any digits. Say the whole number, one digit at a time."
+                    else "I only caught $count digits. Please say the whole number again, one digit at a time.",
+                )
+                else -> confirmContactNumber(digits)
+            }
+        }
+    }
+
+    private fun confirmContactNumber(number: String) {
+        _contactDraft.update { it?.copy(number = number, step = "number") }
+        contactTurn("I heard ${ai.visionmirror.emergency.SpokenInput.spaced(number)}. Say yes if that is right, or say the number again.") { reply ->
+            val again = ai.visionmirror.emergency.SpokenInput.digits(reply)
+            when {
+                ai.visionmirror.emergency.SpokenInput.isCancel(reply) -> abortContact()
+                again.count { it.isDigit() } >= 7 -> confirmContactNumber(again) // she simply said the number again
+                ai.visionmirror.emergency.SpokenInput.isNo(reply) -> askContactNumber("Okay. Say the number again, one digit at a time.")
+                ai.visionmirror.emergency.SpokenInput.isYes(reply) -> askContactSave()
+                else -> confirmContactNumber(number)
+            }
+        }
+    }
+
+    private fun askContactSave() {
+        val draft = _contactDraft.value ?: return
+        _contactDraft.update { it?.copy(step = "save") }
+        contactTurn(
+            "Do you want to save ${draft.name}, ${ai.visionmirror.emergency.SpokenInput.spaced(draft.number)}, as your emergency contact? " +
+                "Say save, or cancel. You can also say change the name, or change the number.",
+        ) { reply ->
+            when {
+                ai.visionmirror.emergency.SpokenInput.wantsNameChange(reply) -> askContactName("Okay. Say the name, or spell it.")
+                ai.visionmirror.emergency.SpokenInput.wantsNumberChange(reply) -> askContactNumber("Okay. Say the number, one digit at a time.")
+                ai.visionmirror.emergency.SpokenInput.isCancel(reply) || ai.visionmirror.emergency.SpokenInput.isNo(reply) -> abortContact()
+                ai.visionmirror.emergency.SpokenInput.isSave(reply) -> {
+                    val contact = ai.visionmirror.data.settings.EmergencyContact(draft.name, draft.number)
+                    viewModelScope.launch {
+                        settings.update { s -> s.copy(emergencyContacts = (listOf(contact) + s.emergencyContacts).distinctBy { it.number }.take(3)) }
+                        _contactDraft.value = null
+                        earcons.play(Earcon.Ready)
+                        speaker.say("Saved. ${draft.name} is now your emergency contact.", Priority.Interrupt)
+                    }
+                }
+                else -> askContactSave()
+            }
+        }
+    }
+
     private fun setContact(name: String) {
         if (!ensure(contacts = true)) return
         viewModelScope.launch {
@@ -829,9 +949,12 @@ class SessionViewModel @Inject constructor(
 
     private fun routeAction(action: AssistantAction) {
         when (action) {
-            AssistantAction.TakePhoto -> screenCommands.send(ScreenCommand.TakePhoto)
+            // On the mirror it takes the photo; on the read, look and guide screens it is not meant; anywhere else it opens the mirror and takes it.
+            AssistantAction.TakePhoto -> if (screen == "mirror" || onCameraScreen()) screenCommands.send(ScreenCommand.TakePhoto) else snapSelfie()
             AssistantAction.FlipCamera -> screenCommands.send(ScreenCommand.FlipCamera)
             AssistantAction.LookAgain -> screenCommands.send(ScreenCommand.LookAgain)
+            // In Guide mode "what's around me" describes the scene right now instead of leaving the screen.
+            AssistantAction.OpenLook -> if (screen == "guide") screenCommands.send(ScreenCommand.DescribeNow) else _actions.tryEmit(action)
             AssistantAction.SnapSelfie -> snapSelfie()
             AssistantAction.UseFrontCamera -> useCamera(CameraFacing.Front)
             AssistantAction.UseBackCamera -> useCamera(CameraFacing.Back)

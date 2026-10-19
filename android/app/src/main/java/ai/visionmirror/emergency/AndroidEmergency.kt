@@ -67,7 +67,7 @@ class AndroidAddressLookup @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : AddressLookup {
     override suspend fun describe(point: GeoPoint): String? {
-        if (!Geocoder.isPresent()) return null
+        if (!Geocoder.isPresent()) return lookUpOnline(point)
         val geocoder = Geocoder(context, Locale.getDefault())
         val address = if (Build.VERSION.SDK_INT >= 33) {
             withTimeoutOrNull(6_000) {
@@ -84,10 +84,45 @@ class AndroidAddressLookup @Inject constructor(
                 runCatching { geocoder.getFromLocation(point.lat, point.lon, 1)?.firstOrNull() }.getOrNull()
             }
         }
-        return address?.let { a ->
-            listOfNotNull(a.thoroughfare ?: a.featureName, a.subLocality, a.locality).distinct().joinToString(", ")
-                .ifBlank { a.getAddressLine(0) }
-        }?.takeIf { it.isNotBlank() }
+        // Never a "plus code" (XPXF+9Q Uyo): street, area, town and state, in words.
+        val fromPhone = address?.let { a ->
+            HumanPlace.compose(
+                a.thoroughfare ?: a.featureName?.takeIf { !HumanPlace.isCodeOrNumber(it) },
+                a.subLocality,
+                a.locality ?: a.subAdminArea,
+                a.adminArea,
+            ) ?: HumanPlace.clean(a.getAddressLine(0))
+        }
+        // Many phones have no address service, or know only the state: ask OpenStreetMap, which names roads and neighbourhoods.
+        if (fromPhone == null || fromPhone.count { it == ',' } < 1) {
+            lookUpOnline(point)?.let { return it }
+        }
+        return fromPhone
+    }
+
+    /** OpenStreetMap's public reverse lookup (no key). Only runs when she asks where she is. */
+    private suspend fun lookUpOnline(point: GeoPoint): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val url = java.net.URL("https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=en&lat=${point.lat}&lon=${point.lon}")
+            val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
+                connectTimeout = 5_000
+                readTimeout = 6_000
+                setRequestProperty("User-Agent", "VisionMirror/0.9 (voice assistant for blind and low-vision people)")
+            }
+            try {
+                if (conn.responseCode != 200) return@runCatching null
+                val a = org.json.JSONObject(conn.inputStream.bufferedReader().use { it.readText() }).optJSONObject("address") ?: return@runCatching null
+                fun pick(vararg keys: String) = keys.firstNotNullOfOrNull { k -> a.optString(k).takeIf { it.isNotBlank() } }
+                HumanPlace.compose(
+                    pick("road", "pedestrian", "footway"),
+                    pick("suburb", "neighbourhood", "quarter", "hamlet"),
+                    pick("city", "town", "village", "municipality", "county"),
+                    pick("state"),
+                )
+            } finally {
+                conn.disconnect()
+            }
+        }.getOrNull()
     }
 }
 

@@ -9,6 +9,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AssistantTest {
+    @org.junit.Before fun loadVoiceCatalog() = TestCatalog.load()
+
     @Test fun nameIsHeardEvenWhenMisheard() {
         for (said in listOf("Adanna", "adana", "a donna", "Adonna, what is this", "hey adanna")) {
             assertNotNull(said, WakeWord.matches(said))
@@ -44,7 +46,8 @@ class AssistantTest {
         // Colours are described by Look around, which names them along with everything else it sees.
         assertEquals(AssistantAction.OpenLook, AssistantIntents.parse("what colour is this", hasSession = false))
         assertEquals(AssistantAction.OpenLook, AssistantIntents.parse("look around", hasSession = false))
-        assertEquals(AssistantAction.OpenMirror, AssistantIntents.parse("take a photo", hasSession = false))
+        // From another screen this opens the mirror and takes the photo at once (see SessionViewModel.routeAction).
+        assertEquals(AssistantAction.TakePhoto, AssistantIntents.parse("take a photo", hasSession = false))
         // With a photo to ask about, "what colour is my shirt" is a question, not the colour tool.
         assertNull(AssistantIntents.parse("what colour is my shirt", hasSession = true))
         assertNull(AssistantIntents.parse("is my collar folded over on the left side today", hasSession = false))

@@ -112,6 +112,9 @@ sealed interface EmergencyIntent {
     data object Sos : EmergencyIntent
     data class Share(val name: String?) : EmergencyIntent
     data class SetContact(val name: String) : EmergencyIntent
+
+    /** "Set my emergency contact" with no name: she is asked for it, step by step. */
+    data object StartSetContact : EmergencyIntent
     data object ListContacts : EmergencyIntent
     data object ClearContacts : EmergencyIntent
     data object CallEmergency : EmergencyIntent
@@ -126,6 +129,7 @@ object EmergencyIntents {
         Regex("^(?:add|make|save) (.+?) (?:as )?(?:my )?emergency contacts?$"),
         Regex("^my emergency contact is (.+)$"),
     )
+    private val NOT_NAMES = setOf("a", "an", "the", "my", "new", "another", "one", "someone", "somebody", "person", "a new", "my new", "the new", "an emergency", "emergency")
     private val share = Regex("^(?:send|share|text|message) (?:my )?(?:location|position)(?: (?:to|with))?(?: (.+))?$")
 
     fun parse(utterance: String): EmergencyIntent? {
@@ -133,7 +137,11 @@ object EmergencyIntents {
         if (text.isEmpty() || text.split(' ').size > 12) return null
         fun has(vararg p: String) = p.any { " $it " in " $text " }
 
-        for (r in setContact) r.find(text)?.let { return EmergencyIntent.SetContact(it.groupValues[1].trim()) }
+        // "add an emergency contact" asks to start; "an" is not a name.
+        for (r in setContact) r.find(text)?.let { m ->
+            val name = m.groupValues[1].trim()
+            if (name !in NOT_NAMES) return EmergencyIntent.SetContact(name)
+        }
         if (has("who is my emergency contact", "who are my emergency contacts", "read my emergency contacts", "list my emergency contacts")) {
             return EmergencyIntent.ListContacts
         }
@@ -148,6 +156,7 @@ object EmergencyIntents {
                 "safety.call" -> return EmergencyIntent.CallEmergency
                 "safety.where" -> return EmergencyIntent.WhereAmI
                 "safety.sos" -> return EmergencyIntent.Sos
+                "safety.setstart" -> return EmergencyIntent.StartSetContact
             }
         }
         if (has("call 112", "dial 112", "call 199", "call the police", "call emergency", "call an ambulance", "call the emergency number")) {

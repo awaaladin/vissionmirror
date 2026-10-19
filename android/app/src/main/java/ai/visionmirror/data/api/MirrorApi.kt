@@ -36,6 +36,16 @@ interface MirrorApi {
         @Part("assistant") assistant: RequestBody,
     ): Response<DescribeResponse>
 
+    /** Reads the writing in a photo: fixes scanner mistakes, completes cut-off words, explains abbreviations. */
+    @Multipart
+    @POST("v1/read")
+    suspend fun read(
+        @Part image: MultipartBody.Part,
+        @Part("ocr_text") ocrText: RequestBody,
+        @Part("language") language: RequestBody,
+        @Part("assistant") assistant: RequestBody,
+    ): Response<ReadResponse>
+
     @POST("v1/ask")
     suspend fun ask(@Body body: AskRequest): Response<AskResponse>
 

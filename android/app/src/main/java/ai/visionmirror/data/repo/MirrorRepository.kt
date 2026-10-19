@@ -4,6 +4,7 @@ import ai.visionmirror.data.api.AppError
 import ai.visionmirror.data.api.AskRequest
 import ai.visionmirror.data.api.AssistRequest
 import ai.visionmirror.data.api.AssistResponse
+import ai.visionmirror.data.api.ReadResponse
 import ai.visionmirror.data.api.AskResponse
 import ai.visionmirror.data.api.DescribeResponse
 import ai.visionmirror.data.api.DetailLevel
@@ -29,6 +30,10 @@ interface MirrorRepository {
 
     /** The weather, or an answer to a general question. */
     suspend fun assist(query: String, language: String = "en"): Result<AssistResponse>
+
+    /** The writing in the photo, read aloud and made sense of. [ocrText] is what the phone's own scanner found (it may be wrong). */
+    suspend fun read(jpeg: ByteArray, ocrText: String, language: String = "en"): Result<ReadResponse> =
+        Result.failure(IllegalStateException("reading is not available"))
 
     /** Fire-and-forget cleanup. A 404 means "already gone" and counts as success. */
     suspend fun deleteSession(sessionId: String)
@@ -61,6 +66,13 @@ class MirrorRepositoryImpl @Inject constructor(
 
     override suspend fun ask(sessionId: String, question: String, language: String): Result<AskResponse> =
         call { api.ask(AskRequest(sessionId, question.take(MAX_QUESTION), language, assistantName())) }
+
+    override suspend fun read(jpeg: ByteArray, ocrText: String, language: String): Result<ReadResponse> =
+        call {
+            val image = MultipartBody.Part.createFormData("image", "photo.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+            val text = "text/plain".toMediaType()
+            api.read(image, ocrText.take(3_500).toRequestBody(text), language.toRequestBody(text), assistantName().toRequestBody(text))
+        }
 
     override suspend fun assist(query: String, language: String): Result<AssistResponse> =
         call { api.assist(AssistRequest(query.take(400), language, assistantName())) }

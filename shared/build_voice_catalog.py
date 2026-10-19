@@ -360,7 +360,14 @@ camera switch|flip|use the other camera|other side|other lens|swap lens|change l
 flip the phone camera|flip the lens|swap the lens|change the lens|switch the lens|use the other lens|use the other side|
 turn the camera over|turn it around|turn around the camera|camera around|other way round camera|swap cameras|switch cameras""",
     examples=["Flip the camera", "Switch camera", "Use the other camera"], bare=6)
-cmd("cam.snap", "camera", "Take the photo now", "", """take the photo|take the picture|take a photo|take photo|take a picture|take picture|capture|snap|snap it|click|shoot|now|ready|
+cmd("cam.snapnow", "camera", "Take a photo", "", """take the photo|take the picture|take a photo|take photo|take a picture|take picture|capture|snap|snap it|click|shoot|
+take it now|press the button|press capture|photo now|picture now|okay take it|shoot it|capture now|take a shot|take shot|take the shot|
+take it please|please take it|please take the photo|please take the picture|get the shot|get the photo|get the picture|grab the photo|
+grab the picture|snap the photo|snap a photo|snap a picture|snap the picture|shoot the photo|shoot the picture|go ahead and take it|
+take the photo now|take the picture now""",
+    examples=["Take the photo", "Take a picture", "Snap it"], bare=9,
+    note="On the mirror it takes the photo at once. From any other screen it opens the mirror and takes it.")
+cmd("cam.snap", "camera", "Take the photo now (on the mirror)", "", """take the photo|take the picture|take a photo|take photo|take a picture|take picture|capture|snap|snap it|click|shoot|now|ready|
 take it|take it now|go|do it|press the button|press capture|photo now|picture now|i am ready|im ready|okay take it|shoot it|
 capture now|fire|cheese|smile|take a shot|take shot|take the shot|take it please|please take it|please take the photo|
 please take the picture|get the shot|get the photo|get the picture|grab the photo|grab the picture|snap the photo|snap a photo|
@@ -519,6 +526,9 @@ join|become a member|text|label|scene|environment|one more|update|refresh|stay|p
 darkness|dark side|animate|sleep|rest now|quick|follow up|a question|quick question|main|dismiss|undo|glare|another one"""))
 
 
+SNAP_NOW = set(L("""take the photo|take the picture|take a photo|take photo|take a picture|take picture|capture|snap|snap it|click|shoot|take it now|press the button|press capture|photo now|picture now|okay take it|shoot it|capture now|take a shot|take shot|take the shot|take it please|please take it|please take the photo|please take the picture|get the shot|get the photo|get the picture|grab the photo|grab the picture|snap the photo|snap a photo|snap a picture|snap the picture|shoot the photo|shoot the picture|go ahead and take it|take the photo now|take the picture now"""))
+
+
 def normalise(text: str) -> str:
     text = text.lower().replace("'", "").replace("’", "")
     text = re.sub(r"[^a-z0-9 ]", " ", text)
@@ -627,6 +637,8 @@ def markdown() -> str:
 def main() -> None:
     for c in C:
         c["phrases"] = [p for p in c["phrases"] if normalise(p) not in DROP]
+        if c["id"] == "cam.snap":
+            c["phrases"] = [p for p in c["phrases"] if p not in SNAP_NOW]
     ids = [c["id"] for c in C]
     assert len(ids) == len(set(ids)), "duplicate command id"
     for c in C:

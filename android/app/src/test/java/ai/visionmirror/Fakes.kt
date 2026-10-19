@@ -171,3 +171,12 @@ class FakeWake : ai.visionmirror.audio.WakeSource {
     override fun hold(held: Boolean) { holds += held }
     fun wake(request: String = "", called: ai.visionmirror.audio.Persona? = null) { _wakes.tryEmit(ai.visionmirror.audio.WakeEvent(request, called)) }
 }
+
+/** The app always has its voice catalog loaded (see VisionMirrorApp); tests that parse speech load it the same way. */
+object TestCatalog {
+    fun load() {
+        val file = listOf("../../shared/voice-commands.json", "../shared/voice-commands.json", "shared/voice-commands.json")
+            .map { java.io.File(it) }.first { it.exists() }
+        ai.visionmirror.assistant.VoiceCatalog.install(file.readText())
+    }
+}

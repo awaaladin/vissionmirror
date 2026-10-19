@@ -53,7 +53,7 @@ object SpokenInput {
         "bee" to 'b', "be" to 'b', "cee" to 'c', "see" to 'c', "sea" to 'c', "dee" to 'd', "gee" to 'g', "jay" to 'j', "kay" to 'k',
         "el" to 'l', "em" to 'm', "en" to 'n', "pee" to 'p', "queue" to 'q', "cue" to 'q', "are" to 'r', "ar" to 'r', "ess" to 's',
         "tee" to 't', "tea" to 't', "you" to 'u', "vee" to 'v', "ex" to 'x', "why" to 'y', "wy" to 'y', "zed" to 'z', "zee" to 'z',
-        "ay" to 'a', "eye" to 'i', "oh" to 'o', "ef" to 'f', "eff" to 'f', "aitch" to 'h',
+        "ay" to 'a', "ee" to 'e', "eye" to 'i', "oh" to 'o', "ef" to 'f', "eff" to 'f', "aitch" to 'h',
     )
 
     /**
@@ -103,6 +103,8 @@ object SpokenInput {
 object HumanPlace {
     private const val CODE = "[23456789CFGHJMPQRVWX]"
     private val leadingPlusCode = Regex("^$CODE{2,8}\\+$CODE{0,4}\\s*,?\\s*", RegexOption.IGNORE_CASE)
+
+    fun isCodeOrNumber(s: String): Boolean = clean(s) == null
 
     /** [s] without any plus code in front, or null when nothing readable is left (empty, only a code, or only a number). */
     fun clean(s: String?): String? {

@@ -157,13 +157,21 @@ Say, for example: “Flip the camera”; “Switch camera”; “Use the other c
 
 All 41 ways: flip the camera, flip camera, switch camera, switch the camera, other camera, change camera, change the camera, swap camera, swap the camera, rotate camera, turn the camera around, turn camera around, reverse camera, the other camera, different camera, toggle camera, camera flip, camera switch, flip, use the other camera, other side, other lens, swap lens, change lens, switch lens, opposite camera, flip it, flip the phone camera, flip the lens, swap the lens, change the lens, switch the lens, use the other lens, use the other side, turn the camera over, turn it around, turn around the camera, camera around, other way round camera, swap cameras, switch cameras.
 
-### Take the photo now
+### Take a photo
+
+Say, for example: “Take the photo”; “Take a picture”; “Snap it”.
+
+On the mirror it takes the photo at once. From any other screen it opens the mirror and takes it.
+
+All 40 ways: take the photo, take the picture, take a photo, take photo, take a picture, take picture, capture, snap, snap it, click, shoot, take it now, press the button, press capture, photo now, picture now, okay take it, shoot it, capture now, take a shot, take shot, take the shot, take it please, please take it, please take the photo, please take the picture, get the shot, get the photo, get the picture, grab the photo, grab the picture, snap the photo, snap a photo, snap a picture, snap the picture, shoot the photo, shoot the picture, go ahead and take it, take the photo now, take the picture now.
+
+### Take the photo now (on the mirror)
 
 Say, for example: “Take the photo”; “Snap it”; “I'm ready”.
 
 Only on the mirror screen.
 
-All 53 ways: take the photo, take the picture, take a photo, take photo, take a picture, take picture, capture, snap, snap it, click, shoot, now, ready, take it, take it now, go, do it, press the button, press capture, photo now, picture now, i am ready, im ready, okay take it, shoot it, capture now, take a shot, take shot, take the shot, take it please, please take it, please take the photo, please take the picture, get the shot, get the photo, get the picture, grab the photo, grab the picture, snap the photo, snap a photo, snap a picture, snap the picture, shoot the photo, shoot the picture, go ahead and take it, take the photo now, take the picture now, photo, picture, now please, go now, ready now, take it now please.
+All 13 ways: now, ready, take it, go, do it, i am ready, im ready, photo, picture, now please, go now, ready now, take it now please.
 
 ### Look again
 
