@@ -88,6 +88,14 @@ class StructuredProvider(VisionProvider):
             model_cls=AskResponse,
         )
 
+    async def read(self, *, image: bytes, media_type: str, ocr_text: str, language: str, assistant: str = "Adanna") -> str:
+        result = await self._structured(
+            system=prompts.read_system_prompt(language, assistant),
+            messages=[{"role": "user", "parts": [_image_part(image, media_type), {"type": "text", "text": prompts.read_user_text(ocr_text)}]}],
+            model_cls=SpokenAnswer,
+        )
+        return result.spoken_text.strip()
+
     async def answer(self, *, question: str, context: str, language: str, assistant: str = "Adanna") -> str:
         result = await self._structured(
             system=prompts.answer_system_prompt(language, assistant),

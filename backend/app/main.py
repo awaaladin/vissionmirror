@@ -8,7 +8,7 @@ from redis.exceptions import RedisError
 from starlette.formparsers import MultiPartParser
 
 from app.ai.provider import VisionProvider, build_provider
-from app.api.v1 import account, ask, assist, auth, describe, health, session, speech, transcribe
+from app.api.v1 import account, ask, assist, auth, describe, health, read, session, speech, transcribe
 from app.core.config import Settings, get_settings
 from app.core.errors import APIError, api_error_handler
 from app.core.logging import setup_logging
@@ -130,7 +130,7 @@ def create_app(
     app.add_exception_handler(RedisError, redis_error_handler)
     app.add_exception_handler(AccountsUnavailable, accounts_unavailable_handler)
 
-    for module in (health, auth, account, describe, ask, assist, session, speech, transcribe):
+    for module in (health, auth, account, describe, ask, assist, session, speech, transcribe, read):
         app.include_router(module.router, prefix="/v1")
 
     # Added last = outermost. Order outside-in: request context, CORS, security headers, body limit.

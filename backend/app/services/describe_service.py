@@ -65,6 +65,20 @@ class DescribeService:
                     (shown.image_quality.advice,) = await self._localise(target, shown.image_quality.advice)
         return DescribeResponse(session_id=session_id, **shown.model_dump())
 
+    async def read(
+        self, *, image: bytes, media_type: str, ocr_text: str, language: str, assistant: str = "Adanna",
+    ) -> str:
+        """The writing in a photo, read aloud and made sense of (spelling fixed, abbreviations explained, gaps filled from context)."""
+        target = translation_target(language)
+        text = await self._with_cap(
+            lambda: self.provider.read(
+                image=image, media_type=media_type, ocr_text=ocr_text, language="en" if target else language, assistant=assistant,
+            )
+        )
+        if target and text:
+            (text,) = await self._localise(target, text)
+        return text
+
     async def ask(self, *, device_id: str, req: AskRequest) -> AskResponse:
         found = await self.store.get(req.session_id, device_id)
         if found is None:

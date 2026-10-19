@@ -207,3 +207,10 @@ async def _mock_answer(self, *, question, context, language, assistant="Adanna")
 
 
 MockProvider.answer = _mock_answer
+
+
+async def _mock_read(self, *, image, media_type, ocr_text, language, assistant="Adanna") -> str:
+    return f"It says: {ocr_text.strip()}." if ocr_text.strip() else "It says: Welcome to VisionMirror."
+
+
+MockProvider.read = _mock_read

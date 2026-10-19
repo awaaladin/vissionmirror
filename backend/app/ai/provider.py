@@ -26,6 +26,10 @@ class VisionProvider(ABC):
         assistant: str = "Adanna",
     ) -> DescribeAnalysis: ...
 
+    async def read(self, *, image: bytes, media_type: str, ocr_text: str, language: str, assistant: str = "Adanna") -> str:
+        """The writing in a photo, read aloud and made sense of. [ocr_text] is what the phone's scanner found (may be wrong)."""
+        return ocr_text.strip()
+
     async def answer(self, *, question: str, context: str, language: str, assistant: str = "Adanna") -> str:
         """A short spoken answer to a general question (no photo). [context] is optional source text."""
         return "I can't look that up right now."
