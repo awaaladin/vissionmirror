@@ -125,24 +125,7 @@ h1{font-size:clamp(2.1rem,5.4vw + .4rem,3.9rem);font-weight:700}
 .orb[data-state="thinking"]{--a:1.5;--spd:2.4s}
 .orb[data-state="speaking"]{--a:7;--spd:1.7s}
 .orb .halo{position:absolute;inset:-22%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--glow) 34%,transparent),transparent 70%);filter:blur(12px);animation:breathe 5s ease-in-out infinite;z-index:-1}
-.orb .ring{position:absolute;inset:14%;border-radius:50%;border:1px solid color-mix(in srgb,var(--glow) 55%,transparent);opacity:0}
-.orb[data-state="listening"] .ring,.orb[data-state="speaking"] .ring{animation:ringOut 2.8s cubic-bezier(.2,.6,.3,1) infinite}
-.orb[data-state="speaking"] .ring{animation-duration:1.9s}
-.orb .ring:nth-child(2){animation-delay:.9s!important}.orb .ring:nth-child(3){animation-delay:1.8s!important}
-.orb .sphere{position:absolute;inset:14%;border-radius:50%;background:radial-gradient(circle at 34% 28%,color-mix(in srgb,#fff 42%,var(--glow)),var(--glow) 40%,color-mix(in srgb,var(--ember) 70%,#2a1206) 78%,#1a0c05);box-shadow:0 0 38px -4px color-mix(in srgb,var(--glow) 55%,transparent),inset 0 -14px 30px rgba(0,0,0,.35);transition:transform .6s}
-.orb[data-state="speaking"] .sphere{animation:pulseCore 1.7s ease-in-out infinite}
-.orb[data-state="listening"] .sphere{animation:pulseCore 3.2s ease-in-out infinite}
-.orb .wob{position:absolute;inset:11%;border:1.5px solid color-mix(in srgb,var(--glow) 70%,transparent);border-radius:50%;opacity:.55;animation:morph var(--spd) ease-in-out infinite;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--glow) 60%,transparent))}
-.orb .wob.w2{inset:8%;opacity:.32;animation-duration:calc(var(--spd)*1.35);animation-direction:reverse}
-.orb .wob.w3{inset:5%;opacity:.18;animation-duration:calc(var(--spd)*.8);animation-delay:-.6s}
-.orb .arc{position:absolute;inset:6%;border-radius:50%;border:1.5px solid transparent;border-top-color:color-mix(in srgb,#fff 70%,var(--glow));opacity:0;transition:opacity .4s}
-.orb[data-state="thinking"] .arc{opacity:.9;animation:spin 1.6s linear infinite}
-@keyframes morph{
-0%,100%{border-radius:calc(50% + var(--a)*1%) calc(50% - var(--a)*1%) calc(50% + var(--a)*.6%) calc(50% - var(--a)*.6%)/calc(50% - var(--a)*.8%) calc(50% + var(--a)*.8%) calc(50% - var(--a)*1%) calc(50% + var(--a)*1%);transform:rotate(0)}
-33%{border-radius:calc(50% - var(--a)*1%) calc(50% + var(--a)*1%) calc(50% - var(--a)*.8%) calc(50% + var(--a)*.8%)/calc(50% + var(--a)*1%) calc(50% - var(--a)*1%) calc(50% + var(--a)*.6%) calc(50% - var(--a)*.6%);transform:rotate(60deg)}
-66%{border-radius:calc(50% + var(--a)*.7%) calc(50% - var(--a)*.7%) calc(50% - var(--a)*1%) calc(50% + var(--a)*1%)/calc(50% - var(--a)*1%) calc(50% + var(--a)*1%) calc(50% + var(--a)*.8%) calc(50% - var(--a)*.8%);transform:rotate(120deg)}}
-@keyframes pulseCore{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
-@keyframes ringOut{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.55);opacity:0}}
+.orb .rip{position:absolute;inset:-4%;width:108%;height:108%;display:block}
 @keyframes breathe{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.06);opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -248,8 +231,8 @@ footer a{color:var(--muted)}
 <div id="loader" role="status" aria-label="Loading VisionMirror">
   <div class="inner">
     <div class="orb" data-state="listening" aria-hidden="true">
-      <span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span>
-      <span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span>
+      <span class="halo"></span>
+      <canvas class="rip"></canvas>
     </div>
     <div class="word gold">VisionMirror</div>
     <div class="bar" aria-hidden="true"><i></i></div>
@@ -324,8 +307,8 @@ footer a{color:var(--muted)}
       <div class="chip b" id="chipB">&ldquo;It says: take two tablets daily.&rdquo;</div>
       <div class="orb-wrap">
         <div class="orb big" id="heroOrb" data-state="idle">
-          <span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span>
-          <span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span>
+          <span class="halo"></span>
+          <canvas class="rip"></canvas>
         </div>
       </div>
     </div>
@@ -396,13 +379,13 @@ footer a{color:var(--muted)}
     </div>
     <div class="personas">
       <article class="card persona reveal">
-        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span></div>
+        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><canvas class="rip"></canvas></div>
         <h3>Adanna</h3>
         <p class="muted">A warm, clear woman&rsquo;s voice. The default.</p>
         <q>Good morning. You are wearing a navy shirt with grey trousers, and everything sits neatly.</q>
       </article>
       <article class="card persona bola reveal d1">
-        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span></div>
+        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><canvas class="rip"></canvas></div>
         <h3>Bola</h3>
         <p class="muted">A steady, friendly man&rsquo;s voice.</p>
         <q>Person ahead, close. There is a chair on your left.</q>
@@ -657,6 +640,59 @@ footer a{color:var(--muted)}
     ['dlBtn','dlBtn2'].forEach(function(id){$(id).setAttribute('aria-disabled','true')});
     $('dlInfo').textContent='The download is being prepared. Please try again in a few minutes.';
   });
+})();
+
+/* ---- the orb's ripple: thin flowing lines around a dark disc; they ripple harder while she talks ---- */
+(function(){
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cvs=[].slice.call(document.querySelectorAll('canvas.rip'));
+  if(!cvs.length)return;
+  var amps={idle:.010,listening:.028,thinking:.018,speaking:.075};
+  var lines=[];
+  for(var q=0;q<8;q++){lines.push({k:[2+(q%3),3+(q%4),5+(q%3)],sp:[(q%2?-1:1)*(.5+q*.11),(q%2?1:-1)*(.8+q*.07),(q%2?-1:1)*(1.1+q*.05)],ph:[q*.9,q*1.7+1,q*.6+2],w:.9,a:.34+(q%3)*.12,c:q%2,r:.955+q*.012});}
+  var st=cvs.map(function(c){return{c:c,x:c.getContext('2d'),amp:.01,w:0,h:0,vis:true,orb:c.parentNode}});
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){st.forEach(function(o){if(o.c===e.target)o.vis=e.isIntersecting})})});st.forEach(function(o){io.observe(o.c)})}
+  function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#E4AE5A'}
+  function size(o){var r=o.c.getBoundingClientRect(),d=Math.min(window.devicePixelRatio||1,2);var w=Math.round(r.width*d),h=Math.round(r.height*d);if(w&&(o.c.width!==w||o.c.height!==h)){o.c.width=w;o.c.height=h}o.w=o.c.width;o.h=o.c.height}
+  var t0=performance.now(),cols=[css('--glow'),css('--burnt')],last=0;
+  function frame(now){
+    requestAnimationFrame(frame);
+    if(now-last<30)return; last=now;
+    var t=(now-t0)/1000;
+    if(Math.floor(t)%5===0)cols=[css('--glow'),css('--burnt')];
+    st.forEach(function(o){
+      if(!o.vis)return; size(o); if(!o.w)return;
+      var state=o.orb.getAttribute('data-state')||'idle';
+      var target=reduce?.006:(amps[state]||.01);
+      if(state==='speaking'&&!reduce)target*=.65+.55*Math.abs(Math.sin(t*5.3)*Math.sin(t*2.1+1));   /* a voice-like swell */
+      o.amp+=(target-o.amp)*.12;
+      var x=o.x,w=o.w,R=w*.5*.78,cx=w/2,cy=o.h/2;
+      x.clearRect(0,0,w,o.h);
+      var dark=document.documentElement.getAttribute('data-theme')!=='light';
+      /* dark disc */
+      var g=x.createRadialGradient(cx,cy*.9,R*.1,cx,cy,R);
+      g.addColorStop(0,dark?'rgba(27,23,16,.55)':'rgba(239,230,210,.7)');g.addColorStop(1,dark?'rgba(10,9,7,.7)':'rgba(226,214,187,.8)');
+      x.fillStyle=g;x.beginPath();x.arc(cx,cy,R*.93,0,6.2832);x.fill();
+      var speed=state==='speaking'?2.4:state==='thinking'?1.8:state==='listening'?1.2:.7;
+      x.globalCompositeOperation=dark?'lighter':'source-over';
+      lines.forEach(function(L,i){
+        x.beginPath();
+        for(var j=0;j<=140;j++){
+          var th=j/140*6.2832,off=0;
+          for(var m=0;m<3;m++)off+=Math.sin(L.k[m]*th+L.sp[m]*t*speed+L.ph[m])/ (m+1.4);
+          var r=R*L.r*(1+o.amp*off*(1+i*.1));
+          var px=cx+Math.cos(th)*r,py=cy+Math.sin(th)*r;
+          j?x.lineTo(px,py):x.moveTo(px,py);
+        }
+        x.closePath();
+        x.lineWidth=L.w*(w/260);x.strokeStyle=cols[L.c];x.globalAlpha=L.a*(dark?1:.85);
+        x.shadowColor=cols[L.c];x.shadowBlur=(state==='speaking'?7:4)*(w/260);
+        x.stroke();
+      });
+      x.globalAlpha=1;x.shadowBlur=0;x.globalCompositeOperation='source-over';
+    });
+  }
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
