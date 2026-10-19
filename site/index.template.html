@@ -294,7 +294,8 @@ footer a{color:var(--muted)}
         </a>
         <a class="btn ghost" href="#how">See how it works</a>
       </div>
-      <p class="meta reveal d3" id="dlInfo">Free. Android 8 or newer. No account needed.</p>
+      <p class="meta reveal d3" id="dlInfo">Free. Android 7 or newer. No account needed.</p>
+      <p class="meta reveal d3"><a href="#" id="dlAlt" hidden></a></p>
       <ul class="badges reveal d3" aria-label="Highlights">
         <li>Hands-free</li><li>Nigerian voices</li><li>Hausa, Yoruba &amp; Igbo</li><li>Photos never stored</li>
       </ul>
@@ -632,10 +633,21 @@ footer a{color:var(--muted)}
 
   /* ---- version, size and checksum come from release.json, written when each build is published ---- */
   fetch('release.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():Promise.reject()}).then(function(rel){
-    var label='Download for Android · '+rel.version+' · '+rel.sizeMB+' MB';
-    $('dlLabel').textContent=label; $('dlLabel2').textContent=label;
-    $('ver').textContent=rel.version; $('ver2').textContent=rel.version; $('sha').textContent=rel.sha256; $('shaRow').hidden=false;
-    $('copySha').onclick=function(){copy(rel.sha256,this)};
+    /* Two builds: 64-bit (most phones) and 32-bit (older, cheaper phones). Chrome can tell us which one this phone is. */
+    var pick=rel, other=rel.alt32?{file:rel.alt32.file,sizeMB:rel.alt32.sizeMB,sha256:rel.alt32.sha256,label:'32-bit'}:null;
+    function use(which){
+      var f=which==='32'&&rel.alt32?rel.alt32:rel, f64=rel.alt32?{file:rel.file||'downloads/VisionMirror-64bit.apk',sizeMB:rel.sizeMB,sha256:rel.sha256}:null;
+      var label='Download for Android · '+rel.version+' · '+f.sizeMB+' MB'+(rel.alt32?(which==='32'?' (32-bit)':' (64-bit)'):'');
+      $('dlLabel').textContent=label; $('dlLabel2').textContent=label;
+      ['dlBtn','dlBtn2'].forEach(function(id){var a=$(id);a.setAttribute('href',f.file||rel.file||'downloads/VisionMirror.apk');a.setAttribute('download','VisionMirror.apk')});
+      $('sha').textContent=f.sha256; $('shaRow').hidden=false; $('copySha').onclick=function(){copy(f.sha256,this)};
+      if(rel.alt32){var alt=$('dlAlt');alt.hidden=false;var o=which==='32'?'64':'32';alt.textContent=o==='32'?'Phone is older or will not install it? Get the 32-bit version.':'Get the 64-bit version instead.';alt.onclick=function(e){e.preventDefault();use(o)};}
+    }
+    $('ver').textContent=rel.version; $('ver2').textContent=rel.version;
+    var which='64';
+    if(rel.alt32&&navigator.userAgentData&&navigator.userAgentData.getHighEntropyValues){
+      navigator.userAgentData.getHighEntropyValues(['bitness']).then(function(h){use(h.bitness==='32'?'32':'64')},function(){use('64')});
+    } else { use(which); }
   }).catch(function(){
     ['dlBtn','dlBtn2'].forEach(function(id){$(id).setAttribute('aria-disabled','true')});
     $('dlInfo').textContent='The download is being prepared. Please try again in a few minutes.';

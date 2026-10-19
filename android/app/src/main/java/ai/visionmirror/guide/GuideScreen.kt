@@ -91,7 +91,7 @@ fun GuideScreen(
     }
 
     Box(Modifier.fillMaxSize().background(Vm.colors.ink).tapAnywhere(session::talkFromCamera)) {
-        GuideCamera(onFrame = viewModel::onFrame)
+        GuideCamera(onFrame = viewModel::onFrame, onError = viewModel::onCameraError)
 
         Row(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = Spacing.lg, vertical = Spacing.sm),

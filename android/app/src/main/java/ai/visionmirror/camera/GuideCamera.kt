@@ -27,10 +27,11 @@ import java.util.concurrent.Executors
  * [onFrame] runs on a background thread, so it may do slow work; frames that arrive while it is busy are dropped.
  */
 @Composable
-fun GuideCamera(onFrame: (Bitmap) -> Unit, modifier: Modifier = Modifier, minGapMs: Long = 300L) {
+fun GuideCamera(onFrame: (Bitmap) -> Unit, modifier: Modifier = Modifier, minGapMs: Long = 300L, onError: (Throwable) -> Unit = {}) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnFrame = rememberUpdatedState(onFrame)
+    val currentOnError = rememberUpdatedState(onError)
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
@@ -40,6 +41,7 @@ fun GuideCamera(onFrame: (Bitmap) -> Unit, modifier: Modifier = Modifier, minGap
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     LaunchedEffect(lifecycleOwner) {
+      try {
         val provider = ProcessCameraProvider.awaitInstance(context)
         val ratio = ResolutionSelector.Builder()
             .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
@@ -61,7 +63,7 @@ fun GuideCamera(onFrame: (Bitmap) -> Unit, modifier: Modifier = Modifier, minGap
                             val raw = image.toBitmap()
                             val m = Matrix().apply { postRotate(image.imageInfo.rotationDegrees.toFloat()) }
                             val upright = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, m, true)
-                            currentOnFrame.value(upright)
+                            runCatching { currentOnFrame.value(upright) }.onFailure { currentOnError.value(it) }
                         }
                     } finally {
                         image.close()
@@ -71,6 +73,10 @@ fun GuideCamera(onFrame: (Bitmap) -> Unit, modifier: Modifier = Modifier, minGap
         provider.unbindAll()
         val selector = if (provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
         provider.bindToLifecycle(lifecycleOwner, selector, preview, analysis)
+      } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        currentOnError.value(e)
+      }
     }
 
     DisposableEffect(Unit) { onDispose { executor.shutdown() } }

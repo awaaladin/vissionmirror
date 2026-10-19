@@ -34,6 +34,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import androidx.compose.ui.graphics.Path
 import kotlin.math.min
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -41,15 +44,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Size
 import kotlinx.coroutines.launch
 
+private const val LINES = 8
+private const val SEGMENTS = 96
+
 /** Loop phases for the always-on animations. Absent entirely under reduce-motion. */
 @Stable
 private class LoopPhases(
     val breath: State<Float>,
     val angle: State<Float>,
     val ripple: State<Float>,
+    /** A slow loop for the ripple lines: one turn in 9 seconds, faster while she speaks via the line speeds. */
+    val wave: State<Float>,
 )
 
-private val StaticPhases = LoopPhases(mutableStateOf(0f), mutableStateOf(0f), mutableStateOf(0f))
+private val StaticPhases = LoopPhases(mutableStateOf(0f), mutableStateOf(0f), mutableStateOf(0f), mutableStateOf(0f))
 
 @Composable
 private fun rememberLoopPhases(): LoopPhases {
@@ -69,7 +77,12 @@ private fun rememberLoopPhases(): LoopPhases {
         infiniteRepeatable(tween(Motion.Duration.RIPPLE, easing = LinearEasing)),
         label = "ripple",
     )
-    return remember(breath, angle, ripple) { LoopPhases(breath, angle, ripple) }
+    val wave = t.animateFloat(
+        0f, (2 * PI).toFloat(),
+        infiniteRepeatable(tween(9_000, easing = LinearEasing)),
+        label = "wave",
+    )
+    return remember(breath, angle, ripple, wave) { LoopPhases(breath, angle, ripple, wave) }
 }
 
 /**
@@ -103,6 +116,18 @@ fun Halo(
     val shimmer by animateFloatAsState(base.shimmer, floatSpec, label = "shimmer")
     val ripples by animateFloatAsState(base.ripples, floatSpec, label = "ripples")
     val warmth by animateFloatAsState(base.warmth, floatSpec, label = "warmth")
+    val rippleBase by animateFloatAsState(
+        when (state) {
+            HaloState.Idle -> 0.012f
+            HaloState.Guiding -> 0.020f
+            HaloState.Listening -> 0.026f
+            HaloState.Analysing -> 0.020f
+            HaloState.Ready -> 0.016f
+            HaloState.Speaking -> 0.060f
+        },
+        floatSpec, label = "rippleBase",
+    )
+    val rippleLevel = if (state == HaloState.Speaking) 0.05f else if (state == HaloState.Listening) 0.05f else 0.01f
 
     val phases = if (reduce) StaticPhases else rememberLoopPhases()
 
@@ -152,76 +177,55 @@ fun Halo(
                     val ringColor = lerp(brass, colors.quartz, quartz)
                     val highlight = lerp(colors.champagne, colors.quartz, quartz)
 
-                    // 1. Bloom disc (Ready) and a faint inner fill for depth.
+                    // Bloom (Ready): a soft flash that fades, nothing else fills the circle, so what is behind shows through.
                     if (bloom.value > 0.01f) {
                         drawCircle(
                             brush = Brush.radialGradient(
-                                listOf(colors.champagne.copy(alpha = 0.40f * bloom.value), Color.Transparent),
-                                center = center, radius = r * 1.35f,
+                                listOf(Color.Transparent, colors.champagne.copy(alpha = 0.30f * bloom.value), Color.Transparent),
+                                center = center, radius = r * 1.3f,
                             ),
-                            radius = r * 1.35f, center = center,
+                            radius = r * 1.3f, center = center,
                         )
                     }
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            listOf(ringColor.copy(alpha = 0.05f + 0.05f * liveGlow), Color.Transparent),
-                            center = center, radius = r,
-                        ),
-                        radius = r, center = center,
-                    )
 
-                    // 2. Glow: AGSL on 33+, layered strokes below.
-                    if (glowShader != null && Build.VERSION.SDK_INT >= 33) {
-                        glowShader.update(
-                            cx = center.x, cy = center.y, radius = r, thickness = stroke,
-                            glow = liveGlow + bloom.value * 0.6f,
-                            angle = phases.angle.value, shimmer = shimmer,
-                            colorA = ringColor, colorB = highlight,
-                        )
-                        drawRect(brush = glowShader.brush)
-                    } else {
-                        for (i in 1..5) {
-                            drawCircle(
-                                color = ringColor.copy(alpha = ((0.16f * (liveGlow + bloom.value * 0.6f)) / i).coerceIn(0f, 1f)),
-                                radius = r, center = center,
-                                style = Stroke(width = stroke + i * half * 0.05f),
-                            )
+                    // The ripple: several thin, flowing lines round a hollow circle. They stay calm when idle, move with
+                    // her voice when she listens, and ripple hard while the assistant speaks. The wave speeds are whole
+                    // multiples of the loop angle, so the animation repeats without a seam.
+                    val voice = if (state == HaloState.Speaking) 0.7f + 0.3f * sin(2f * phases.angle.value) else 1f
+                    val amp = (rippleBase + rippleLevel * lvl) * voice * (1f + bloom.value * 0.5f)
+                    val t = phases.wave.value * (if (state == HaloState.Speaking) 3f else if (state == HaloState.Listening || state == HaloState.Analysing) 2f else 1f)
+                    val lineWidth = (half * 0.011f).coerceAtLeast(1f)
+                    val path = Path()
+                    for (q in 0 until LINES) {
+                        val dir = if (q % 2 == 0) 1 else -1
+                        val k1 = 2 + q % 3; val k2 = 3 + q % 4; val k3 = 5 + q % 3
+                        val m1 = dir * (1 + q % 2); val m2 = -dir * (1 + (q + 1) % 3); val m3 = dir * (1 + (q + 2) % 3)
+                        val ph1 = q * 0.9f; val ph2 = q * 1.7f + 1f; val ph3 = q * 0.6f + 2f
+                        val base = r * (0.955f + q * 0.012f)
+                        path.rewind()
+                        for (j in 0..SEGMENTS) {
+                            val th = j * (2f * PI.toFloat() / SEGMENTS)
+                            val off = sin(k1 * th + m1 * t + ph1) / 1.4f + sin(k2 * th + m2 * t + ph2) / 2.4f + sin(k3 * th + m3 * t + ph3) / 3.4f
+                            val rad = base * (1f + amp * off * (1f + q * 0.1f))
+                            val x = center.x + cos(th) * rad
+                            val y = center.y + sin(th) * rad
+                            if (j == 0) path.moveTo(x, y) else path.lineTo(x, y)
                         }
+                        path.close()
+                        val color = if (q % 2 == 0) ringColor else highlight
+                        val alpha = (0.34f + (q % 3) * 0.12f) * (0.75f + 0.25f * liveGlow.coerceIn(0f, 1.5f))
+                        drawPath(path, color.copy(alpha = alpha.coerceIn(0f, 1f)), style = Stroke(width = lineWidth))
                     }
 
-                    // 3. Outward ripples (Listening). Strength follows the mic level.
-                    if (ripples > 0.01f && !reduce) {
-                        for (k in 0 until 3) {
-                            val p = (phases.ripple.value + k / 3f) % 1f
-                            val rr = r + p * (half * 0.98f - r).coerceAtLeast(0f)
-                            val a = (1f - p) * (1f - p) * 0.55f * ripples * (0.35f + 0.65f * lvl)
-                            drawCircle(
-                                color = colors.quartz.copy(alpha = a),
-                                radius = rr, center = center,
-                                style = Stroke(width = stroke * 0.5f),
-                            )
-                        }
-                    }
-
-                    // 4. The crisp ring itself.
-                    drawCircle(
-                        brush = Brush.sweepGradient(
-                            listOf(ringColor, lerp(ringColor, highlight, 0.55f), ringColor),
-                            center = center,
-                        ),
-                        radius = r, center = center,
-                        style = Stroke(width = stroke, cap = StrokeCap.Round),
-                    )
-
-                    // 5. Shimmer highlight riding on the ring (Analysing).
+                    // Thinking: one bright arc travels round the ring.
                     if (shimmer > 0.01f) {
                         val deg = Math.toDegrees(phases.angle.value.toDouble()).toFloat()
                         drawArc(
-                            color = highlight.copy(alpha = 0.9f * shimmer),
-                            startAngle = deg - 28f, sweepAngle = 56f, useCenter = false,
-                            topLeft = Offset(center.x - r, center.y - r),
-                            size = Size(r * 2, r * 2),
-                            style = Stroke(width = stroke * 1.15f, cap = StrokeCap.Round),
+                            color = highlight.copy(alpha = 0.85f * shimmer),
+                            startAngle = deg - 24f, sweepAngle = 48f, useCenter = false,
+                            topLeft = Offset(center.x - r * 1.02f, center.y - r * 1.02f),
+                            size = Size(r * 2.04f, r * 2.04f),
+                            style = Stroke(width = lineWidth * 1.6f, cap = StrokeCap.Round),
                         )
                     }
                 }

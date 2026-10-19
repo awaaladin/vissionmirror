@@ -24,15 +24,16 @@ GRADLE = HERE.parent / "android" / "app" / "build.gradle.kts"
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--url", required=True, help="public address of this site, for the QR code")
-    ap.add_argument("--apk", help="the APK to publish")
+    ap.add_argument("--apk", help="the APK to publish (64-bit phones, or the only one)")
+    ap.add_argument("--apk32", help="a second APK for older 32-bit phones")
     ap.add_argument("--keep-apk", action="store_true", help="re-render the page only; keep the APK and release.json already here")
     ap.add_argument("--contact-email", default="", help="shown on the Contact section; omit to show a placeholder")
     args = ap.parse_args()
 
     if args.keep_apk:
         existing = HERE / "release.json"
-        if not existing.exists() or not (HERE / "downloads" / "VisionMirror.apk").exists():
-            sys.exit("--keep-apk needs an existing downloads/VisionMirror.apk and release.json")
+        if not existing.exists():
+            sys.exit("--keep-apk needs an existing release.json")
         render(args, None)
         return
     if not args.apk:
@@ -43,15 +44,24 @@ def main() -> None:
     version = re.search(r'versionName\s*=\s*"([^"]+)"', GRADLE.read_text(encoding="utf-8-sig")).group(1)
 
     (HERE / "downloads").mkdir(exist_ok=True)
-    dest = HERE / "downloads" / "VisionMirror.apk"
-    shutil.copyfile(apk, dest)
-    data = dest.read_bytes()
-    release = {
-        "version": version,
-        "sizeMB": round(len(data) / 1_000_000, 1),
-        "sha256": hashlib.sha256(data).hexdigest(),
-        "date": datetime.date.today().isoformat(),
-    }
+    for old in (HERE / "downloads").glob("*.apk"):
+        old.unlink()
+
+    def publish(src: Path, name: str) -> dict:
+        dest = HERE / "downloads" / name
+        shutil.copyfile(src, dest)
+        data = dest.read_bytes()
+        return {"file": f"downloads/{name}", "sizeMB": round(len(data) / 1_000_000, 1), "sha256": hashlib.sha256(data).hexdigest()}
+
+    if args.apk32:
+        if not Path(args.apk32).exists():
+            sys.exit(f"APK not found: {args.apk32}")
+        main64 = publish(apk, "VisionMirror-64bit.apk")
+        main32 = publish(Path(args.apk32), "VisionMirror-32bit.apk")
+        release = {"version": version, **main64, "date": datetime.date.today().isoformat(), "alt32": main32}
+    else:
+        main = publish(apk, "VisionMirror.apk")
+        release = {"version": version, **main, "date": datetime.date.today().isoformat()}
     (HERE / "release.json").write_text(json.dumps(release, indent=2) + "\n", encoding="utf-8")
 
     render(args, release)

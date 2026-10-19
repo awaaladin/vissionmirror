@@ -129,6 +129,23 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setBargeIn(on: Boolean) = update { it.copy(bargeIn = on) }
+
+    /** Saves the one person who is told where she is when she asks for help. Typed or chosen from her contacts. */
+    fun saveEmergencyContact(name: String, number: String) {
+        val digits = number.filter { it.isDigit() || it == '+' }
+        if (digits.length < 5) {
+            speech.say("That phone number looks too short. Please check it.", Priority.Interrupt)
+            return
+        }
+        val who = name.trim().ifBlank { "My emergency contact" }
+        update { it.copy(emergencyContacts = listOf(ai.visionmirror.data.settings.EmergencyContact(who, digits))) }
+        speech.say("Saved. $who is your emergency contact.", Priority.Interrupt)
+    }
+
+    fun clearEmergencyContact() {
+        update { it.copy(emergencyContacts = emptyList()) }
+        speech.say("Your emergency contact was removed.", Priority.Interrupt)
+    }
     fun setHandsFree(on: Boolean) {
         update { it.copy(handsFree = on) }
         speech.say(if (on) "Hands free is on. I'll keep listening." else "Hands free is off.", Priority.Interrupt)

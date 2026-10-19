@@ -530,7 +530,9 @@ class SessionViewModel @Inject constructor(
 
     private fun handleWake(request: String, called: ai.visionmirror.audio.Persona? = null) {
         // If she called the OTHER name, she answers as herself: "I am Bola." She does not pretend to be who was called.
-        val wrongName = called != null && called != _persona.value
+        // ...unless the request is itself a setting ("switch to Adanna"): that is an order, not a mistaken name.
+        val isSetting = request.isNotBlank() && VoiceSettings.parse(request) != null
+        val wrongName = called != null && called != _persona.value && !isSetting
         if (request.isNotBlank() && !wrongName) {
             speaker.stop()
             handleRequest(request)

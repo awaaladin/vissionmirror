@@ -22,6 +22,7 @@ mediapipe = "0.10.26.1"
 datastore = "1.2.1"
 splash = "1.2.0"
 profileinstaller = "1.4.1"
+vosk = "0.3.75"
 turbine = "1.2.1"
 
 [libraries]
@@ -58,6 +59,7 @@ mediapipe-vision = { module = "com.google.mediapipe:tasks-vision", version.ref =
 datastore = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splash" }
 profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
+vosk = { module = "com.alphacephei:vosk-android", version.ref = "vosk" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
 [plugins]

@@ -34,11 +34,12 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 24
         targetSdk = 36
-        versionCode = 15
-        versionName = "0.9.2"
+        versionCode = 16
+        versionName = "0.9.3"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         // Real phones only. The x86 libraries are for emulators and added 64 MB, past the download host's 100 MB file limit.
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        // -PabiOnly=arm64-v8a (or armeabi-v7a) builds one phone type, to keep each download under the host's file limit.
+        ndk { abiFilters += (findProperty("abiOnly") as String?)?.split(",") ?: listOf("arm64-v8a", "armeabi-v7a") }
     }
 
     // Two ways to ship the same app. "direct" is the website download and sends the emergency text by itself.
@@ -126,6 +127,7 @@ dependencies {
     implementation(libs.datastore)
     implementation(libs.splashscreen)
     implementation(libs.profileinstaller)
+    implementation(libs.vosk)
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)

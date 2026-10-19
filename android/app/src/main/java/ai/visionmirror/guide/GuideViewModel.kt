@@ -54,6 +54,11 @@ class GuideViewModel @Inject constructor(
     @Volatile private var startAt = 0L
     private var lastHaptic = 0L
     private var detectFailures = 0
+    private val sensors = GuideSensors(context)
+    @Volatile private var frames = 0
+    @Volatile private var lastSpokeAt = 0L
+    private var lastAdviceAt = 0L
+    private var lastNothingAt = 0L
 
     init {
         viewModelScope.launch {
@@ -78,6 +83,28 @@ class GuideViewModel @Inject constructor(
         speaker.say(INTRO, Priority.Interrupt)
         // Let her hear the warning before the first announcement talks over it.
         startAt = System.currentTimeMillis() + INTRO_MS
+        frames = 0
+        lastSpokeAt = startAt
+        lastNothingAt = startAt
+        sensors.start()
+        // If no pictures arrive at all, say so instead of staying silent.
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(INTRO_MS + 6_000)
+            if (active && !paused && frames == 0 && !failed) {
+                val why = "I'm not getting pictures from the camera. Close other apps that use the camera, then open Guide mode again."
+                _state.update { it.copy(problem = why, caption = why) }
+                speaker.say(why, Priority.Interrupt)
+            }
+        }
+    }
+
+    /** The camera could not be started at all. */
+    fun onCameraError(why: Throwable) {
+        Log.e("VisionMirror", "guide: camera failed", why)
+        failed = true
+        val detail = " (${why.javaClass.simpleName}: ${why.message.orEmpty().take(120)})"
+        _state.update { it.copy(problem = "The camera could not start.$detail", caption = "The camera could not start.$detail") }
+        speaker.say("The camera could not start for Guide mode.", Priority.Interrupt)
     }
 
     fun onExit() {
@@ -85,6 +112,7 @@ class GuideViewModel @Inject constructor(
         speaker.stop()
         runCatching { sensor?.close() }
         sensor = null
+        sensors.stop()
     }
 
     fun togglePause() = if (paused) resume() else pause(announce = true)
@@ -108,7 +136,9 @@ class GuideViewModel @Inject constructor(
 
     /** Called from the camera thread for each picture. */
     fun onFrame(picture: Bitmap) {
-        if (!active || paused || failed || System.currentTimeMillis() < startAt) return
+        if (!active || paused || failed) return
+        frames++
+        if (System.currentTimeMillis() < startAt) return
         val created = if (sensor == null) runCatching { ObjectSensor(context) } else null
         val s = sensor ?: created?.getOrNull()?.also { sensor = it }
         if (s == null) {
@@ -129,11 +159,38 @@ class GuideViewModel @Inject constructor(
         } ?: run { detectFailures = 0 }
         val sightings = GuideLogic.sightings(detected.getOrDefault(emptyList()))
         buzz(sightings)
-        val spoken = announcer.next(sightings) ?: return
+        adviseFromSensors()
+        val spoken = announcer.next(sightings)
+        if (spoken == null) {
+            // Silence must not look like a broken app: now and then say that nothing known is ahead.
+            val now = System.currentTimeMillis()
+            if (detected.isSuccess && sightings.isEmpty() && now - lastSpokeAt > QUIET_MS && now - lastNothingAt > QUIET_MS) {
+                lastNothingAt = now
+                _state.update { it.copy(caption = "Nothing I recognise ahead.") }
+                speaker.say("I can't see anything I recognise ahead. Keep using your cane.", Priority.Queue, local = true)
+            }
+            return
+        }
+        lastSpokeAt = System.currentTimeMillis()
         _state.update { it.copy(caption = spoken.text) }
         // Old news is worse than silence: only speak over a sentence in progress when it is urgent.
         val busy = speaker.state.value.utteranceId != null
         if (!busy || spoken.urgent) speaker.say(spoken.text, if (spoken.urgent) Priority.Interrupt else Priority.Queue)
+    }
+
+    /** How the phone is held and how much light there is, from its own sensors, at most every 12 seconds. */
+    private fun adviseFromSensors() {
+        val now = System.currentTimeMillis()
+        if (now - lastAdviceAt < ADVICE_GAP_MS) return
+        val advice = when {
+            sensors.covered -> "The camera may be covered. Hold the phone upright with the back camera clear."
+            sensors.hasAccelerometer -> GuideAdvice.posture(sensors.pitch)
+            else -> null
+        } ?: GuideAdvice.light(sensors.lux) ?: return
+        lastAdviceAt = now
+        lastSpokeAt = now
+        _state.update { it.copy(caption = advice) }
+        if (speaker.state.value.utteranceId == null) speaker.say(advice, Priority.Queue, local = true)
     }
 
     /** Vibration quickens as the nearest thing straight ahead gets closer. */
@@ -153,6 +210,8 @@ class GuideViewModel @Inject constructor(
 
     private companion object {
         const val INTRO_MS = 9_000L
+        const val QUIET_MS = 12_000L
+        const val ADVICE_GAP_MS = 12_000L
         const val INTRO =
             "Guide mode is on. I'll tell you about people and objects ahead. I can't see steps, holes or glass, " +
                 "so please keep using your cane or guide. Tap to talk to me, or say pause."

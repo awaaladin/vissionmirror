@@ -32,6 +32,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import android.provider.ContactsContract
+import ai.visionmirror.design.components.PrimaryAction
+import ai.visionmirror.design.components.VmTextField
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,6 +105,43 @@ fun SettingsScreen(
                     )
                     GhostAction("Sign in or create an account", onOpenAccount, Modifier.fillMaxWidth(), icon = VmIcons.Person)
                 }
+            }
+
+            SettingGroup("Emergency contact") {
+                val saved = s.emergencyContacts.firstOrNull()
+                var name by remember(saved) { mutableStateOf(saved?.name.orEmpty()) }
+                var number by remember(saved) { mutableStateOf(saved?.number.orEmpty()) }
+                val context = LocalContext.current
+                val picker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                    val uri = result.data?.data ?: return@rememberLauncherForActivityResult
+                    runCatching {
+                        context.contentResolver.query(
+                            uri,
+                            arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER),
+                            null, null, null,
+                        )?.use { c ->
+                            if (c.moveToFirst()) {
+                                name = c.getString(0).orEmpty()
+                                number = c.getString(1).orEmpty().filter { it.isDigit() || it == '+' }
+                            }
+                        }
+                    }
+                }
+                BasicText(
+                    "When you ask for help, I send your location to this person. " +
+                        if (saved != null) "Now: ${saved.name}." else "None yet.",
+                    style = Vm.type.body.copy(color = Vm.colors.boneMuted),
+                )
+                GhostAction(
+                    "Choose from my contacts",
+                    { picker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) },
+                    Modifier.fillMaxWidth(),
+                    icon = VmIcons.Person,
+                )
+                VmTextField(name, { name = it }, "Their name")
+                VmTextField(number, { number = it }, "Their phone number", keyboardType = KeyboardType.Phone)
+                PrimaryAction("Save emergency contact", { viewModel.saveEmergencyContact(name, number) }, Modifier.fillMaxWidth())
+                if (saved != null) GhostAction("Remove emergency contact", viewModel::clearEmergencyContact, Modifier.fillMaxWidth(), icon = VmIcons.Close)
             }
 
             SettingGroup("Text") {

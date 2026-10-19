@@ -11,6 +11,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -52,6 +53,9 @@ object WakeWord {
 
     private val special = Regex("\\bspecial\\s+requests?\\b")
 
+    /** How "Bola" is often written when it is split in two ("bo la", "pay ya"). */
+    private val bolaPairs = setOf("bola", "bowla", "boula", "polar", "payya", "pia")
+
     fun matches(utterance: String): Match? {
         val clean = utterance.lowercase().replace(Regex("[^a-z ]"), " ").trim().replace(Regex("\\s+"), " ")
         if (clean.isEmpty()) return null
@@ -60,8 +64,10 @@ object WakeWord {
         val words = clean.split(' ')
         for (i in words.indices) {
             // "a donna" is heard as two words as often as "adonna" as one.
-            if (isName(words[i])) return Match(requestAfter(words, i, 1), personaOf(words[i]))
-            if (i + 1 < words.size && isName(words[i] + words[i + 1])) return Match(requestAfter(words, i, 2), personaOf(words[i] + words[i + 1]))
+            // Said from across the room the name is often mangled, so near the start of the sentence one more slip is allowed.
+            val loose = i <= 1
+            if (isName(words[i], loose)) return Match(requestAfter(words, i, 1), personaOf(words[i]))
+            if (i + 1 < words.size && isName(words[i] + words[i + 1], loose)) return Match(requestAfter(words, i, 2), personaOf(words[i] + words[i + 1]))
         }
         return null
     }
@@ -72,6 +78,25 @@ object WakeWord {
      */
     private fun requestAfter(words: List<String>, nameAt: Int, nameWords: Int): String =
         if (nameAt <= 1) words.drop(nameAt + nameWords).joinToString(" ") else words.joinToString(" ")
+
+    /**
+     * [utterance] with every way of mishearing a name replaced by the real one ("adana" -> "adanna", "bowla" -> "bola"),
+     * so "switch to adana" is understood as "switch to adanna".
+     */
+    fun canonical(utterance: String): String {
+        val words = utterance.lowercase().replace(Regex("[^a-z ]"), " ").trim().split(' ').filter { it.isNotEmpty() }
+        val out = ArrayList<String>()
+        var i = 0
+        while (i < words.size) {
+            val one = isName(words[i], loose = true)
+            val two = !one && i + 1 < words.size && isName(words[i] + words[i + 1], loose = true)
+            if (one || two) {
+                out += if (personaOf(if (one) words[i] else words[i] + words[i + 1]) == Persona.Bola) "bola" else "adanna"
+                i += if (one) 1 else 2
+            } else { out += words[i]; i++ }
+        }
+        return out.joinToString(" ")
+    }
 
     /** [utterance] without the wake phrase, for when the phrase was said in the middle of a request. */
     fun strip(utterance: String): String = matches(utterance)?.request ?: utterance.trim()
@@ -84,12 +109,13 @@ object WakeWord {
     }
 
     // "Bola" is short, so only the ways recognisers actually write it count; a loose match would fire on "bowl" or "cola".
-    private val bolaForms = setOf("bola", "bolla", "bowla", "bolah", "boller", "bolar")
+    private val bolaForms = setOf("bola", "bolla", "bowla", "bolah", "boller", "bolar", "bowler", "boula", "boler", "bolor", "polar")
 
-    private fun personaOf(word: String): Persona = if (word in bolaForms) Persona.Bola else Persona.Adanna
+    private fun personaOf(word: String): Persona = if (word in bolaForms || word in bolaPairs) Persona.Bola else Persona.Adanna
 
-    private fun isName(word: String): Boolean =
-        word in bolaForms || (word.length in 4..8 && editDistance(word, TARGET) <= 1)
+    private fun isName(word: String, loose: Boolean = false): Boolean =
+        word in bolaForms || word in bolaPairs || (word.length in 4..8 && editDistance(word, TARGET) <= 1) ||
+            (loose && word.startsWith('a') && word.length in 5..7 && editDistance(word, TARGET) <= 2)
 
     internal fun editDistance(a: String, b: String): Int {
         var prev = IntArray(b.length + 1) { it }
@@ -155,6 +181,7 @@ class WakeWordListener @Inject constructor(
     private val speaker: Speaker,
     private val permissions: PermissionChecker,
     private val own: OwnSpeech,
+    private val offlineEars: OfflineEars,
     settings: SettingsStore,
     @ApplicationScope private val scope: CoroutineScope,
 ) : WakeSource {
@@ -181,6 +208,9 @@ class WakeWordListener @Inject constructor(
 
     // Starts strict (offline, Nigerian English) and relaxes if the phone cannot do that.
     private var preferOffline = true
+
+    /** Until this time (elapsedRealtime) the phone's own recogniser is not trusted and the offline one listens instead. */
+    private var offlineUntil = 0L
     private var language: String? = "en-NG"
 
     init {
@@ -222,32 +252,40 @@ class WakeWordListener @Inject constructor(
                 delay(3_000)
                 continue
             }
-            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-                _hearing.value = Hearing(status = "This phone has no speech recogniser. Install Speech Services by Google.")
-                delay(5_000)
+            val googleOk = SpeechRecognizer.isRecognitionAvailable(context)
+            if (failures >= 2 && offlineEars.ready.value) offlineUntil = SystemClock.elapsedRealtime() + OFFLINE_TRUST_MS
+            val offline = offlineEars.ready.value && (!googleOk || SystemClock.elapsedRealtime() < offlineUntil)
+            if (!googleOk && !offline) {
+                _hearing.value = Hearing(status = if (offlineEars.ready.value) "" else "Getting my offline hearing ready. One moment.")
+                delay(2_000)
                 continue
             }
-            _hearing.value = Hearing(active = true, status = "Listening for “${name.displayName}”")
-            when (val outcome = withContext(Dispatchers.Main) { listenOnce() }) {
+            _hearing.value = Hearing(active = true, status = "Listening for “${name.displayName}”" + if (offline) " (on this phone)" else "")
+            when (val outcome = withContext(Dispatchers.Main) { if (offline) listenOffline() else listenOnce() }) {
                 is Outcome.Heard -> {
                     failures = 0
                     _hearing.value = Hearing(active = true, status = "Heard you")
                     _wakes.tryEmit(WakeEvent(outcome.request, outcome.called))
                     delay(1_500) // let the view model take the microphone before we would listen again
                 }
-                Outcome.Stop -> { failures = 0; _stops.tryEmit(Unit); delay(700) }
-                Outcome.Resume -> { failures = 0; _resumes.tryEmit(Unit); delay(700) }
-                Outcome.Silence -> { failures = 0; delay(250) }
+                Outcome.Stop -> { failures = 0; _stops.tryEmit(Unit); delay(400) }
+                Outcome.Resume -> { failures = 0; _resumes.tryEmit(Unit); delay(400) }
+                Outcome.Silence -> { failures = 0; delay(150) }
                 // After she finishes talking, wait for the tail of her voice and the room to die away before listening.
-                Outcome.Restart -> { failures = 0; delay(if (talking()) 150 else 700) }
+                Outcome.Restart -> { failures = 0; delay(if (talking()) 120 else 350) }
                 Outcome.Busy -> delay(800)
                 is Outcome.Failed -> {
                     failures++
-                    // These mean "not with these settings": ask the normal recogniser, in the phone's own language.
-                    if (outcome.code in RELAX_CODES && (preferOffline || language != null)) {
-                        preferOffline = false
-                        language = null
-                        delay(200)
+                    if (outcome.code == -1) { delay(1_000); continue }
+                    // Network and server trouble (codes 1, 2, 4, 10, 11) or an unsupported language (12, 13): swap between the
+                    // phone's offline model and the online recogniser each time, so whichever one works is the one we end up on.
+                    if (outcome.code in RELAX_CODES) {
+                        preferOffline = !preferOffline
+                        if (outcome.code == 12 || outcome.code == 13) language = null
+                        if (failures >= 3) {
+                            _hearing.value = Hearing(status = "I can't reach the speech service (code ${outcome.code}). Check your internet, or download the English offline speech pack in Google's speech settings.")
+                        }
+                        delay((300L * failures).coerceAtMost(2_500))
                     } else {
                         _hearing.value = Hearing(status = "The speech service had a problem (code ${outcome.code}). Trying again.")
                         delay((800L * failures).coerceAtMost(6_000))
@@ -268,16 +306,86 @@ class WakeWordListener @Inject constructor(
         data class Failed(val code: Int) : Outcome
     }
 
+    /** What a heard sentence means, if anything: "stop", "go on", or her name. Null when it means nothing to us. */
+    private fun decide(heardRaw: List<String>, talkingNow: Boolean): Outcome? {
+        val heard = heardRaw.filterNot { own.isEcho(it) }
+        if (heard.isEmpty()) return null
+        if (bargeOn && heard.any { StopWords.matches(it) }) return Outcome.Stop
+        if (talkingNow) return null
+        if (bargeOn && heard.any { ResumeWords.matches(it) }) return Outcome.Resume
+        val match = heard.firstNotNullOfOrNull { WakeWord.matches(it) }
+        return if (match != null && wakeOn) Outcome.Heard(match.request, match.called) else null
+    }
+
+    /**
+     * Listens with the speech engine that lives inside the app. Unlike the phone's recogniser it needs no internet, makes no
+     * restarts (so no deaf gaps and no "service disconnected" errors), and keeps listening until her name is heard.
+     */
+    private suspend fun listenOffline(): Outcome = suspendCancellableCoroutine { cont ->
+        val talkingNow = talking()
+        var finished = false
+        var handle: OfflineEars.Handle? = null
+        var wakeJob: Job? = null
+        var watcher: Job? = null
+        fun finish(outcome: Outcome) {
+            if (finished) return
+            finished = true
+            watcher?.cancel()
+            wakeJob?.cancel()
+            handle?.stop()
+            if (cont.isActive) cont.resume(outcome)
+        }
+        fun consider(text: String, final: Boolean) {
+            if (finished || text.isBlank()) return
+            val outcome = decide(listOf(text), talkingNow)
+            if (outcome == null) {
+                _hearing.update { it.copy(text = if (final) "" else text, level = if (final) 0f else 0.5f) }
+                return
+            }
+            if (outcome is Outcome.Heard && !final) {
+                // Only the first words so far: act once she has paused, so the whole request is heard.
+                wakeJob?.cancel()
+                wakeJob = scope.launch(Dispatchers.Main) {
+                    delay(if (outcome.request.isBlank()) WAKE_SETTLE_MS else WAKE_SETTLE_MS + 150)
+                    finish(outcome)
+                }
+                _hearing.update { it.copy(text = text, level = 0.5f) }
+                return
+            }
+            finish(outcome)
+        }
+        watcher = scope.launch(Dispatchers.Main) {
+            speaker.state.map { it.utteranceId != null }.first { it != talkingNow }
+            finish(Outcome.Restart)
+        }
+        handle = offlineEars.listen(
+            object : OfflineEars.Listener {
+                override fun onPartial(text: String) { scope.launch(Dispatchers.Main) { consider(text, false) } }
+                override fun onSentence(text: String) { scope.launch(Dispatchers.Main) { consider(text, true) } }
+                override fun onError(message: String) { scope.launch(Dispatchers.Main) { finish(Outcome.Failed(-1)) } }
+            },
+            pauseSeconds = 0.9f,
+        )
+        if (handle == null) finish(Outcome.Failed(-1))
+        cont.invokeOnCancellation {
+            watcher?.cancel()
+            wakeJob?.cancel()
+            main.post { if (!finished) { finished = true; handle?.stop() } }
+        }
+    }
+
     /** One listening cycle. Cancelling the coroutine tears the recogniser down. */
     private suspend fun listenOnce(): Outcome = suspendCancellableCoroutine { cont ->
         val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
         var finished = false
         var smoothed = 0f
         var watcher: Job? = null
+        var wakeJob: Job? = null
         fun finish(outcome: Outcome) {
             if (finished) return
             finished = true
             watcher?.cancel()
+            wakeJob?.cancel()
             recognizer.setRecognitionListener(null)
             runCatching { recognizer.cancel(); recognizer.destroy() }
             if (cont.isActive) cont.resume(outcome)
@@ -293,7 +401,18 @@ class WakeWordListener @Inject constructor(
             if (talkingNow) { if (final) finish(Outcome.Silence); return }
             if (bargeOn && heard.any { ResumeWords.matches(it) }) { finish(Outcome.Resume); return }
             val match = heard.firstNotNullOfOrNull { WakeWord.matches(it) }
-            if (match != null && wakeOn) { finish(Outcome.Heard(match.request, match.called)); return }
+            if (match != null && wakeOn) {
+                if (final) { finish(Outcome.Heard(match.request, match.called)); return }
+                // A partial result is only the first words of the sentence. Act on it once she has paused for a moment (or
+                // the final result arrives), so "Adanna, what's the weather" is heard whole, not as "Adanna, what's".
+                wakeJob?.cancel()
+                wakeJob = scope.launch(Dispatchers.Main) {
+                    delay(if (match.request.isBlank()) WAKE_SETTLE_MS else WAKE_SETTLE_MS + 150)
+                    finish(Outcome.Heard(match.request, match.called))
+                }
+                heard.firstOrNull()?.let { said -> _hearing.update { it.copy(text = said) } }
+                return
+            }
             heard.firstOrNull()?.let { said -> _hearing.update { it.copy(text = said) } }
             if (final) finish(Outcome.Silence)
         }
@@ -349,6 +468,9 @@ class WakeWordListener @Inject constructor(
     }
 
     private companion object {
+        const val WAKE_SETTLE_MS = 550L
+        const val OFFLINE_TRUST_MS = 120_000L
+
         // Android's SpeechRecognizer error codes that mean "not with these settings": network timeout (1), network (2),
         // server (4), too many requests (10), server disconnected (11), language not supported (12) or unavailable (13).
         val RELAX_CODES = setOf(1, 2, 4, 10, 11, 12, 13)
