@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- Google Play restricts SEND_SMS to default messaging apps; the Play build hands the message to the messaging app instead. -->
+    <uses-permission android:name="android.permission.SEND_SMS" tools:node="remove" />
+</manifest>

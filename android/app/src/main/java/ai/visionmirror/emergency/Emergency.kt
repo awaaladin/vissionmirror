@@ -20,6 +20,9 @@ interface AddressLookup { suspend fun describe(point: GeoPoint): String? }
 interface SmsSender {
     /** True when the phone accepted the message for sending. */
     fun send(number: String, text: String): Boolean
+
+    /** True when [send] only opens the messaging app with the text ready, and a tap there sends it. */
+    val needsTap: Boolean get() = false
 }
 
 interface ContactBook {
@@ -35,7 +38,7 @@ interface PhoneActions {
 sealed interface ShareResult {
     data object NoContacts : ShareResult
     data object NoLocation : ShareResult
-    data class Sent(val names: List<String>, val failed: List<String>, val where: String) : ShareResult
+    data class Sent(val names: List<String>, val failed: List<String>, val where: String, val needsTap: Boolean = false) : ShareResult
 }
 
 /**
@@ -67,7 +70,7 @@ class Emergency @Inject constructor(
         val sent = mutableListOf<String>()
         val failed = mutableListOf<String>()
         for (c in contacts) if (sms.send(c.number, text)) sent += c.name else failed += c.name
-        return ShareResult.Sent(sent, failed, place ?: coords(point))
+        return ShareResult.Sent(sent, failed, place ?: coords(point), sms.needsTap)
     }
 
     companion object {
@@ -89,6 +92,7 @@ class Emergency @Inject constructor(
             ShareResult.NoLocation -> NO_LOCATION
             is ShareResult.Sent -> when {
                 result.names.isEmpty() -> "I couldn't send the message. Check that this phone can send text messages."
+                result.needsTap -> "I opened a message to ${list(result.names)} with your location in it. You are near ${result.where}. Tap send to share it."
                 result.failed.isEmpty() -> "I sent your location to ${list(result.names)}. You are near ${result.where}."
                 else -> "I sent your location to ${list(result.names)}, but couldn't reach ${list(result.failed)}."
             }

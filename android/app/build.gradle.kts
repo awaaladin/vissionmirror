@@ -34,11 +34,26 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "0.9.1"
+        versionCode = 15
+        versionName = "0.9.2"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         // Real phones only. The x86 libraries are for emulators and added 64 MB, past the download host's 100 MB file limit.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+    }
+
+    // Two ways to ship the same app. "direct" is the website download and sends the emergency text by itself.
+    // "play" is for Google Play, which only lets default messaging apps hold the SEND_SMS permission, so there the
+    // emergency text is opened ready-written in the messaging app and one tap sends it.
+    flavorDimensions += "dist"
+    productFlavors {
+        create("direct") {
+            dimension = "dist"
+            buildConfigField("boolean", "DIRECT_SMS", "true")
+        }
+        create("play") {
+            dimension = "dist"
+            buildConfigField("boolean", "DIRECT_SMS", "false")
+        }
     }
 
     signingConfigs {

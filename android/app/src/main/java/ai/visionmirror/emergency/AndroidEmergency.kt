@@ -95,8 +95,18 @@ class AndroidAddressLookup @Inject constructor(
 class AndroidSmsSender @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : SmsSender {
+    override val needsTap: Boolean get() = !ai.visionmirror.BuildConfig.DIRECT_SMS
+
     @SuppressLint("MissingPermission")
     override fun send(number: String, text: String): Boolean = runCatching {
+        if (!ai.visionmirror.BuildConfig.DIRECT_SMS) {
+            // Play build: the messaging app opens with the text ready; she (or her helper) taps send.
+            context.startActivity(
+                Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${Uri.encode(number)}")).putExtra("sms_body", text)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            return@runCatching true
+        }
         val sms = if (Build.VERSION.SDK_INT >= 31) context.getSystemService(SmsManager::class.java) else @Suppress("DEPRECATION") SmsManager.getDefault()
         sms.sendMultipartTextMessage(number, null, sms.divideMessage(text), null, null)
         true

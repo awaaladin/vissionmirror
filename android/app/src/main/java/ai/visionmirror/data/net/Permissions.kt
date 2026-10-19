@@ -24,6 +24,6 @@ class SystemPermissionChecker @Inject constructor(
     override fun hasCamera() = has(Manifest.permission.CAMERA)
     override fun hasMic() = has(Manifest.permission.RECORD_AUDIO)
     override fun hasLocation() = has(Manifest.permission.ACCESS_FINE_LOCATION) || has(Manifest.permission.ACCESS_COARSE_LOCATION)
-    override fun hasSms() = has(Manifest.permission.SEND_SMS)
+    override fun hasSms() = !ai.visionmirror.BuildConfig.DIRECT_SMS || has(Manifest.permission.SEND_SMS)
     override fun hasContacts() = has(Manifest.permission.READ_CONTACTS)
 }

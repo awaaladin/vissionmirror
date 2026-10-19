@@ -117,37 +117,34 @@ h1{font-size:clamp(2.1rem,5.4vw + .4rem,3.9rem);font-weight:700}
 .chip.show{opacity:1;transform:none}
 @media(max-width:34rem){.chip.a{left:.4rem}.chip.b{right:.4rem}}
 
-/* ---------- the orb (an original, robotic eye-slit design; inspired by sci-fi AI faces, not a copy of any character) ---------- */
-.orb{--s:min(64vw,15rem);position:relative;width:var(--s);aspect-ratio:1;display:grid;place-items:center;isolation:isolate}
+/* ---------- the orb: a calm glowing sphere; when she speaks, a soft pulse wobbles around its edge ---------- */
+.orb{--s:min(64vw,15rem);--a:0;--spd:7s;position:relative;width:var(--s);aspect-ratio:1;display:grid;place-items:center;isolation:isolate}
 .orb.big{--s:min(74vw,19rem)}
 .orb.small{--s:7.5rem}
-.orb .halo{position:absolute;inset:-18%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--ember) 40%,transparent),transparent 70%);filter:blur(10px);animation:breathe 4.2s ease-in-out infinite;z-index:-1}
-.orb .ring{position:absolute;inset:0;border-radius:50%;border:1px solid color-mix(in srgb,var(--ember) 60%,transparent);opacity:0}
-.orb[data-state="listening"] .ring,.orb[data-state="speaking"] .ring{animation:ringOut 2.2s cubic-bezier(.2,.6,.3,1) infinite}
-.orb[data-state="speaking"] .ring{animation-duration:1.3s}
-.orb .ring:nth-child(2){animation-delay:.7s!important}.orb .ring:nth-child(3){animation-delay:1.4s!important}
-.orb .shell{position:absolute;inset:5%;border-radius:50%;background:conic-gradient(from 210deg,#2c2b30,#85838b 7%,#2a292e 17%,#0c0c0e 38%,#5a595f 55%,#1a191c 70%,#9a98a0 85%,#2c2b30);box-shadow:inset 0 0 0 2px rgba(255,255,255,.07),0 30px 60px -22px #000}
-.orb .ticks{position:absolute;inset:5%;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(246,221,155,.6) 0 1.1deg,transparent 1.1deg 6deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 9px),#000 calc(100% - 8px));mask:radial-gradient(farthest-side,transparent calc(100% - 9px),#000 calc(100% - 8px));animation:spin 50s linear infinite;opacity:.8}
-.orb .core{position:absolute;inset:13%;border-radius:50%;background:radial-gradient(120% 120% at 30% 18%,#3b3a40,#0b0b0d 62%);box-shadow:inset 0 10px 28px rgba(255,255,255,.08),inset 0 -22px 40px rgba(0,0,0,.85)}
-.orb .core::before{content:"";position:absolute;left:14%;top:8%;width:46%;height:20%;border-radius:50%;background:rgba(255,255,255,.1);filter:blur(8px);transform:rotate(-24deg)}
-.orb .seam{position:absolute;left:50%;top:15%;bottom:15%;width:1px;background:linear-gradient(transparent,rgba(255,255,255,.1),transparent)}
-.orb .eyes{position:absolute;left:50%;top:39%;width:58%;height:11%;transform:translateX(-50%);display:flex;justify-content:space-between;opacity:.55;transition:opacity .4s}
-.orb .eye{width:44%;height:100%;background:linear-gradient(90deg,#ff7442,#ffe2a0 62%,#fff);clip-path:polygon(0 34%,100% 0,90% 100%,7% 80%);filter:drop-shadow(0 0 7px var(--ember)) drop-shadow(0 0 18px color-mix(in srgb,var(--ember) 70%,transparent))}
-.orb .eye:last-child{transform:scaleX(-1)}
-.orb[data-state="listening"] .eyes,.orb[data-state="speaking"] .eyes,.orb[data-state="thinking"] .eyes{opacity:1}
-.orb[data-state="thinking"] .eye{animation:scan 1.1s ease-in-out infinite alternate}
-.orb .grille{position:absolute;left:50%;top:60%;width:34%;height:11%;transform:translateX(-50%);display:flex;gap:5%;align-items:center;justify-content:center}
-.orb .grille i{display:block;width:9%;height:100%;border-radius:3px;background:linear-gradient(#ffe2a0,var(--ember));transform:scaleY(.14);transform-origin:center;box-shadow:0 0 8px color-mix(in srgb,var(--ember) 80%,transparent);transition:transform .3s}
-.orb[data-state="listening"] .grille i,.orb[data-state="speaking"] .grille i{animation:bars .85s ease-in-out infinite}
-.orb[data-state="listening"] .grille i{animation-duration:1.3s}
-.orb .grille i:nth-child(2){animation-delay:.1s}.orb .grille i:nth-child(3){animation-delay:.2s}.orb .grille i:nth-child(4){animation-delay:.3s}.orb .grille i:nth-child(5){animation-delay:.15s}.orb .grille i:nth-child(6){animation-delay:.05s}.orb .grille i:nth-child(7){animation-delay:.25s}
-.orb .arc{position:absolute;inset:-3%;border-radius:50%;border:2px solid transparent;border-top-color:var(--glow);opacity:0}
-.orb[data-state="thinking"] .arc{opacity:1;animation:spin 1.3s linear infinite}
-@keyframes ringOut{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.7);opacity:0}}
+.orb[data-state="listening"]{--a:3;--spd:3.2s}
+.orb[data-state="thinking"]{--a:1.5;--spd:2.4s}
+.orb[data-state="speaking"]{--a:7;--spd:1.7s}
+.orb .halo{position:absolute;inset:-22%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--glow) 34%,transparent),transparent 70%);filter:blur(12px);animation:breathe 5s ease-in-out infinite;z-index:-1}
+.orb .ring{position:absolute;inset:14%;border-radius:50%;border:1px solid color-mix(in srgb,var(--glow) 55%,transparent);opacity:0}
+.orb[data-state="listening"] .ring,.orb[data-state="speaking"] .ring{animation:ringOut 2.8s cubic-bezier(.2,.6,.3,1) infinite}
+.orb[data-state="speaking"] .ring{animation-duration:1.9s}
+.orb .ring:nth-child(2){animation-delay:.9s!important}.orb .ring:nth-child(3){animation-delay:1.8s!important}
+.orb .sphere{position:absolute;inset:14%;border-radius:50%;background:radial-gradient(circle at 34% 28%,color-mix(in srgb,#fff 42%,var(--glow)),var(--glow) 40%,color-mix(in srgb,var(--ember) 70%,#2a1206) 78%,#1a0c05);box-shadow:0 0 38px -4px color-mix(in srgb,var(--glow) 55%,transparent),inset 0 -14px 30px rgba(0,0,0,.35);transition:transform .6s}
+.orb[data-state="speaking"] .sphere{animation:pulseCore 1.7s ease-in-out infinite}
+.orb[data-state="listening"] .sphere{animation:pulseCore 3.2s ease-in-out infinite}
+.orb .wob{position:absolute;inset:11%;border:1.5px solid color-mix(in srgb,var(--glow) 70%,transparent);border-radius:50%;opacity:.55;animation:morph var(--spd) ease-in-out infinite;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--glow) 60%,transparent))}
+.orb .wob.w2{inset:8%;opacity:.32;animation-duration:calc(var(--spd)*1.35);animation-direction:reverse}
+.orb .wob.w3{inset:5%;opacity:.18;animation-duration:calc(var(--spd)*.8);animation-delay:-.6s}
+.orb .arc{position:absolute;inset:6%;border-radius:50%;border:1.5px solid transparent;border-top-color:color-mix(in srgb,#fff 70%,var(--glow));opacity:0;transition:opacity .4s}
+.orb[data-state="thinking"] .arc{opacity:.9;animation:spin 1.6s linear infinite}
+@keyframes morph{
+0%,100%{border-radius:calc(50% + var(--a)*1%) calc(50% - var(--a)*1%) calc(50% + var(--a)*.6%) calc(50% - var(--a)*.6%)/calc(50% - var(--a)*.8%) calc(50% + var(--a)*.8%) calc(50% - var(--a)*1%) calc(50% + var(--a)*1%);transform:rotate(0)}
+33%{border-radius:calc(50% - var(--a)*1%) calc(50% + var(--a)*1%) calc(50% - var(--a)*.8%) calc(50% + var(--a)*.8%)/calc(50% + var(--a)*1%) calc(50% - var(--a)*1%) calc(50% + var(--a)*.6%) calc(50% - var(--a)*.6%);transform:rotate(60deg)}
+66%{border-radius:calc(50% + var(--a)*.7%) calc(50% - var(--a)*.7%) calc(50% - var(--a)*1%) calc(50% + var(--a)*1%)/calc(50% - var(--a)*1%) calc(50% + var(--a)*1%) calc(50% + var(--a)*.8%) calc(50% - var(--a)*.8%);transform:rotate(120deg)}}
+@keyframes pulseCore{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+@keyframes ringOut{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.55);opacity:0}}
 @keyframes breathe{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.06);opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes bars{0%,100%{transform:scaleY(.18)}50%{transform:scaleY(1)}}
-@keyframes scan{from{filter:drop-shadow(0 0 4px var(--ember))}to{filter:drop-shadow(0 0 16px #fff) drop-shadow(0 0 30px var(--ember))}}
 
 /* ---------- sections ---------- */
 section{padding:3.2rem 0}
@@ -252,9 +249,7 @@ footer a{color:var(--muted)}
   <div class="inner">
     <div class="orb" data-state="listening" aria-hidden="true">
       <span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span>
-      <span class="shell"></span><span class="ticks"></span><span class="core"></span><span class="seam"></span>
-      <span class="eyes"><span class="eye"></span><span class="eye"></span></span>
-      <span class="grille"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="arc"></span>
+      <span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span>
     </div>
     <div class="word gold">VisionMirror</div>
     <div class="bar" aria-hidden="true"><i></i></div>
@@ -330,9 +325,7 @@ footer a{color:var(--muted)}
       <div class="orb-wrap">
         <div class="orb big" id="heroOrb" data-state="idle">
           <span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span>
-          <span class="shell"></span><span class="ticks"></span><span class="core"></span><span class="seam"></span>
-          <span class="eyes"><span class="eye"></span><span class="eye"></span></span>
-          <span class="grille"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="arc"></span>
+          <span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span>
         </div>
       </div>
     </div>
@@ -403,13 +396,13 @@ footer a{color:var(--muted)}
     </div>
     <div class="personas">
       <article class="card persona reveal">
-        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="shell"></span><span class="ticks"></span><span class="core"></span><span class="seam"></span><span class="eyes"><span class="eye"></span><span class="eye"></span></span><span class="grille"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="arc"></span></div>
+        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span></div>
         <h3>Adanna</h3>
         <p class="muted">A warm, clear woman&rsquo;s voice. The default.</p>
         <q>Good morning. You are wearing a navy shirt with grey trousers, and everything sits neatly.</q>
       </article>
       <article class="card persona bola reveal d1">
-        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="shell"></span><span class="ticks"></span><span class="core"></span><span class="seam"></span><span class="eyes"><span class="eye"></span><span class="eye"></span></span><span class="grille"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="arc"></span></div>
+        <div class="orb" data-state="idle" aria-hidden="true"><span class="halo"></span><span class="ring"></span><span class="ring"></span><span class="ring"></span><span class="sphere"></span><span class="wob"></span><span class="wob w2"></span><span class="wob w3"></span><span class="arc"></span></div>
         <h3>Bola</h3>
         <p class="muted">A steady, friendly man&rsquo;s voice.</p>
         <q>Person ahead, close. There is a chair on your left.</q>
@@ -577,6 +570,7 @@ footer a{color:var(--muted)}
       <p><strong style="color:var(--text)">VisionMirror</strong> <span id="ver"></span>. Described by AI, so it can make mistakes: treat it as a helpful friend, not a guarantee. It never rates how you look. It is not a medical device and does not replace a cane or guide.</p>
     </div>
     <div>
+      <p><a href="privacy.html">Privacy policy</a> · <a href="account-deletion.html">Delete your account</a></p>
       <p>Photos from <a href="https://www.pexels.com">Pexels</a>, free to use under the Pexels licence: round mirror by <a href="https://www.pexels.com/photo/round-brown-framed-mirror-with-reflection-of-curtain-1587597/">E Pro</a>; walking with a cane by <a href="https://www.pexels.com/photo/photo-of-person-using-cane-as-a-walking-guide-7188959/">Eren Li</a> and <a href="https://www.pexels.com/photo/photo-of-man-walking-on-sidewalk-7188858/">Eren Li</a>; African print by <a href="https://www.pexels.com/photo/vibrant-african-fabric-portrait-close-up-30971566/">kelly chocola</a>.</p>
       <p>Fonts: <a href="fonts/OFL-BricolageGrotesque.txt">Bricolage Grotesque</a> and <a href="fonts/OFL.txt">Atkinson Hyperlegible Next</a>, both under the SIL Open Font Licence.</p>
     </div>
