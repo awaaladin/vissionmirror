@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,6 +54,18 @@ class Settings(BaseSettings):
     voiceverse_url: str | None = None
     voiceverse_api_key: str | None = None
     voiceverse_timeout_seconds: float = 20.0
+
+    # Paystack, for one-time support payments (shared account; references start with VISIONMIRROR-).
+    # Empty = POST /v1/support/checkout answers 503.
+    # Read from PAYSTACK_SECRET_KEY, or PAYSTACK_API / PAYSTACK_SECRET (names the other apps on the shared account use).
+    paystack_secret_key: str = Field(
+        default="", validation_alias=AliasChoices("paystack_secret_key", "paystack_api", "paystack_secret"),
+    )
+    paystack_base_url: str = "https://api.paystack.co"
+    # This API's public URL: Paystack sends the payer back to {public_base_url}/v1/support/return.
+    public_base_url: str = "http://localhost:8000"
+    support_min_ngn: int = 500
+    support_max_ngn: int = 1_000_000
 
     # Global ceiling on AI calls (describe + ask) per UTC day, so a demo can't run up a bill.
     daily_ai_call_limit: int = 500
