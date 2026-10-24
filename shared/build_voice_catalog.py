@@ -308,6 +308,12 @@ switch account|change account|account settings|my profile|my details|log into my
 i want to sign in|i want to sign out|i want to log out|make an account|open an account|new account|join|become a member|
 my login|my sign in|log me in|sign me in|log me out|sign me out""",
     examples=["Sign in", "My account", "Log out"], verbs=OPEN, bare=3)
+cmd("open.subscribe", "open", "Subscribe or manage payment", "", """subscribe|subscribe now|i want to subscribe|how do i subscribe|how do i pay|
+pay for visionmirror|pay for the app|make a payment|make payment|renew|renew my subscription|manage my subscription|my subscription|
+cancel my subscription|change my card|subscription|subscription price|how much is the subscription|how much is visionmirror|
+the subscription|payment page|go to the payment page|open the payment page|i want to pay|upgrade|buy visionmirror|pay now""",
+    examples=["Subscribe", "Manage my subscription", "How do I pay?"], verbs=OPEN, bare=5,
+    note="Opens our website in your browser, where the payment is made. Nothing is paid inside the app.")
 cmd("open.home", "open", "Home", "", """home|home screen|main screen|main menu|menu|start screen|beginning|the start|front page|dashboard|start page|home page|go home|take me home|
 back to the start|main page|homepage|first screen|launcher|where i started|main|the home screen|the main menu|the home page|
 the main screen|the start screen|go to the start|go to the beginning|return home|back home|home please|go to home|

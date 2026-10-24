@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Subscribe &middot; VisionMirror</title><link rel="icon" href="favicon.png">
+<style>
+:root{--bg:#0F0D0A;--raised:#1A1712;--text:#F3EEE2;--muted:#B5AB98;--gold:#E4AE5A;--line:#2E2921;--on-gold:#17110A;--ember:#F08A6B}
+@media (prefers-color-scheme:light){:root{--bg:#F7F2E8;--raised:#FFFDF8;--text:#1C170E;--muted:#4D4637;--gold:#8A5A12;--line:#DDD3C0;--on-gold:#FFFDF8;--ember:#A33A18}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:1.05rem/1.7 system-ui,"Segoe UI",Roboto,sans-serif}
+main{max-width:34rem;margin:0 auto;padding:3rem 1.25rem 4rem}
+.brand{color:var(--gold);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:.75rem;text-align:center}
+h1{font-size:2rem;line-height:1.2;margin:.4rem 0;text-align:center}
+.price{text-align:center;font-size:2.6rem;font-weight:800;margin:.6rem 0 0}.price small{font-size:1rem;font-weight:500;color:var(--muted)}
+p{color:var(--muted)}.center{text-align:center}
+ul{color:var(--muted);padding-left:1.2rem}
+form{display:grid;gap:1rem;margin-top:1.4rem}
+label.lab{font-weight:700;font-size:.95rem}
+input.field{width:100%;min-height:3.1rem;padding:.7rem 1rem;border:1px solid var(--line);border-radius:1rem;background:var(--raised);color:var(--text);font:inherit}
+input.field:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+button.btn,a.btn{display:flex;align-items:center;justify-content:center;min-height:3.2rem;padding:0 1.5rem;border-radius:999px;border:0;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;
+ background:linear-gradient(135deg,#F6DD9B,#E4AE5A,#CF7A3B);color:var(--on-gold)}
+button.alt{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.6;cursor:wait}
+.status{min-height:1.4rem;margin:0;font-weight:600}.status.err{color:var(--ember)}.status.ok{color:var(--gold)}
+.fine{font-size:.88rem}
+.state{border:1px solid var(--line);border-radius:1rem;background:var(--raised);padding:.8rem 1rem;margin-top:1rem}
+.state b{color:var(--text)}
+details{margin-top:1.6rem}summary{cursor:pointer;color:var(--muted)}
+.back{margin-top:2rem;display:block;text-align:center;color:var(--muted)}
+</style></head><body><main>
+<p class="brand">VisionMirror</p>
+<h1>One plan. One price.</h1>
+<p class="price" id="price">&#8358;4,500 <small>a month</small></p>
+<p class="center">The same for everyone. No tiers, no hidden extras. Cancel whenever you like.</p>
+<ul>
+  <li>Adanna or Bola describe your surroundings, read labels and letters, and answer your questions.</li>
+  <li>Guide mode, Read mode, the Nigerian voices, and Hausa, Yoruba and Igbo.</li>
+  <li>A fair daily share of looks and answers for every person.</li>
+</ul>
+
+<div class="state" id="state" hidden role="status" aria-live="polite"></div>
+
+<form id="payForm" novalidate>
+  <div style="display:grid;gap:.5rem">
+    <label class="lab" for="email">The email you use to sign in to VisionMirror</label>
+    <input class="field" id="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+    <p class="fine" style="margin:0">Your payment is saved against this email, so it unlocks your account on every phone you sign in to. Paystack sends your receipt here.</p>
+  </div>
+  <button class="btn" id="renewBtn" type="submit" data-mode="subscribe">Subscribe, renews monthly</button>
+  <button class="btn alt" id="monthBtn" type="submit" data-mode="month">Pay for one month only</button>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+  <p class="fine center">Paystack takes the payment on its own secure page, so we never see your card. Card, bank transfer or USSD.</p>
+</form>
+
+<details>
+  <summary>Already subscribed? Change your card or cancel</summary>
+  <p class="fine">Type your email above and press the button. Paystack emails you a private link to change your card or cancel. If you cancel, you keep access until the month you paid for ends.</p>
+  <button class="btn alt" id="manageBtn" type="button" style="width:100%">Email me the link</button>
+</details>
+
+<details>
+  <summary>Prefer to give a gift?</summary>
+  <p class="fine">A one-time gift unlocks nothing; it just helps keep VisionMirror going.</p>
+  <button class="btn alt" id="giftBtn" type="button" style="width:100%">Give &#8358;1,000</button>
+</details>
+
+<a class="back" href="./">Back to VisionMirror</a>
+</main>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)}, q=new URLSearchParams(location.search);
+  function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+  var email=$('email'); email.value=q.get('email')||store('vm_give_email')||'';
+  function say(t,k){$('status').textContent=t;$('status').className='status'+(k?' '+k:'')}
+  function money(n){return '₦'+Number(n).toLocaleString('en-NG')}
+  function valid(){var e=(email.value||'').trim();if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(e)){say('Please type the email you use to sign in to VisionMirror.','err');email.focus();return null}store('vm_give_email',e);return e}
+  function device(){var d=store('vm_device');if(!d){d=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16)});store('vm_device',d)}return d}
+  function call(path,opts){return fetch('/api/'+path,opts).then(function(r){return r.json().catch(function(){return {}}).then(function(j){if(!r.ok)throw new Error(j.spoken_text||j.message||'Something went wrong.');return j})})}
+  function post(path,body,token){return call(path,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},token?{Authorization:'Bearer '+token}:{}),body:JSON.stringify(body)})}
+  function busy(b){[].slice.call(document.querySelectorAll('button')).forEach(function(x){x.disabled=b})}
+
+  call('support/plan').then(function(p){
+    $('price').innerHTML=money(p.price_ngn)+' <small>a month</small>';
+    if(!p.renewal){$('renewBtn').hidden=true;$('monthBtn').classList.remove('alt');$('monthBtn').textContent='Pay '+money(p.price_ngn)+' for one month'}
+    if(p.trial_days&&p.enforced){$('state').hidden=false;$('state').innerHTML='New accounts get <b>'+p.trial_days+' days free</b> to try everything.'}
+  }).catch(function(){});
+
+  function checkout(mode,amount){
+    var e=valid(); if(!e)return;
+    busy(true);say('Opening Paystack…');
+    post('auth/anon',{device_id:device()}).then(function(t){
+      var body={mode:mode,email:e}; if(amount)body.amount_ngn=amount;
+      return post('support/checkout',body,t.access_token);
+    }).then(function(c){say('Taking you to Paystack…','ok');location.href=c.authorization_url})
+      .catch(function(err){busy(false);say((err&&err.message)||'I could not start the payment. Please try again.','err')});
+  }
+  $('payForm').addEventListener('submit',function(ev){ev.preventDefault();var b=ev.submitter;checkout(b&&b.dataset.mode||'subscribe')});
+  $('giftBtn').onclick=function(){checkout('gift',1000)};
+  $('manageBtn').onclick=function(){
+    var e=valid(); if(!e)return; busy(true);say('One moment…');
+    post('support/manage',{email:e}).then(function(r){busy(false);say(r.message,'ok')}).catch(function(err){busy(false);say(err.message,'err')});
+  };
+})();
+</script></body></html>

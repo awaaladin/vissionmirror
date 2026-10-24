@@ -18,7 +18,9 @@ import ai.visionmirror.session.AnalysingScreen
 import ai.visionmirror.session.ResultScreen
 import ai.visionmirror.session.SessionViewModel
 import ai.visionmirror.developer.DeveloperScreen
+import ai.visionmirror.settings.PayLink
 import ai.visionmirror.settings.SettingsScreen
+import ai.visionmirror.settings.SettingsViewModel
 import ai.visionmirror.settings.VoicePickerScreen
 import ai.visionmirror.ui.LocalNavAnimatedScope
 import ai.visionmirror.ui.LocalSharedTransitionScope
@@ -81,6 +83,8 @@ fun AppNav(
         onDispose { nav.removeOnDestinationChangedListener(listener) }
     }
 
+    val appContext = androidx.compose.ui.platform.LocalContext.current
+    val payEmail = androidx.hilt.navigation.compose.hiltViewModel<SettingsViewModel>()
     var greeted by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     // Her voice can take her anywhere once she is past onboarding and sign-in.
     LaunchedEffect(Unit) {
@@ -96,6 +100,14 @@ fun AppNav(
                 AssistantAction.OpenHome -> Routes.HOME
                 AssistantAction.OpenAccount -> Routes.ACCOUNT
                 AssistantAction.GoBack -> { nav.popBackStack(); return@collect }
+                AssistantAction.OpenSubscribe -> {
+                    // Payment is on the website. Say where she is going, then open the browser.
+                    speech.say("Opening our website, where you can subscribe. It is 4,500 naira a month, the same for everyone.", SpeechManager.Priority.Interrupt)
+                    if (!PayLink.open(appContext, payEmail.payUrlEmail())) {
+                        speech.say("I couldn't open a browser. Please visit visionmirror dash app dot vercel dot app slash pay.", SpeechManager.Priority.Queue)
+                    }
+                    return@collect
+                }
                 // These are buttons on the open screen; the view model already pressed them.
                 AssistantAction.TakePhoto, AssistantAction.FlipCamera, AssistantAction.LookAgain,
                 AssistantAction.SnapSelfie, AssistantAction.UseFrontCamera, AssistantAction.UseBackCamera -> return@collect

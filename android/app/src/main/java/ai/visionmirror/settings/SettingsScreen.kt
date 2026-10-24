@@ -107,6 +107,22 @@ fun SettingsScreen(
                 }
             }
 
+            SettingGroup("Subscription") {
+                val context = LocalContext.current
+                val line by viewModel.subscription.collectAsStateWithLifecycle()
+                androidx.compose.runtime.LaunchedEffect(account.email) { viewModel.refreshSubscription() }
+                BasicText(
+                    line ?: "One plan for everyone: \u20A64,500 a month. You pay on our website.",
+                    style = Vm.type.body.copy(color = Vm.colors.boneMuted),
+                )
+                GhostAction(
+                    "Subscribe or manage on the website",
+                    { PayLink.open(context, viewModel.payUrlEmail()) },
+                    Modifier.fillMaxWidth(),
+                    icon = VmIcons.Person,
+                )
+            }
+
             SettingGroup("Emergency contact") {
                 val saved = s.emergencyContacts.firstOrNull()
                 var name by remember(saved) { mutableStateOf(saved?.name.orEmpty()) }

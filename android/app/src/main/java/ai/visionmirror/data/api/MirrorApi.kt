@@ -68,6 +68,10 @@ interface MirrorApi {
     @DELETE("v1/auth/me")
     suspend fun deleteAccount(): Response<Unit>
 
+    /** Is this account paid up, until when, and the website page to pay on. */
+    @GET("v1/auth/subscription")
+    suspend fun subscription(): Response<SubscriptionResponse>
+
     @GET("v1/health")
     suspend fun health(): Response<Unit>
 }

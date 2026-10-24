@@ -60,6 +60,18 @@ internal fun voiceOptions(voices: List<Voice>): List<VoiceOption> =
         VoiceOption(v.name, "Voice ${i + 1}: $language" + (place?.let { " ($it)" } ?: ""))
     }
 
+/** What to tell her about her subscription, in words. */
+internal fun describeSubscription(s: ai.visionmirror.data.api.SubscriptionResponse): String {
+    val day = s.until?.take(10)
+    val price = "%,d".format(s.priceNgn)
+    return when {
+        s.active && s.source == "trial" -> "Your free trial is active until ${day ?: "soon"}."
+        s.active && s.source == "subscription" -> "Subscribed. It renews around ${day ?: "each month"}."
+        s.active -> "Paid up until ${day ?: "next month"}."
+        else -> "No active subscription. It is \u20A6$price a month, the same for everyone."
+    }
+}
+
 /** Seven taps on the version line turn on Developer tools, like the Android system setting. */
 const val DEVELOPER_TAPS = 7
 
@@ -70,9 +82,31 @@ class SettingsViewModel @Inject constructor(
     private val accounts: AccountRepository,
     private val voice: ai.visionmirror.audio.VoiceInput,
     private val wake: ai.visionmirror.audio.WakeSource,
+    private val api: ai.visionmirror.data.api.MirrorApi,
 ) : ViewModel() {
 
     val account: StateFlow<AccountState> = accounts.state
+
+    /** One line about the subscription, read from the server for a signed-in account; null until known or when offline. */
+    private val _subscription = MutableStateFlow<String?>(null)
+    val subscription: StateFlow<String?> = _subscription
+
+    fun refreshSubscription() {
+        viewModelScope.launch {
+            if (!accounts.state.value.signedIn) { _subscription.value = null; return@launch }
+            _subscription.value = try {
+                val r = api.subscription()
+                val b = r.body()
+                if (!r.isSuccessful || b == null) null else describeSubscription(b)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    fun payUrlEmail(): String? = accounts.state.value.email
 
     /** Deleting an account cannot be undone, so it takes two taps. */
     private val _confirmDelete = MutableStateFlow(false)

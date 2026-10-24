@@ -72,4 +72,15 @@ class AssistantTest {
         assertEquals(AssistantAction.OpenAccount, AssistantIntents.parse("sign in", false, "home"))
         assertEquals(AssistantAction.OpenAccount, AssistantIntents.parse("open my account", false, "home"))
     }
+
+    @Test fun subscribeOpensTheWebsitePayPage() {
+        assertEquals(AssistantAction.OpenSubscribe, AssistantIntents.parse("subscribe", false, "home"))
+        assertEquals(AssistantAction.OpenSubscribe, AssistantIntents.parse("manage my subscription", false, "settings"))
+        assertEquals(AssistantAction.OpenSubscribe, AssistantIntents.parse("how do i pay", false, "home"))
+    }
+
+    @Test fun payLinkCarriesTheSignInEmail() {
+        assertEquals("https://visionmirror-app.vercel.app/pay?from=app&email=ada%40example.com", ai.visionmirror.settings.PayLink.url("ada@example.com"))
+        assertEquals("https://visionmirror-app.vercel.app/pay?from=app", ai.visionmirror.settings.PayLink.url(null))
+    }
 }

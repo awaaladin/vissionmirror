@@ -4,6 +4,9 @@ package ai.visionmirror.assistant
 enum class AssistantAction {
     OpenMirror, OpenRead, OpenLook, OpenGuide, OpenSettings, OpenHome, OpenAccount,
 
+    /** "Subscribe": open the website's pay page in the browser. */
+    OpenSubscribe,
+
     /** "Take a picture of me": open the mirror and take it at once. */
     SnapSelfie, UseFrontCamera, UseBackCamera,
 
@@ -61,10 +64,11 @@ object AssistantIntents {
                 "cam.again" -> return AssistantAction.LookAgain // ...and this one on the look screens
                 "cam.flip" -> if (words.size <= 8) return AssistantAction.FlipCamera
                 "open.back" -> if (words.size <= 8) return AssistantAction.GoBack
-                "open.settings", "open.account", "open.home", "open.guide", "open.look", "open.read", "open.mirror" -> {
+                "open.subscribe", "open.settings", "open.account", "open.home", "open.guide", "open.look", "open.read", "open.mirror" -> {
                     // A long sentence, or any question once there is a photo to ask about, is a question and not an order.
                     if (!explicit.containsMatchIn(text) && (words.size > 6 || (hasSession && words.size > 2))) return null
                     return when (id) {
+                        "open.subscribe" -> AssistantAction.OpenSubscribe
                         "open.settings" -> AssistantAction.OpenSettings
                         "open.account" -> AssistantAction.OpenAccount
                         "open.home" -> AssistantAction.OpenHome

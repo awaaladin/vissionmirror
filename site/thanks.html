@@ -24,7 +24,10 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;min-height:3
   function money(n){return '\u20A6'+Number(n).toLocaleString('en-NG')}
   function done(s){
     $('title').textContent='Thank you';
-    $('msg').textContent=money(s.amount_ngn)+' received. Your gift is saved against '+(s.email_hint||'your email')+'. Use that email to sign in to VisionMirror and it is yours. Paystack is sending your receipt there. You keep VisionMirror free for blind and low-vision people.';
+    var gift=/-SUPPORT-/i.test(ref);
+    $('msg').textContent=gift
+      ?money(s.amount_ngn)+' received. Your gift is saved against '+(s.email_hint||'your email')+'. Paystack is sending your receipt there. Thank you for keeping VisionMirror going.'
+      :money(s.amount_ngn)+' received. Your VisionMirror subscription is saved against '+(s.email_hint||'your email')+'. Sign in to the app with that email, on any phone, and it is active. Paystack is sending your receipt there. Thank you.';
   }
   function later(){
     $('title').textContent='Not confirmed yet';

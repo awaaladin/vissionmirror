@@ -108,12 +108,14 @@ class MirrorRepositoryImpl @Inject constructor(
         }.getOrNull()
         val spoken = body?.spokenText?.takeIf { it.isNotBlank() }
         return when (response.code()) {
+            // Today's fair share is used up, or a subscription is needed: waiting a few seconds cannot help, so say it kindly and stop.
+            402 -> AppError.Server(spoken ?: "To keep using VisionMirror, please subscribe. Say subscribe and I'll open our website.")
             401 -> AppError.Unauthorized(spoken ?: "I couldn't sign in just now. Please try again.")
             404 -> AppError.SessionExpired(spoken ?: "That photo has expired. Let's take a new one.")
             413 -> AppError.ImageTooLarge(spoken ?: "That photo was too big. Let's take another.")
             415 -> AppError.UnsupportedImage(spoken ?: "I couldn't read that photo. Let's take another.")
             // The service's daily AI budget is spent: retrying in a couple of minutes cannot help, so don't.
-            429 -> if (body?.code == "daily_limit_reached") {
+            429 -> if (body?.code == "daily_limit_reached" || body?.code == "fair_use_limit") {
                 AppError.Server(spoken ?: "I've reached my limit for today. Please try again tomorrow.")
             } else {
                 val wait = response.headers()["Retry-After"]?.trim()?.toIntOrNull()

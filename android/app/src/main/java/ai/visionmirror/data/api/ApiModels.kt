@@ -144,6 +144,17 @@ data class ErrorBody(
     @SerialName("spoken_text") val spokenText: String = "",
 )
 
+/** Whether this account has access, and where to pay. Payment happens on the website, never in the app. */
+@Serializable
+data class SubscriptionResponse(
+    val active: Boolean = false,
+    val source: String = "none",
+    val until: String? = null,
+    @kotlinx.serialization.SerialName("price_ngn") val priceNgn: Int = 4500,
+    val enforced: Boolean = false,
+    @kotlinx.serialization.SerialName("pay_url") val payUrl: String = "",
+)
+
 /** What was said: [text] in her own language, [english] the same in English. */
 @Serializable
 data class TranscribeResponse(

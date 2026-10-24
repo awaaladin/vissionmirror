@@ -115,6 +115,16 @@ All 34 ways: sign in, log in, login, sign up, register, create account, create a
 
 Put any of these in front: open, go to, take me to, show me, show, switch to, bring up, start, launch, load, go into, enter, take me into, let me see, i want to see, i want to use, i want, i need, can you open, please open, get me to, move to, navigate to, head to, bring me to, go back to, return to, back to, use.
 
+### Subscribe or manage payment
+
+Say, for example: “Subscribe”; “Manage my subscription”; “How do I pay?”.
+
+Opens our website in your browser, where the payment is made. Nothing is paid inside the app.
+
+All 27 ways: subscribe, subscribe now, i want to subscribe, how do i subscribe, how do i pay, pay for visionmirror, pay for the app, make a payment, make payment, renew, renew my subscription, manage my subscription, my subscription, cancel my subscription, change my card, subscription, subscription price, how much is the subscription, how much is visionmirror, the subscription, payment page, go to the payment page, open the payment page, i want to pay, upgrade, buy visionmirror, pay now.
+
+Put any of these in front: open, go to, take me to, show me, show, switch to, bring up, start, launch, load, go into, enter, take me into, let me see, i want to see, i want to use, i want, i need, can you open, please open, get me to, move to, navigate to, head to, bring me to, go back to, return to, back to, use.
+
 ### Home
 
 Say, for example: “Go home”; “Main menu”; “Back to the start”.
