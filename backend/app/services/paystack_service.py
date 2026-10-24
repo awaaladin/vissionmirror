@@ -54,6 +54,7 @@ class Paystack:
         self.secret_key = secret_key
         self.base_url = base_url.rstrip("/")
         self.client = client or httpx.AsyncClient(timeout=httpx.Timeout(20.0, connect=10.0))
+        self._plan_ids: dict[str, int | None] = {}
 
     async def _request(self, method: str, path: str, **kwargs) -> dict:
         try:
@@ -65,20 +66,46 @@ class Paystack:
             raise PaystackError(f"Paystack unreachable: {exc}") from exc
         if response.is_error or not body.get("status"):
             raise PaystackError(body.get("message") or f"Paystack error {response.status_code}")
-        return body["data"]
+        return body.get("data") or {}
 
-    async def initialize(self, *, email: str, amount_kobo: int, reference: str, callback_url: str, metadata: dict) -> dict:
+    async def initialize(
+        self, *, email: str, amount_kobo: int, reference: str, callback_url: str, metadata: dict, plan: str | None = None
+    ) -> dict:
         # The account is shared with five other apps. A transaction without this app's name could never be told apart in
         # the books, so refuse to send one, whatever code asks.
         if not is_ours(reference) or metadata.get("app") != APP_CODE:
             raise PaystackError(f"Refusing an untagged transaction: references must start with {APP_CODE}- and carry metadata.app")
-        return await self._request("POST", "/transaction/initialize", json={
+        payload = {
             "email": email, "amount": amount_kobo, "currency": "NGN", "reference": reference,
             "callback_url": callback_url, "metadata": metadata,
-        })
+        }
+        if plan:  # a card subscription: Paystack charges the plan's amount now and again every month
+            payload["plan"] = plan
+        return await self._request("POST", "/transaction/initialize", json=payload)
 
     async def verify(self, reference: str) -> dict:
         return await self._request("GET", f"/transaction/verify/{reference}")
+
+    async def customer(self, email: str) -> dict:
+        """The customer with this email, including their subscriptions. PaystackError when there is none."""
+        return await self._request("GET", f"/customer/{email}")
+
+    async def plan_id(self, plan_code: str) -> int | None:
+        if plan_code not in self._plan_ids:
+            self._plan_ids[plan_code] = (await self._request("GET", f"/plan/{plan_code}")).get("id")
+        return self._plan_ids[plan_code]
+
+    async def send_manage_link(self, subscription_code: str) -> dict:
+        """Paystack emails the subscriber a link to change their card or cancel. We never see the link."""
+        return await self._request("POST", f"/subscription/{subscription_code}/manage/email")
+
+    async def list_plans(self) -> list:
+        return await self._request("GET", "/plan", params={"perPage": 100})
+
+    async def create_plan(self, *, name: str, amount_kobo: int, description: str) -> dict:
+        return await self._request("POST", "/plan", json={
+            "name": name, "amount": amount_kobo, "interval": "monthly", "currency": "NGN", "description": description,
+        })
 
     def signature_ok(self, raw_body: bytes, signature: str | None) -> bool:
         if not self.secret_key or not signature:

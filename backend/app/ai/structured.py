@@ -37,6 +37,33 @@ class SpokenAnswer(BaseModel):
     spoken_text: str
 
 
+ESCALATE_CONFIDENCE = 0.65
+_REFUSALS = ("cant read", "cannot read", "no readable", "unable to read", "couldnt read", "i cant see any", "nothing to read")
+
+
+def weak_describe(a: DescribeAnalysis) -> str | None:
+    """Why the cheaper model's description is not good enough to give a blind person (None = it is fine)."""
+    if not a.image_quality.usable:
+        return "it called the photo unusable"
+    if a.confidence < ESCALATE_CONFIDENCE:
+        return f"confidence {a.confidence:.2f}"
+    if len(a.spoken_text.split()) < 12:
+        return "a very short answer"
+    return None
+
+
+def weak_read(ocr_text: str, spoken: str) -> str | None:
+    scanned = ocr_text.split()
+    said = spoken.lower().replace("'", "").replace("\u2019", "")
+    if len(ocr_text.strip()) > 500:
+        return "dense text"
+    if len(scanned) >= 25 and len(spoken.split()) < 0.5 * len(scanned):
+        return "it read much less than the scanner found"
+    if any(r in said for r in _REFUSALS):
+        return "it said it could not read"
+    return None
+
+
 class StructuredProvider(VisionProvider):
     """Builds the conversation and validates the JSON; subclasses only do the HTTP call.
 
@@ -48,7 +75,27 @@ class StructuredProvider(VisionProvider):
     async def _call(self, system: str, messages: list[dict], model_cls: type[BaseModel]) -> str:
         """Return the model's raw text reply (expected to be JSON for model_cls)."""
 
+    def stronger(self) -> "StructuredProvider | None":
+        """A copy of this provider that uses the stronger model, or None when there is none to escalate to."""
+        return None
+
     async def describe(
+        self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror",
+        assistant: str = "Adanna",
+    ) -> DescribeAnalysis:
+        analysis = await self._describe(image=image, media_type=media_type, detail_level=detail_level, language=language, mode=mode, assistant=assistant)
+        reason = weak_describe(analysis)
+        strong = self.stronger() if reason else None
+        if strong is not None:
+            try:
+                better = await strong._describe(image=image, media_type=media_type, detail_level=detail_level, language=language, mode=mode, assistant=assistant)
+            except ProviderError:
+                return analysis  # the stronger model was busy: the first answer is still an answer
+            log.info("describe escalated to the stronger model (%s)", reason)
+            return better
+        return analysis
+
+    async def _describe(
         self, *, image: bytes, media_type: str, detail_level: DetailLevel, language: str, mode: str = "mirror",
         assistant: str = "Adanna",
     ) -> DescribeAnalysis:
@@ -75,6 +122,29 @@ class StructuredProvider(VisionProvider):
         language: str,
         assistant: str = "Adanna",
     ) -> AskResponse:
+        kwargs = dict(image=image, media_type=media_type, analysis=analysis, history=history, question=question, language=language, assistant=assistant)
+        reply = await self._ask(**kwargs)
+        strong = self.stronger() if reply.confidence < 0.6 else None
+        if strong is not None:
+            try:
+                better = await strong._ask(**kwargs)
+            except ProviderError:
+                return reply
+            log.info("ask escalated to the stronger model (confidence %.2f)", reply.confidence)
+            return better
+        return reply
+
+    async def _ask(
+        self,
+        *,
+        image: bytes,
+        media_type: str,
+        analysis: DescribeAnalysis,
+        history: list[Turn],
+        question: str,
+        language: str,
+        assistant: str = "Adanna",
+    ) -> AskResponse:
         turns = [*(t.model_dump() for t in history), {"role": "user", "text": question}]
         messages: list[dict] = []
         for i, turn in enumerate(turns):
@@ -89,6 +159,19 @@ class StructuredProvider(VisionProvider):
         )
 
     async def read(self, *, image: bytes, media_type: str, ocr_text: str, language: str, assistant: str = "Adanna") -> str:
+        text = await self._read(image=image, media_type=media_type, ocr_text=ocr_text, language=language, assistant=assistant)
+        reason = weak_read(ocr_text, text)
+        strong = self.stronger() if reason else None
+        if strong is not None:
+            try:
+                better = await strong._read(image=image, media_type=media_type, ocr_text=ocr_text, language=language, assistant=assistant)
+            except ProviderError:
+                return text
+            log.info("read escalated to the stronger model (%s)", reason)
+            return better
+        return text
+
+    async def _read(self, *, image: bytes, media_type: str, ocr_text: str, language: str, assistant: str = "Adanna") -> str:
         result = await self._structured(
             system=prompts.read_system_prompt(language, assistant),
             messages=[{"role": "user", "parts": [_image_part(image, media_type), {"type": "text", "text": prompts.read_user_text(ocr_text)}]}],

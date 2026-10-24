@@ -63,6 +63,7 @@ def build_provider(settings: Settings) -> VisionProvider:
             model=settings.gemini_model,
             thinking_level=settings.gemini_thinking_level,
             fallback_models=tuple(m.strip() for m in settings.gemini_fallback_models.split(",") if m.strip()),
+            strong_model=settings.gemini_strong_model or None,
         )
     if not settings.anthropic_api_key:
         raise ValueError("ANTHROPIC_API_KEY is required when VISION_PROVIDER=anthropic")

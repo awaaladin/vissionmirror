@@ -17,7 +17,10 @@ from app.core.rate_limit import DailyCap, LoginThrottle, RateLimiter
 from app.services.assist_service import AssistService
 from app.services.describe_service import DescribeService
 from app.services.session_store import SessionStore
+from app.services.entitlement import Entitlements
 from app.services.payment_store import PaymentStore, build_payment_store
+from app.services.paystack_service import Paystack
+from app.services.usage import UsageMeter
 from app.services.transcription_service import NoTranscriber, Transcriber, VoiceVerseTranscriber
 from app.services.speech_service import AzureSpeech, NoSpeech, RoutingSpeech, SpeechSynthesizer, VoiceVerseSpeech
 from app.services.translation_service import NoTranslator, Translator, VoiceVerseTranslator
@@ -100,6 +103,14 @@ def create_app(
     app.state.redis = redis
     app.state.users = users or (PostgresUserStore(settings.database_url) if settings.database_url else NoUserStore())
     app.state.payments = payments or build_payment_store(app.state.users)
+    app.state.usage = UsageMeter(redis, settings.secret_key, settings.fair_use_daily_actions)
+
+    def paystack_client() -> Paystack | None:
+        if getattr(app.state, "paystack", None) is None and settings.paystack_secret_key:
+            app.state.paystack = Paystack(settings.paystack_secret_key, settings.paystack_base_url)
+        return getattr(app.state, "paystack", None)
+
+    app.state.entitlements = Entitlements(settings, app.state.payments, redis, paystack_client)
     app.state.login_throttle = LoginThrottle(
         redis, settings.secret_key, settings.login_max_failures, settings.login_lock_seconds
     )

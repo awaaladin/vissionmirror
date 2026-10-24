@@ -23,13 +23,24 @@ class GeminiProvider(StructuredProvider):
         thinking_level: str = "medium",
         client: httpx.AsyncClient | None = None,
         fallback_models: tuple[str, ...] = (),
+        strong_model: str | None = None,
     ):
         self.model = model
+        self.strong_model = strong_model
+        self.thinking_level_name = thinking_level
         # When the main model is overloaded (503) or rate limited (429), the next one is tried instead of giving up.
         self.fallback_models = tuple(m for m in fallback_models if m and m != model)
         self.thinking_level = thinking_level
         self.api_key = api_key
         self.client = client or httpx.AsyncClient(timeout=httpx.Timeout(90.0, connect=15.0))
+
+    def stronger(self):
+        if not self.strong_model or self.strong_model == self.model:
+            return None
+        return GeminiProvider(
+            api_key=self.api_key, model=self.strong_model, thinking_level=self.thinking_level_name, client=self.client,
+            fallback_models=tuple(m for m in self.fallback_models if m != self.strong_model),
+        )
 
     async def _post(self, body: dict) -> httpx.Response:
         """POST with a few retries for transient trouble (busy server, rate limit, dropped connection).

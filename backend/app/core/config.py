@@ -14,9 +14,11 @@ class Settings(BaseSettings):
     vision_provider: Literal["mock", "anthropic", "gemini"] = "mock"
     vision_model: str = "claude-sonnet-5-5"
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.5-flash"
+    # The cheaper model answers first; anything it is unsure about (or cannot handle) goes to the stronger one.
+    gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_strong_model: str = "gemini-3.5-flash"
     # Tried in order when the main model is busy (503) or rate limited (429). Comma separated; empty = none.
-    gemini_fallback_models: str = "gemini-3.5-flash-lite,gemini-3.8-flash"
+    gemini_fallback_models: str = "gemini-3.5-flash,gemini-3.8-flash"
     gemini_thinking_level: Literal["minimal", "low", "medium", "high"] = "medium"
     vision_effort: Literal["low", "medium", "high"] = "medium"
     anthropic_api_key: str | None = None
@@ -66,11 +68,24 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
     # Where the payer lands after Paystack (the thank-you page on the website). Empty = this API's own /v1/support/return page.
     support_return_url: str = ""
+    # One price for everyone, no tiers: naira a month. A monthly payment buys subscription_days days of access.
+    price_ngn: int = 4500
+    subscription_days: int = 31
+    # Paystack plan (PLN_...) for the card subscription that renews itself. Made once by scripts/paystack_plan.py.
+    paystack_plan_code: str = ""
+    # When True, an account without access (payment, subscription or trial) is asked to subscribe. Off until switched on.
+    require_subscription: bool = False
+    trial_days: int = 7
+    guest_actions_per_day: int = 10  # only when require_subscription is on: a few tries before making an account
+    site_url: str = "https://visionmirror-app.vercel.app"  # where people pay
     support_min_ngn: int = 500
     support_max_ngn: int = 1_000_000
 
     # Global ceiling on AI calls (describe + ask) per UTC day, so a demo can't run up a bill.
-    daily_ai_call_limit: int = 500
+    # (A safety ceiling for everyone together. Each person also has their own fair share, below.)
+    daily_ai_call_limit: int = 20000
+    # The same fair share for every person, counted per account (or per device for a guest), on Nigerian time.
+    fair_use_daily_actions: int = 60
 
     # Comma-separated exact origins allowed by CORS, e.g. "https://app.example.com,http://localhost:5173".
     # Empty means no browser origin is allowed (native apps don't need CORS).

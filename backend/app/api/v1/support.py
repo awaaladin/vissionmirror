@@ -1,4 +1,7 @@
-"""Support VisionMirror: a one-time gift through Paystack. Nothing is unlocked by paying.
+"""Paying for VisionMirror (one price, naira a month, no tiers) and optional gifts, through Paystack.
+
+mode "month": one payment buys a month of access. mode "subscribe": a card subscription that renews monthly (Paystack plan).
+mode "gift" (or an amount only): a one-time gift that unlocks nothing.
 
 The checkout lives on the website (the landing page). The payer gives the email they sign in to the app with; the payment is
 named VISIONMIRROR-... on the shared Paystack account (see paystack_service.py) and saved against that email here, so the gift
@@ -29,7 +32,8 @@ router = APIRouter(prefix="/support", tags=["support"])
 
 
 class SupportCheckoutRequest(BaseModel):
-    amount_ngn: int
+    amount_ngn: int | None = None  # only for a gift; month and subscribe use the one fixed price
+    mode: str = "gift"  # month | subscribe | gift
     # The email the person signs in to the app with. A signed-in account's own email is used when this is left out.
     email: str | None = None
 
@@ -123,20 +127,32 @@ async def checkout(
     body: SupportCheckoutRequest, request: Request, subject: str = Depends(current_device)
 ) -> SupportCheckoutResponse:
     settings = request.app.state.settings
-    if not settings.support_min_ngn <= body.amount_ngn <= settings.support_max_ngn:
+    if body.mode not in ("month", "subscribe", "gift"):
+        raise APIError(400, "invalid_input", "Unknown payment mode.", "Please choose month, subscribe or gift.")
+    paying = body.mode != "gift"
+    amount = settings.price_ngn if paying else body.amount_ngn
+    if not paying and (amount is None or not settings.support_min_ngn <= amount <= settings.support_max_ngn):
         raise APIError(400, "invalid_amount",
                        f"Amount must be {settings.support_min_ngn} to {settings.support_max_ngn} naira.",
                        f"Please choose an amount between {settings.support_min_ngn} and {settings.support_max_ngn} naira.")
     paystack = _paystack(request)
     email = await _email_for(request, subject, body.email)
-    reference = make_reference("SUPPORT")
+    purpose = {"month": "MONTH", "subscribe": "SUBSCRIBE", "gift": "SUPPORT"}[body.mode]
+    plan = None
+    if body.mode == "subscribe":
+        plan = settings.paystack_plan_code
+        if not plan:
+            raise APIError(503, "subscription_unavailable", "The subscription plan is not set up.",
+                           "Monthly renewal isn't available yet. You can pay for one month instead.")
+    reference = make_reference(purpose)
     try:
         data = await paystack.initialize(
             email=email,
-            amount_kobo=body.amount_ngn * 100,
+            amount_kobo=amount * 100,
             reference=reference,
             callback_url=_return_url(settings),
-            metadata=paystack_metadata("SUPPORT", "Support for VisionMirror", account_email=email),
+            metadata=paystack_metadata(purpose, "VisionMirror, one month" if paying else "Support for VisionMirror", account_email=email),
+            plan=plan,
         )
     except PaystackError as exc:
         log.error("Paystack initialize failed for %s: %s", reference, exc)
@@ -144,10 +160,35 @@ async def checkout(
                        "I couldn't start the payment. Please try again in a moment.")
     # Saved against the email, as pending, until Paystack says it was paid.
     await best_effort(
-        request.app.state.payments.record(reference, email, body.amount_ngn * 100, "SUPPORT", await _account_id(request, email)),
+        request.app.state.payments.record(reference, email, amount * 100, purpose, await _account_id(request, email)),
         "record",
     )
     return SupportCheckoutResponse(reference=reference, authorization_url=data["authorization_url"])
+
+
+@router.get("/plan")
+async def plan(request: Request) -> dict:
+    """What the website's pay page shows: the one price, and whether monthly renewal is available."""
+    s = request.app.state.settings
+    return {"price_ngn": s.price_ngn, "renewal": bool(s.paystack_plan_code), "enforced": s.require_subscription, "trial_days": s.trial_days}
+
+
+@router.post("/manage", dependencies=[Depends(limit_auth)])
+async def manage(body: SupportCheckoutRequest, request: Request) -> dict:
+    """Paystack emails the subscriber a link to change their card or cancel. The answer never says whether the email has a subscription."""
+    s = request.app.state.settings
+    try:
+        email = await _email_for(request, "", body.email)
+        customer = await _paystack(request).customer(email)
+        for sub in customer.get("subscriptions") or []:
+            if sub.get("status") in ("active", "non-renewing") and sub.get("subscription_code"):
+                await _paystack(request).send_manage_link(sub["subscription_code"])
+                break
+    except (PaystackError, APIError) as exc:
+        if isinstance(exc, APIError) and exc.status_code == 400:
+            raise
+        log.info("manage link not sent: %s", exc)
+    return {"sent": True, "message": "If that email has a subscription, Paystack has sent it a link to change the card or cancel."}
 
 
 @router.get("/status", response_model=SupportStatus, dependencies=[Depends(limit_auth)])

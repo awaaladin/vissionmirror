@@ -1,4 +1,6 @@
 import logging
+import uuid
+from urllib.parse import quote
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import APIRouter, Depends, Request, Response
@@ -34,6 +36,24 @@ def _out(user: User) -> UserOut:
 def _token_response(user: User, request: Request) -> AccountAuthResponse:
     token, expires_in = create_user_token(user.id, request.app.state.settings)
     return AccountAuthResponse(access_token=token, expires_in=expires_in, user=_out(user))
+
+
+@router.get("/subscription")
+async def subscription(request: Request, user_id: uuid.UUID = Depends(current_user)) -> dict:
+    """For the app's Settings: is this account paid up, until when, and where to pay (the website)."""
+    s = request.app.state.settings
+    user = await request.app.state.users.get(user_id)
+    if user is None:
+        raise APIError(401, "unauthorized", "Unknown account.", "Please sign in again.")
+    ent = await request.app.state.entitlements.for_email(user.email, user.created_at)
+    return {
+        "active": ent.active,
+        "source": ent.source,
+        "until": ent.until.isoformat() if ent.until else None,
+        "price_ngn": s.price_ngn,
+        "enforced": s.require_subscription,
+        "pay_url": f"{s.site_url.rstrip('/')}/pay?email={quote(user.email)}&from=app",
+    }
 
 
 @router.post("/register", response_model=AccountAuthResponse, status_code=201)
