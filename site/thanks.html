@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Thank you &middot; VisionMirror</title><link rel="icon" href="favicon.png">
+<style>
+:root{--bg:#0F0D0A;--text:#F3EEE2;--muted:#B5AB98;--gold:#E4AE5A;--line:#2E2921;--on-gold:#17110A}
+@media (prefers-color-scheme:light){:root{--bg:#F7F2E8;--text:#1C170E;--muted:#4D4637;--gold:#8A5A12;--line:#DDD3C0;--on-gold:#FFFDF8}}
+body{margin:0;background:var(--bg);color:var(--text);font:1.05rem/1.7 system-ui,"Segoe UI",Roboto,sans-serif}
+main{max-width:34rem;margin:0 auto;padding:4rem 1.25rem;text-align:center}
+h1{font-size:2rem;line-height:1.2;margin:.4rem 0}p{color:var(--muted)}.big{color:var(--text);font-size:1.15rem}
+a.btn{display:inline-flex;align-items:center;justify-content:center;min-height:3rem;padding:0 1.5rem;border-radius:999px;background:linear-gradient(135deg,#F6DD9B,#E4AE5A,#CF7A3B);color:var(--on-gold);font-weight:700;text-decoration:none;margin-top:1rem}
+.ref{font-size:.82rem;word-break:break-all}
+</style></head><body><main>
+<p style="color:var(--gold);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:.75rem">VisionMirror</p>
+<h1 id="title">Checking your payment&hellip;</h1>
+<p class="big" id="msg" role="status" aria-live="polite">One moment, we are asking Paystack.</p>
+<p class="ref" id="ref"></p>
+<a class="btn" href="./">Back to VisionMirror</a>
+</main>
+<script>
+(function(){
+  var q=new URLSearchParams(location.search), ref=q.get('reference')||q.get('trxref')||'';
+  var $=function(i){return document.getElementById(i)}, tries=0;
+  $('ref').textContent=ref?('Reference: '+ref):'';
+  function money(n){return '\u20A6'+Number(n).toLocaleString('en-NG')}
+  function done(s){
+    $('title').textContent='Thank you';
+    $('msg').textContent=money(s.amount_ngn)+' received. Your gift is saved against '+(s.email_hint||'your email')+'. Use that email to sign in to VisionMirror and it is yours. Paystack is sending your receipt there. You keep VisionMirror free for blind and low-vision people.';
+  }
+  function later(){
+    $('title').textContent='Not confirmed yet';
+    $('msg').textContent='We have not had confirmation from Paystack. If you paid, nothing is lost: Paystack will email your receipt, and you can write to us from the Contact section with your reference.';
+  }
+  function check(){
+    if(!ref){later();return}
+    fetch('/api/support/status?reference='+encodeURIComponent(ref)).then(function(r){return r.json()}).then(function(s){
+      if(s&&s.paid)return done(s);
+      if(++tries<4)return setTimeout(check,3000);
+      later();
+    }).catch(function(){if(++tries<4)setTimeout(check,3000);else later()});
+  }
+  check();
+})();
+</script></body></html>

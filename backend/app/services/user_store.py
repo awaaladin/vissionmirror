@@ -26,6 +26,22 @@ CREATE TABLE IF NOT EXISTS {SCHEMA}.users (
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower ON {SCHEMA}.users (lower(email));
 -- Defence in depth on Supabase: if this schema is ever exposed through its REST API, no row is readable.
 ALTER TABLE {SCHEMA}.users ENABLE ROW LEVEL SECURITY;
+
+-- Support payments (Paystack). Kept against the email the person gave (the one they sign in to the app with), as a financial
+-- record: amount, Paystack's fee, the reference and when it was paid. No card details ever reach this app.
+CREATE TABLE IF NOT EXISTS {SCHEMA}.payments (
+    reference   text PRIMARY KEY,
+    email       text NOT NULL,
+    user_id     uuid,
+    purpose     text NOT NULL,
+    amount_kobo bigint NOT NULL,
+    fees_kobo   bigint,
+    status      text NOT NULL DEFAULT 'pending',
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    paid_at     timestamptz
+);
+CREATE INDEX IF NOT EXISTS payments_email_lower ON {SCHEMA}.payments (lower(email));
+ALTER TABLE {SCHEMA}.payments ENABLE ROW LEVEL SECURITY;
 """
 
 

@@ -221,6 +221,24 @@ footer a{color:var(--muted)}
 .reveal.in{opacity:1;transform:none}
 .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}
 .sayall .cmd-note{margin:.2rem 0 .6rem}.sayall .chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:.4rem 0 .7rem}.sayall .chips b{background:var(--raised);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:.3rem .8rem;font-weight:600;font-size:.88rem}.sayall .more{font-size:.84rem;line-height:1.7;color:var(--muted)}.sayall .more i{font-style:normal;white-space:nowrap}.sayall h3{margin:2rem 0 .3rem;font-size:1.15rem}.sayall .sec-intro{margin:0 0 .6rem;color:var(--muted);font-size:.92rem}.sayall .find{width:100%;max-width:28rem;padding:.8rem 1rem;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;margin:.4rem 0 1rem}.sayall .none{display:none;color:var(--muted)}.sayall summary span{display:flex;flex-direction:column;gap:.1rem}.sayall .eg{font-weight:400;color:var(--muted);font-size:.84rem}
+
+/* ---------- support: the checkout ---------- */
+.give{max-width:36rem;display:grid;gap:1rem}
+.give fieldset{border:0;margin:0;padding:0;display:grid;gap:.6rem}
+.give legend,.give label.lab{font-weight:700;font-size:.95rem;padding:0}
+.give .amounts{display:flex;flex-wrap:wrap;gap:.6rem}
+.give .amounts label{position:relative}
+.give .amounts input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}
+.give .amounts span{display:inline-flex;align-items:center;justify-content:center;min-width:5.4rem;min-height:3.1rem;padding:0 1rem;border:1px solid var(--line);border-radius:999px;background:var(--raised);font-weight:700;transition:border-color .2s,background .2s}
+.give .amounts input:checked+span{background:var(--gold-grad);color:var(--on-gold);border-color:transparent}
+.give .amounts input:focus-visible+span{outline:3px solid var(--gold);outline-offset:3px}
+.give .amounts label:hover span{border-color:var(--gold)}
+.give input.field{width:100%;min-height:3.1rem;padding:.7rem 1rem;border:1px solid var(--line);border-radius:1rem;background:var(--raised);color:var(--text);font:inherit}
+.give input.field:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.give .hint,.give .fine{color:var(--muted);font-size:.88rem;margin:0}
+.give .status{min-height:1.4rem;margin:0;font-weight:600}
+.give .status.err{color:var(--ember)}
+.give .status.ok{color:var(--gold)}
 @media(prefers-reduced-motion:reduce){  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .reveal{opacity:1;transform:none}
 }
@@ -253,6 +271,7 @@ footer a{color:var(--muted)}
         <a href="#say">What to say</a>
         <a href="#story">Our story</a>
         <a href="#install">Install</a>
+        <a href="#support">Support</a>
         <a href="#contact">Contact</a>
       </nav>
       <div class="tools" role="group" aria-label="Page display options">
@@ -479,6 +498,41 @@ footer a{color:var(--muted)}
   </div>
 </section>
 
+<section class="band" id="support">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <p class="kicker">Support VisionMirror</p>
+      <h2>Keep it free for everyone who needs it.</h2>
+      <p>VisionMirror costs nothing to use, and paying unlocks nothing. If it helps you, a one-time gift pays for the natural voices, the AI that reads and describes, and the servers. Thank you.</p>
+    </div>
+    <form class="give reveal" id="giveForm" novalidate>
+      <fieldset>
+        <legend id="amtLegend">Choose an amount (naira)</legend>
+        <div class="amounts" role="radiogroup" aria-labelledby="amtLegend">
+          <label><input type="radio" name="amt" value="500"><span>&#8358;500</span></label>
+          <label><input type="radio" name="amt" value="1000" checked><span>&#8358;1,000</span></label>
+          <label><input type="radio" name="amt" value="2000"><span>&#8358;2,000</span></label>
+          <label><input type="radio" name="amt" value="5000"><span>&#8358;5,000</span></label>
+          <label><input type="radio" name="amt" value="10000"><span>&#8358;10,000</span></label>
+          <label><input type="radio" name="amt" value="other"><span>Other</span></label>
+        </div>
+        <div id="otherWrap" hidden>
+          <label class="lab" for="otherAmt">Amount in naira (500 to 1,000,000)</label>
+          <input class="field" id="otherAmt" inputmode="numeric" autocomplete="off" placeholder="e.g. 3000">
+        </div>
+      </fieldset>
+      <div style="display:grid;gap:.5rem">
+        <label class="lab" for="giveEmail">The email you use to sign in to VisionMirror</label>
+        <input class="field" id="giveEmail" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
+        <p class="hint">Your gift is saved against this email, so it belongs to your account, and Paystack sends your receipt here. No account yet? Use the email you will sign up with.</p>
+      </div>
+      <button class="btn" id="giveBtn" type="submit">Give with Paystack</button>
+      <p class="status" id="giveStatus" role="status" aria-live="polite"></p>
+      <p class="fine">Paystack takes the payment on its own secure page, so we never see your card. Card, bank transfer or USSD. One time only: no subscription. Questions about a gift? Use the Contact section below.</p>
+    </form>
+  </div>
+</section>
+
 <section class="band" id="privacy">
   <div class="wrap">
     <div class="sec-head reveal"><p class="kicker">Trust</p><h2>Your privacy, plainly.</h2></div>
@@ -645,6 +699,42 @@ footer a{color:var(--muted)}
   var url=location.origin+location.pathname; $('pageUrl').textContent=url;
   function copy(text,btn){(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){var o=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=o},1800)},function(){window.prompt('Copy this:',text)})}
   $('copyUrl').onclick=function(){copy(url,this)};
+
+  /* ---- the checkout: choose an amount, give the sign-in email, pay on Paystack ---- */
+  (function(){
+    var form=$('giveForm'); if(!form)return;
+    var status=$('giveStatus'), btn=$('giveBtn'), other=$('otherAmt');
+    function say(text,kind){status.textContent=text;status.className='status'+(kind?' '+kind:'')}
+    function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+    var saved=store('vm_give_email'); if(saved)$('giveEmail').value=saved;
+    [].slice.call(form.querySelectorAll('input[name=amt]')).forEach(function(r){
+      r.addEventListener('change',function(){var o=form.amt.value==='other';$('otherWrap').hidden=!o;if(o)other.focus()});
+    });
+    function amount(){
+      var v=form.amt.value; if(v==='other')v=(other.value||'').replace(/[^0-9]/g,'');
+      var n=parseInt(v,10); return (n>=500&&n<=1000000)?n:0;
+    }
+    function device(){
+      var d=store('vm_device');
+      if(!d){d=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16)});store('vm_device',d)}
+      return d;
+    }
+    function call(path,opts){
+      return fetch('/api/'+path,opts).then(function(r){return r.json().catch(function(){return {}}).then(function(j){if(!r.ok)throw new Error(j.spoken_text||j.message||'Something went wrong.');return j})});
+    }
+    form.addEventListener('submit',function(e){
+      e.preventDefault();
+      var email=($('giveEmail').value||'').trim(), n=amount();
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email)){say('Please type the email you use to sign in to VisionMirror.','err');$('giveEmail').focus();return}
+      if(!n){say('Please choose an amount from 500 to 1,000,000 naira.','err');return}
+      btn.setAttribute('aria-disabled','true');btn.disabled=true;say('Opening Paystack\u2026');
+      store('vm_give_email',email);
+      call('auth/anon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device_id:device()})})
+        .then(function(t){return call('support/checkout',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t.access_token},body:JSON.stringify({amount_ngn:n,email:email})})})
+        .then(function(c){say('Taking you to Paystack\u2026','ok');window.location.href=c.authorization_url})
+        .catch(function(err){btn.removeAttribute('aria-disabled');btn.disabled=false;say((err&&err.message)||'I could not start the payment. Please try again.','err')});
+    });
+  })();
 
   /* ---- search the list of things you can say ---- */
   (function(){

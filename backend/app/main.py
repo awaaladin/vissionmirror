@@ -17,6 +17,7 @@ from app.core.rate_limit import DailyCap, LoginThrottle, RateLimiter
 from app.services.assist_service import AssistService
 from app.services.describe_service import DescribeService
 from app.services.session_store import SessionStore
+from app.services.payment_store import PaymentStore, build_payment_store
 from app.services.transcription_service import NoTranscriber, Transcriber, VoiceVerseTranscriber
 from app.services.speech_service import AzureSpeech, NoSpeech, RoutingSpeech, SpeechSynthesizer, VoiceVerseSpeech
 from app.services.translation_service import NoTranslator, Translator, VoiceVerseTranslator
@@ -60,6 +61,7 @@ def create_app(
     speech_service: SpeechSynthesizer | None = None,
     assist_service: AssistService | None = None,
     transcriber: Transcriber | None = None,
+    payments: PaymentStore | None = None,
 ) -> FastAPI:
     """Dependencies are injectable so tests can use fakeredis and MockProvider."""
     settings = settings or get_settings()
@@ -97,6 +99,7 @@ def create_app(
     app.state.settings = settings
     app.state.redis = redis
     app.state.users = users or (PostgresUserStore(settings.database_url) if settings.database_url else NoUserStore())
+    app.state.payments = payments or build_payment_store(app.state.users)
     app.state.login_throttle = LoginThrottle(
         redis, settings.secret_key, settings.login_max_failures, settings.login_lock_seconds
     )

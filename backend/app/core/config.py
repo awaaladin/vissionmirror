@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     paystack_base_url: str = "https://api.paystack.co"
     # This API's public URL: Paystack sends the payer back to {public_base_url}/v1/support/return.
     public_base_url: str = "http://localhost:8000"
+    # Where the payer lands after Paystack (the thank-you page on the website). Empty = this API's own /v1/support/return page.
+    support_return_url: str = ""
     support_min_ngn: int = 500
     support_max_ngn: int = 1_000_000
 
