@@ -70,8 +70,8 @@ header.top{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--b
 header.top.stuck{border-bottom-color:var(--line)}
 .bar-row{display:flex;align-items:center;gap:1rem;min-height:3.75rem}
 .brand{display:flex;align-items:center;gap:.55rem;font-family:var(--display);font-weight:700;font-size:1.1rem;color:var(--text);text-decoration:none}
-nav.main{display:none;margin-left:auto;gap:1.4rem}
-nav.main a{color:var(--muted);text-decoration:none;font-size:.88rem;font-weight:600}
+nav.main{display:none;margin-left:auto;gap:1.1rem;white-space:nowrap}
+nav.main a{white-space:nowrap;color:var(--muted);text-decoration:none;font-size:.88rem;font-weight:600}
 nav.main a:hover{color:var(--text)}
 .tools{display:flex;gap:.4rem;align-items:center;margin-left:auto}
 nav.main + .tools{margin-left:0}
@@ -80,7 +80,8 @@ nav.main + .tools{margin-left:0}
 .mobile-nav{display:none;border-top:1px solid var(--line);padding:.6rem 0 1rem}
 .mobile-nav.open{display:grid;gap:.2rem}
 .mobile-nav a{color:var(--text);text-decoration:none;padding:.7rem .2rem;font-weight:600;border-bottom:1px solid var(--line)}
-@media(min-width:56rem){nav.main{display:flex}.menu-btn{display:none}.mobile-nav{display:none!important}}
+@media(min-width:76rem){nav.main{display:flex}.menu-btn{display:none}.mobile-nav{display:none!important}}
+@media(min-width:56rem) and (max-width:75.99rem){.menu-btn{display:inline-flex}}
 @media(max-width:55.99rem){.tools .hide-m{display:none}}
 .tools-m{display:flex;gap:.5rem;align-items:center;padding:.8rem 0 .2rem}
 .tools-m button,.tools-m select{font:inherit;font-size:.85rem;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:999px;min-height:2.5rem;padding:0 .9rem}
@@ -271,7 +272,7 @@ footer a{color:var(--muted)}
         <a href="#say">What to say</a>
         <a href="#story">Our story</a>
         <a href="#install">Install</a>
-        <a href="#support">Support</a>
+        <a href="#support">Pricing</a>
         <a href="#contact">Contact</a>
       </nav>
       <div class="tools" role="group" aria-label="Page display options">
@@ -289,7 +290,7 @@ footer a{color:var(--muted)}
     </div>
     <nav class="mobile-nav" id="mobileNav" aria-label="Sections">
       <a href="#features">What it does</a><a href="#meet">Adanna &amp; Bola</a><a href="#how">How to use</a>
-      <a href="#story">Our story</a><a href="#install">Install</a><a href="#contact">Contact</a>
+      <a href="#say">What to say</a><a href="#story">Our story</a><a href="#install">Install</a><a href="#support">Pricing</a><a href="#contact">Contact</a>
       <div class="tools-m" role="group" aria-label="Page display options">
         <button type="button" class="js-smaller" aria-label="Make text smaller">A&minus;</button>
         <button type="button" class="js-larger" aria-label="Make text larger">A+</button>
@@ -314,7 +315,7 @@ footer a{color:var(--muted)}
         </a>
         <a class="btn ghost" href="#how">See how it works</a>
       </div>
-      <p class="meta reveal d3" id="dlInfo">Free. Android 7 or newer. No account needed.</p>
+      <p class="meta reveal d3" id="dlInfo">Free to download. Android 7 or newer. One plan: ₦4,500 a month, paid on this website.</p>
       <p class="meta reveal d3"><a href="#" id="dlAlt" hidden></a></p>
       <ul class="badges reveal d3" aria-label="Highlights">
         <li>Hands-free</li><li>Nigerian voices</li><li>Hausa, Yoruba &amp; Igbo</li><li>Photos never stored</li>
