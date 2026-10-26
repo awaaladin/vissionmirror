@@ -11,3 +11,8 @@ site/downloads/*.apk
 site/.vercel
 # Offline speech model (about 50 MB): run android/fetch-vosk-model.py to download it.
 android/app/src/main/assets/vosk-model/
+
+# Business numbers stay local: pricing models and unit economics
+docs/PRICING.md
+docs/pricing*.md
+backend/scripts/unit_economics.py
