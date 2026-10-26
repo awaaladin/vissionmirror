@@ -1,0 +1,39 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", "shared/**", ".github/workflows/build-apk.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      # The offline speech model is too big for git; the app needs it in its assets.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch the offline speech model
+        run: python fetch-vosk-model.py
+      - run: chmod +x ./gradlew
+      - name: Build the debug APK
+        run: ./gradlew assembleDirectDebug --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/direct/debug/*.apk

@@ -16,3 +16,6 @@ android/app/src/main/assets/vosk-model/
 docs/PRICING.md
 docs/pricing*.md
 backend/scripts/unit_economics.py
+
+# APKs downloaded from GitHub Actions
+apk-output/
