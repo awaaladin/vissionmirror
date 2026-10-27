@@ -126,3 +126,47 @@ async def test_weak_answers_are_escalated_only_when_needed():
     assert weak_read("word " * 30, "short") is not None
     assert weak_read("word " * 30, "word " * 25) is None
     assert weak_read("hi", "I can't read this.") is not None
+
+
+async def _account(c, email="ada@example.com"):
+    r = await c.post("/v1/auth/register", json={"email": email, "password": "correct horse battery", "display_name": "Ada"})
+    assert r.status_code == 201, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def _look(c, h):
+    return c.post("/v1/describe", headers=h, files={"image": ("a.jpg", JPEG, "image/jpeg")})
+
+
+async def test_paywall_lets_a_new_account_in_during_its_trial_then_locks_it():
+    async with app_client(require_subscription=True, trial_days=7) as c:
+        h = await _account(c)
+        assert (await _look(c, h)).status_code == 200  # free trial
+    async with app_client(require_subscription=True, trial_days=0) as c:
+        h = await _account(c)
+        r = await _look(c, h)
+        assert r.status_code == 402 and "subscribe" in r.json()["spoken_text"].lower()
+        assert "emergency" in r.json()["spoken_text"].lower()  # safety still works
+        # cloud voices are for people with access; the app falls back to the phone's own voice
+        v = await c.post("/v1/speech", headers=h, json={"text": "hello"})
+        assert v.status_code == 501
+
+
+async def test_paying_unlocks_the_account():
+    app = create_app(settings=Settings(secret_key=SECRET, _env_file=None, require_subscription=True, trial_days=0),
+                     redis=fakeredis.FakeAsyncRedis(), provider=MockProvider("outfit"), users=MemoryUserStore())
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c:
+        h = await _account(c, "bola@example.com")
+        assert (await _look(c, h)).status_code == 402
+        await app.state.redis.flushall()  # (the answer is remembered for a minute)
+        await app.state.payments.record("VISIONMIRROR-MONTH-1", "bola@example.com", 450000, "MONTH", None)
+        await app.state.payments.mark_paid("VISIONMIRROR-MONTH-1", 450000, 6750, dt.datetime.now(dt.timezone.utc))
+        assert (await _look(c, h)).status_code == 200
+
+
+async def test_guests_get_a_taste_then_are_asked_for_a_free_account():
+    async with app_client(require_subscription=True, guest_actions_per_day=1) as c:
+        h = await get_token(c)
+        assert (await _look(c, h)).status_code == 200
+        r = await _look(c, h)
+    assert r.status_code == 402 and "free account" in r.json()["spoken_text"]

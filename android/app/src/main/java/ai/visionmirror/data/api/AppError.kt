@@ -30,6 +30,9 @@ sealed class AppError(val spokenText: String, cause: Throwable? = null) : Except
 
     class Server(spoken: String) : AppError(spoken)
 
+    /** 402: the free time is over (or a guest has had a taste). Payment happens on the website. */
+    class SubscriptionRequired(spoken: String) : AppError(spoken)
+
     /** The server refused what she typed (bad email, wrong password, email already used). She can fix it. */
     class Rejected(spoken: String) : AppError(spoken)
 

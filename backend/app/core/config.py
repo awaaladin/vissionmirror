@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     # When True, an account without access (payment, subscription or trial) is asked to subscribe. Off until switched on.
     require_subscription: bool = False
     trial_days: int = 7
-    guest_actions_per_day: int = 10  # only when require_subscription is on: a few tries before making an account
+    guest_actions_per_day: int = 3  # only when require_subscription is on: a few tries before making an account
     site_url: str = "https://visionmirror-app.vercel.app"  # where people pay
     support_min_ngn: int = 500
     support_max_ngn: int = 1_000_000

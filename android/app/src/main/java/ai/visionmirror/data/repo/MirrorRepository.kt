@@ -109,7 +109,7 @@ class MirrorRepositoryImpl @Inject constructor(
         val spoken = body?.spokenText?.takeIf { it.isNotBlank() }
         return when (response.code()) {
             // Today's fair share is used up, or a subscription is needed: waiting a few seconds cannot help, so say it kindly and stop.
-            402 -> AppError.Server(spoken ?: "To keep using VisionMirror, please subscribe. Say subscribe and I'll open our website.")
+            402 -> AppError.SubscriptionRequired(spoken ?: "To keep using VisionMirror, please subscribe. Say subscribe and I'll open our website.")
             401 -> AppError.Unauthorized(spoken ?: "I couldn't sign in just now. Please try again.")
             404 -> AppError.SessionExpired(spoken ?: "That photo has expired. Let's take a new one.")
             413 -> AppError.ImageTooLarge(spoken ?: "That photo was too big. Let's take another.")

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from app.core.errors import APIError
 from app.core.rate_limit import limited
 from app.core.security import current_device
+from app.services.access import access_state
 from app.schemas.speech import SpeechRequest
 from app.services.speech_service import VOICEVERSE_LANGUAGES, SpeechUnavailable, speech_language
 
@@ -17,6 +18,9 @@ async def speech(
 ) -> Response:
     """Audio (MP3) for a piece of text: Nigerian English, or Hausa/Yoruba/Igbo through VoiceVerse. 501 = use the phone's voice."""
     settings, meter, redis = request.app.state.settings, request.app.state.usage, request.app.state.redis
+    if await access_state(request, subject) == "unpaid":
+        # The cloud voices cost money: without access the app uses the phone's own voice (501 means exactly that).
+        raise APIError(501, "speech_unavailable", "The cloud voice is for subscribers.", "")
     local = speech_language(body.language) in VOICEVERSE_LANGUAGES
     cache_key = None
     if local:

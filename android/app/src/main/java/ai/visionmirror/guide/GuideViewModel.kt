@@ -49,6 +49,8 @@ class GuideViewModel @Inject constructor(
     val state: StateFlow<GuideUiState> = _state
 
     private var sensor: ObjectSensor? = null
+    /** True once the server said the AI part needs a subscription; stops asking and repeating it. */
+    private var aiLocked = false
     private val announcer = GuideAnnouncer()
 
     @Volatile private var active = false
@@ -222,6 +224,7 @@ class GuideViewModel @Inject constructor(
      */
     private suspend fun describeSurroundings(force: Boolean): Boolean {
         val frame = lastFrame ?: return false
+        if (aiLocked) return false
         if (describing || (!force && speaker.state.value.utteranceId != null)) return false
         describing = true
         try {
@@ -229,7 +232,15 @@ class GuideViewModel @Inject constructor(
             val jpeg = ai.visionmirror.imaging.ImageProcessor.toJpeg(frame)
             val language = settings.settings.first().language.apiTag
             val result = kotlinx.coroutines.withTimeoutOrNull(SCENE_TIMEOUT_MS) {
-                repo.describe(jpeg, ai.visionmirror.data.api.DetailLevel.Brief, language, scene = true).getOrNull()
+                val r = repo.describe(jpeg, ai.visionmirror.data.api.DetailLevel.Brief, language, scene = true)
+                val why = r.exceptionOrNull()
+                if (why is ai.visionmirror.data.api.AppError.SubscriptionRequired) {
+                    // The AI part needs a subscription. The phone's own object and obstacle detection carries on, free.
+                    aiLocked = true
+                    _state.update { it.copy(caption = why.spokenText) }
+                    speaker.say(why.spokenText + " Obstacle and object detection on your phone keeps working.", Priority.Interrupt)
+                }
+                r.getOrNull()
             }
             result?.sessionId?.let { repo.deleteSession(it) } // the picture is not kept
             val said = result?.spokenText?.trim().orEmpty()
