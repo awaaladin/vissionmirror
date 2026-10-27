@@ -188,3 +188,28 @@ async def test_app_uses_voiceverse_when_configured(settings, redis):
     assert isinstance(app.state.speech, RoutingSpeech)
     plain = create_app(settings=settings, redis=redis, provider=MockProvider("outfit"))
     assert not isinstance(plain.state.speech, RoutingSpeech)
+
+
+class CountingSpeech(FakeSpeech):
+    def __init__(self):
+        self.calls = 0
+
+    async def synthesize(self, text, rate=1.0, voice="female", language="en"):
+        self.calls += 1
+        return await super().synthesize(text, rate, voice, language)
+
+
+@pytest.mark.asyncio
+async def test_local_language_voice_has_a_daily_share_and_repeats_are_free(settings, redis):
+    settings.local_voice_daily_pieces = 2
+    fake = CountingSpeech()
+    async with make(settings, redis, fake) as c:
+        h = await get_token(c)
+        say = lambda t, lang="ha": c.post("/v1/speech", headers=h, json={"text": t, "language": lang})
+        assert (await say("Sannu")).status_code == 200
+        assert (await say("Sannu")).status_code == 200 and fake.calls == 1  # the same sentence is not bought twice
+        assert (await say("Barka")).status_code == 200
+        over = await say("Ina kwana")
+        assert over.status_code == 501 and over.json()["code"] == "speech_unavailable"  # the app uses the phone's voice
+        assert (await say("Sannu")).status_code == 200  # already bought, still free
+        assert (await say("Good morning", "en")).status_code == 200  # English is not part of this share

@@ -53,6 +53,9 @@ async def main() -> None:
             heaviest = max(heaviest, sum(mine.values()))
             everyone[p] = everyone.get(p, 0) + sum(c * COST.get(k, 5) for k, c in mine.items())
         avg = n / len(people) if people else 0
+        voice = {k.decode(): int(v) for k, v in (await r.hgetall(f"voice_total:{day}")).items()}
+        if voice:
+            print(f"{'':10} local-language voice: {voice.get('pieces', 0)} spoken pieces, {voice.get('chars', 0)} characters")
         print(f"{day:10} {len(people):>6} {n:>8} {avg:>10.1f} {heaviest:>8}   {total}")
     if everyone:
         costs = sorted(everyone.values())

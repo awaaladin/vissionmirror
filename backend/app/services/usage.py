@@ -84,6 +84,30 @@ class UsageMeter:
         except Exception:  # noqa: BLE001
             log.exception("could not count an action")
 
+    # ---- the real Hausa, Yoruba and Igbo voice costs about as much as the AI itself, so it has a share of its own
+    def _voice_key(self, subject: str) -> str:
+        return f"voice:{self.day()}:{self._who(subject)}"
+
+    async def local_voice_used(self, subject: str) -> int:
+        try:
+            return int(await self.redis.hget(self._voice_key(subject), "pieces") or 0)
+        except Exception:  # noqa: BLE001
+            return 0
+
+    async def add_local_voice(self, subject: str, chars: int) -> None:
+        key = self._voice_key(subject)
+        try:
+            async with self.redis.pipeline(transaction=False) as pipe:
+                pipe.hincrby(key, "pieces", 1)
+                pipe.hincrby(key, "chars", chars)
+                pipe.expire(key, KEEP_SECONDS)
+                pipe.hincrby(f"voice_total:{self.day()}", "pieces", 1)
+                pipe.hincrby(f"voice_total:{self.day()}", "chars", chars)
+                pipe.expire(f"voice_total:{self.day()}", KEEP_SECONDS)
+                await pipe.execute()
+        except Exception:  # noqa: BLE001
+            log.exception("could not count local voice")
+
     @asynccontextmanager
     async def action(self, subject: str, kind: str):
         """Refuse politely when today's share is used up; count the action only if it worked (an outage costs the person nothing)."""

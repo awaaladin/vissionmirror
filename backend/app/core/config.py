@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     daily_ai_call_limit: int = 20000
     # The same fair share for every person, counted per account (or per device for a guest), on Nigerian time.
     fair_use_daily_actions: int = 60
+    # Spoken pieces a person gets in the real Hausa/Yoruba/Igbo voice each day (it costs about as much as the AI). After that: the phone's voice.
+    local_voice_daily_pieces: int = 40
 
     # Comma-separated exact origins allowed by CORS, e.g. "https://app.example.com,http://localhost:5173".
     # Empty means no browser origin is allowed (native apps don't need CORS).
