@@ -34,8 +34,8 @@ android {
         applicationId = "ai.visionmirror"
         minSdk = 24
         targetSdk = 36
-        versionCode = 23
-        versionName = "0.10.0"
+        versionCode = 24
+        versionName = "0.10.1"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         // Real phones only. The x86 libraries are for emulators and added 64 MB, past the download host's 100 MB file limit.
         // -PabiOnly=arm64-v8a (or armeabi-v7a) builds one phone type, to keep each download under the host's file limit.
