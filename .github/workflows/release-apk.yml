@@ -1,0 +1,60 @@
+name: Signed release
+
+# Run by hand (Actions tab, or: gh workflow run release-apk.yml). Signs with the upload key kept in GitHub secrets:
+# KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD. Nothing here prints them.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release-apk
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python fetch-vosk-model.py
+      - name: Signing key from secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+          {
+            echo "storeFile=release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+      - run: chmod +x ./gradlew
+      - name: 64-bit APK
+        run: ./gradlew assembleDirectRelease -PabiOnly=arm64-v8a --no-daemon --stacktrace && cp app/build/outputs/apk/direct/release/app-direct-release.apk ../VisionMirror-64bit.apk
+      - name: 32-bit APK
+        run: ./gradlew assembleDirectRelease -PabiOnly=armeabi-v7a --no-daemon --stacktrace && cp app/build/outputs/apk/direct/release/app-direct-release.apk ../VisionMirror-32bit.apk
+      - name: Play bundle
+        run: ./gradlew bundlePlayRelease --no-daemon --stacktrace && cp app/build/outputs/bundle/playRelease/app-play-release.aab ../VisionMirror-play.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            VisionMirror-64bit.apk
+            VisionMirror-32bit.apk
+            VisionMirror-play.aab
+      - name: Remove the key
+        if: always()
+        run: rm -f release.jks keystore.properties
