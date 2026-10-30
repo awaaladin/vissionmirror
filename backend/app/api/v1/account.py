@@ -231,3 +231,31 @@ async def password_reset_page_submit(request: Request) -> HTMLResponse:
     except APIError as exc:
         return _reset_page(_reset_form(token, exc.message), 400)
     return _reset_page('<p class="ok">Your password was changed. Open the VisionMirror app and sign in with the new one.</p>')
+
+
+def _request_form(message: str = "") -> str:
+    if message:
+        return f'<p class="ok">{escape(message)}</p>'
+    return (
+        '<p>Enter the email you signed up with and we will send you a link.</p>'
+        '<form method="post" action="/v1/auth/password-reset/request-page"><label for="email">Email</label>'
+        '<input id="email" name="email" type="email" autocomplete="email" required><button type="submit">Send reset link</button></form>'
+    )
+
+
+@router.get("/password-reset/request-page", response_class=HTMLResponse)
+async def password_reset_request_page() -> HTMLResponse:
+    """What the app's "Forgot password?" link opens."""
+    return _reset_page(_request_form())
+
+
+@router.post("/password-reset/request-page", response_class=HTMLResponse)
+async def password_reset_request_page_submit(request: Request) -> HTMLResponse:
+    fields = {k: v[0] for k, v in parse_qs((await request.body()).decode("utf-8", "ignore")).items()}
+    raw = fields.get("email", "")
+    if raw.strip():
+        try:
+            await password_reset_request(ResetRequest(email=raw), request)
+        except APIError:
+            pass  # a badly formed address gets the same neutral answer
+    return _reset_page(_request_form("If that email has an account, we just sent a link to choose a new password. It may land in spam."))

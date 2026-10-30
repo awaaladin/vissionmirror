@@ -158,3 +158,17 @@ async def test_the_web_page_from_the_email_works_once(sent):
         done = await c.post("/v1/auth/password-reset/page", content=f"token={token}&password=a+brand+new+password&confirm=a+brand+new+password", headers=form)
         assert done.status_code == 200 and "Your password was changed" in done.text
         assert (await c.get("/v1/auth/password-reset/page", params={"token": token})).status_code == 400
+
+
+async def test_the_request_page_sends_the_link_and_answers_neutrally(sent):
+    c, _ = make()
+    async with c:
+        await register(c)
+        sent.clear()
+        assert (await c.get("/v1/auth/password-reset/request-page")).status_code == 200
+        form = {"content-type": "application/x-www-form-urlencoded"}
+        ok = await c.post("/v1/auth/password-reset/request-page", content="email=ada%40example.com", headers=form)
+        unknown = await c.post("/v1/auth/password-reset/request-page", content="email=nobody%40example.com", headers=form)
+        junk = await c.post("/v1/auth/password-reset/request-page", content="email=not-an-email", headers=form)
+    assert all("we just sent a link" in r.text for r in (ok, unknown, junk))
+    assert len(sent) == 1
