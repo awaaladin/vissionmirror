@@ -57,6 +57,7 @@ fun AuthScreen(
     val focus = LocalFocusManager.current
     val signUp = ui.mode == AuthMode.SignUp
     val errors = AuthValidation.check(ui.mode, ui.email, ui.password, ui.confirm)
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) { viewModel.announce(firstRun) }
     LaunchedEffect(ui.done) { if (ui.done) onDone() }
@@ -155,6 +156,21 @@ fun AuthScreen(
                 enabled = !ui.busy,
                 icon = VmIcons.Person,
             )
+
+            if (!signUp) {
+                GhostAction(
+                    "Forgot your password?",
+                    {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(ai.visionmirror.BuildConfig.API_BASE_URL.trimEnd('/') + "/v1/auth/password-reset/request-page"))
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                    Modifier.fillMaxWidth(),
+                )
+            }
 
             GhostAction(
                 if (firstRun) "Continue as guest" else "Not now",
