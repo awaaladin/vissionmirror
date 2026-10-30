@@ -89,6 +89,13 @@ class UserStore(ABC):
     async def get(self, user_id: uuid.UUID) -> User | None: ...
 
     @abstractmethod
+    async def credentials(self, user_id: uuid.UUID) -> tuple[User, str] | None:
+        """The user and their current password hash (used to check a password-reset link), or None."""
+
+    @abstractmethod
+    async def set_password(self, user_id: uuid.UUID, password_hash: str) -> bool: ...
+
+    @abstractmethod
     async def delete(self, user_id: uuid.UUID) -> bool: ...
 
     async def close(self) -> None:  # pragma: no cover - nothing to close for most stores
@@ -112,6 +119,16 @@ class MemoryUserStore(UserStore):
     async def get(self, user_id):
         found = self._users.get(user_id)
         return found[0] if found else None
+
+    async def credentials(self, user_id):
+        return self._users.get(user_id)
+
+    async def set_password(self, user_id, password_hash):
+        found = self._users.get(user_id)
+        if found is None:
+            return False
+        self._users[user_id] = (found[0], password_hash)
+        return True
 
     async def delete(self, user_id):
         return self._users.pop(user_id, None) is not None
@@ -189,6 +206,22 @@ class PostgresUserStore(UserStore):
 
         return await self._run(op)
 
+    async def credentials(self, user_id):
+        async def op(conn):
+            row = await conn.fetchrow(
+                f"SELECT id, email, display_name, created_at, password_hash FROM {SCHEMA}.users WHERE id = $1", user_id
+            )
+            return (self._user(row), row["password_hash"]) if row else None
+
+        return await self._run(op)
+
+    async def set_password(self, user_id, password_hash):
+        async def op(conn):
+            result = await conn.execute(f"UPDATE {SCHEMA}.users SET password_hash = $2 WHERE id = $1", user_id, password_hash)
+            return result.endswith("1")
+
+        return await self._run(op)
+
     async def delete(self, user_id):
         async def op(conn):
             return (await conn.execute(f"DELETE FROM {SCHEMA}.users WHERE id = $1", user_id)).endswith("1")
@@ -211,6 +244,12 @@ class NoUserStore(UserStore):
         raise AccountsUnavailable
 
     async def get(self, *a, **k):
+        raise AccountsUnavailable
+
+    async def credentials(self, *a, **k):
+        raise AccountsUnavailable
+
+    async def set_password(self, *a, **k):
         raise AccountsUnavailable
 
     async def delete(self, *a, **k):

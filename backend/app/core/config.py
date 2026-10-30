@@ -78,6 +78,16 @@ class Settings(BaseSettings):
     trial_days: int = 7
     guest_actions_per_day: int = 3  # only when require_subscription is on: a few tries before making an account
     site_url: str = "https://visionmirror-app.vercel.app"  # where people pay
+
+    # Email: Gmail SMTP until a domain is verified with a provider such as Resend (then only these change).
+    # With no password (development, tests) nothing is sent.
+    email_host: str = "smtp.gmail.com"
+    email_port: int = 465
+    email_use_ssl: bool = True
+    email_host_user: str = ""
+    email_host_password: str = ""
+    email_from: str = ""
+    support_email: str = ""
     support_min_ngn: int = 500
     support_max_ngn: int = 1_000_000
 

@@ -10,7 +10,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 
 from app.services.user_store import SCHEMA, AccountsUnavailable, PostgresUserStore, UserStore
 
@@ -27,6 +27,13 @@ class PaymentRecord(BaseModel):
     status: str = "pending"
     created_at: dt.datetime | None = None
     paid_at: dt.datetime | None = None
+    # True only on the call that actually moved the payment to paid (so a receipt goes out exactly once,
+    # however many times Paystack and the return page report the same charge).
+    _newly_paid: bool = PrivateAttr(default=False)
+
+    @property
+    def newly_paid(self) -> bool:
+        return self._newly_paid
 
 
 def mask_email(email: str) -> str:
@@ -64,12 +71,15 @@ class MemoryPaymentStore(PaymentStore):
         row = self.rows.get(reference)
         if row is None:
             return None
-        if row.status != "success":
+        newly = row.status != "success"
+        if newly:
             row.status = "success"
             row.amount_kobo = amount_kobo or row.amount_kobo
             row.fees_kobo = fees_kobo
             row.paid_at = paid_at or dt.datetime.now(dt.timezone.utc)
-        return row
+        result = row.model_copy()  # the flag belongs to this call only, never to the stored row
+        result._newly_paid = newly
+        return result
 
     async def get(self, reference):
         return self.rows.get(reference)
@@ -106,6 +116,10 @@ class PostgresPaymentStore(PaymentStore):
                 "RETURNING reference, email, user_id, purpose, amount_kobo, fees_kobo, status, created_at, paid_at",
                 reference, amount_kobo, fees_kobo, paid_at,
             )
+            if row is not None:
+                record = self._row(row)
+                record._newly_paid = True
+                return record
             if row is None:  # already paid earlier (or never recorded): return what is there
                 row = await conn.fetchrow(
                     f"SELECT reference, email, user_id, purpose, amount_kobo, fees_kobo, status, created_at, paid_at "

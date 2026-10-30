@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from app.core.errors import APIError
 from app.core.rate_limit import limit_auth, limited
 from app.core.security import current_device
+from app.services import mailer
 from app.services.payment_store import best_effort, mask_email
 from app.services.paystack_service import APP_CODE, Paystack, PaystackError, is_ours, make_reference, paystack_metadata
 from app.services.user_store import AccountsUnavailable
@@ -114,11 +115,19 @@ async def _confirm(request: Request, reference: str) -> dict | None:
     )
     if not ours:
         return None
-    await best_effort(
-        request.app.state.payments.mark_paid(reference, data.get("amount"), data.get("fees"), _when(data.get("paid_at"))),
-        "mark paid",
-    )
+    await _mark_paid(request, reference, data, "mark paid")
     return data
+
+
+async def _mark_paid(request: Request, reference: str, data: dict, what: str) -> None:
+    """Save the payment as paid and, on the one call that actually changed it, email the receipt. Paystack's webhook and
+    the buyer's return page can both report the same charge; only the first one sends anything."""
+    record = await best_effort(
+        request.app.state.payments.mark_paid(reference, data.get("amount"), data.get("fees"), _when(data.get("paid_at"))),
+        what,
+    )
+    if record is not None and record.newly_paid:
+        await mailer.send_receipt(request.app.state.settings, record.email, record.amount_kobo, record.reference, record.purpose)
 
 
 @router.post("/checkout", response_model=SupportCheckoutResponse, status_code=201,
@@ -236,8 +245,5 @@ async def paystack_webhook(request: Request) -> dict:
     if payload.get("event") == "charge.success" and is_ours(reference):
         # Gifts unlock nothing, so the only thing to do is keep the record: paid, with Paystack's own amount and fee.
         log.info("Support payment received: %s (%s kobo)", reference, data.get("amount"))
-        await best_effort(
-            request.app.state.payments.mark_paid(reference, data.get("amount"), data.get("fees"), _when(data.get("paid_at"))),
-            "mark paid (webhook)",
-        )
+        await _mark_paid(request, reference, data, "mark paid (webhook)")
     return {"received": True}
